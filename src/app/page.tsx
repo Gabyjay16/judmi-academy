@@ -39,7 +39,7 @@ export default function HomePage() {
 
         {/* Subtitle */}
         <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          The premier AI assessment hub for schools, tutors, and students. Generate exams from lecture notes, snap physical paper scripts with your camera for instant grading, and manage school sub-accounts with Mobile Money (Fabshi).
+          The premier AI assessment hub for schools, tutors, and students. Generate exams from lecture notes, snap physical paper scripts with your camera for instant grading, and manage school sub-accounts with Mobile Money (MTN & Orange).
         </p>
 
         {/* Mobile-First Primary Actions */}
@@ -148,14 +148,14 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Card 5: Mobile Money & Fabshi Integration */}
+          {/* Card 5: Mobile Money Integration */}
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center">
               <Smartphone className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-slate-900 text-base">Mobile Money (Fabshi / MoMo)</h3>
+            <h3 className="font-bold text-slate-900 text-base">Mobile Money (MTN MoMo & Orange)</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Convenient subscription checkout via MTN Mobile Money, Orange Money, and MoMo with instant push-notification confirmation on your phone.
+              Convenient subscription checkout via MTN Mobile Money and Orange Money with instant prompt confirmation directly on your phone.
             </p>
           </div>
 

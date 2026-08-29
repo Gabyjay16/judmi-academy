@@ -6,24 +6,24 @@ import { useRouter } from "next/navigation";
 import { 
   Building2, 
   BookOpen, 
-  Check, 
   ShieldCheck, 
-  Lock, 
-  Sparkles, 
+  Smartphone, 
   ArrowRight, 
-  ArrowLeft,
-  CheckCircle2,
+  ArrowLeft, 
+  CheckCircle2, 
   AlertCircle,
-  Zap,
-  Smartphone,
-  PhoneCall,
+  Clock,
+  Sparkles,
+  Lock,
+  Phone,
+  User,
   CheckCheck
 } from "lucide-react";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<"individual" | "school_pro">("individual");
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   
   // User & Organization Fields
   const [name, setName] = useState("");
@@ -32,9 +32,9 @@ export default function CheckoutPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [organizationName, setOrganizationName] = useState("");
 
-  // Mobile Money Payment Details (Fabshi Gateway)
-  const [operator, setOperator] = useState<"mtn" | "orange" | "momo" | "airtel">("mtn");
-  const [momoPhone, setMomoPhone] = useState("+237 670 000 000");
+  // Mobile Money Payment Details
+  const [operator, setOperator] = useState<"mtn" | "orange">("mtn");
+  const [momoPhone, setMomoPhone] = useState("");
   const [momoAccountName, setMomoAccountName] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -46,20 +46,28 @@ export default function CheckoutPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const planParam = params.get("plan");
+      const cycleParam = params.get("cycle");
+      
       if (planParam === "school_pro" || planParam === "school" || planParam === "org") {
         setPlan("school_pro");
       } else {
         setPlan("individual");
+      }
+
+      if (cycleParam === "yearly" || cycleParam === "annual") {
+        setBillingCycle("yearly");
+      } else {
+        setBillingCycle("monthly");
       }
     }
   }, []);
 
   const planDetails = {
     individual: {
-      title: "Individual Educator Plan",
+      title: "Solo Teacher Plan",
       subtitle: "For independent tutors and solo teachers",
-      priceUSD: 15,
-      priceLocal: "10,000 XAF",
+      priceLocal: billingCycle === "monthly" ? "5,000 FCFA" : "36,000 FCFA",
+      periodLabel: billingCycle === "monthly" ? "/ month" : "/ year (Save 40%)",
       role: "teacher",
       features: [
         "Unlimited AI Exam Generation from Notes",
@@ -70,18 +78,18 @@ export default function CheckoutPage() {
       ],
     },
     school_pro: {
-      title: "School & Organization Pro Plan",
+      title: "School / Organization Pro Plan",
       subtitle: "For schools, faculties, and institutions",
-      priceUSD: 99,
-      priceLocal: "65,000 XAF",
+      priceLocal: billingCycle === "monthly" ? "25,000 FCFA" : "236,000 FCFA",
+      periodLabel: billingCycle === "monthly" ? "/ month" : "/ year (Save 64,000 FCFA)",
       role: "org_admin",
       features: [
-        "100 Sub-Accounts for Faculty Teachers & Students",
-        "Centralized Sub-Account & Seat Manager",
+        "50 Sub-Accounts for Faculty Teachers & Students",
+        "Centralized Sub-Account Manager & School Invite Code",
+        "Expand extra seats anytime (from 1,500 FCFA/member)",
         "Admin Password Reset Request Approvals",
         "School-wide Academic Performance Transcripts",
-        "AI Mark Scripts Studio & Batch OCR",
-        "Priority Google Gemini AI Vision Capacity",
+        "Camera Script Snapper & Batch AI Marking",
       ],
     },
   };
@@ -106,7 +114,7 @@ export default function CheckoutPage() {
     setUssdPromptSent(true);
 
     try {
-      // Simulate Mobile Money Prompt via Fabshi Gateway
+      // Simulate Mobile Money Prompt
       await new Promise((resolve) => setTimeout(resolve, 1200));
 
       // 1. Create paid account in database with full access
@@ -167,7 +175,7 @@ export default function CheckoutPage() {
       <div className="space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 text-xs font-bold uppercase tracking-wider">
           <Smartphone className="w-3.5 h-3.5" />
-          <span>Mobile Money Payment (Fabshi Gateway)</span>
+          <span>Mobile Money Payment (MTN MoMo & Orange Money)</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           Judmi Academy Subscription Checkout
@@ -177,33 +185,65 @@ export default function CheckoutPage() {
         </p>
       </div>
 
-      {/* Plan Selector Toggle */}
-      <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100/90 rounded-2xl max-w-md">
-        <button
-          type="button"
-          onClick={() => setPlan("individual")}
-          className={`p-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
-            plan === "individual"
-              ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <BookOpen className="w-4 h-4" />
-          <span>Solo Teacher ($15 / ~10,000 XAF)</span>
-        </button>
+      {/* Plan & Cycle Selectors */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        {/* Plan Selector */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setPlan("individual")}
+            className={`px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
+              plan === "individual"
+                ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Solo Teacher</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setPlan("school_pro")}
-          className={`p-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
-            plan === "school_pro"
-              ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <Building2 className="w-4 h-4" />
-          <span>School / Org ($99 / ~65,000 XAF)</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setPlan("school_pro")}
+            className={`px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
+              plan === "school_pro"
+                ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>School / Org</span>
+          </button>
+        </div>
+
+        {/* Billing Cycle Toggle */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setBillingCycle("monthly")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              billingCycle === "monthly"
+                ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingCycle("yearly")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+              billingCycle === "yearly"
+                ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>Yearly</span>
+            <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] rounded-full font-extrabold">
+              -40%
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Main Grid: Form & Order Summary */}
@@ -317,105 +357,79 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Mobile Money Payment (Fabshi) */}
+              {/* Mobile Money Payment */}
               <div className="space-y-3 pt-2">
                 <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
-                  <span>2. Mobile Money Details (Fabshi Gateway)</span>
+                  <span>2. Mobile Money Details</span>
                   <span className="text-[11px] font-normal text-amber-700 font-semibold flex items-center gap-1">
                     <Smartphone className="w-3.5 h-3.5" /> Direct Phone Prompt
                   </span>
                 </h3>
 
-                {/* Operator Selector */}
-                <div className="grid grid-cols-4 gap-2">
+                {/* Operator Selector (MTN & Orange Only) */}
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setOperator("mtn")}
-                    className={`p-2.5 rounded-xl border text-[11px] font-bold text-center transition-all ${
+                    className={`p-3 rounded-2xl border text-xs font-bold text-center transition-all flex items-center justify-center gap-2 ${
                       operator === "mtn"
-                        ? "border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-400"
+                        ? "border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-400"
                         : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    MTN MoMo
+                    <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
+                    <span>MTN Mobile Money (MoMo)</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setOperator("orange")}
-                    className={`p-2.5 rounded-xl border text-[11px] font-bold text-center transition-all ${
+                    className={`p-3 rounded-2xl border text-xs font-bold text-center transition-all flex items-center justify-center gap-2 ${
                       operator === "orange"
-                        ? "border-orange-500 bg-orange-50 text-orange-950 ring-1 ring-orange-400"
+                        ? "border-orange-500 bg-orange-50 text-orange-950 ring-2 ring-orange-400"
                         : "border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    Orange Money
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setOperator("momo")}
-                    className={`p-2.5 rounded-xl border text-[11px] font-bold text-center transition-all ${
-                      operator === "momo"
-                        ? "border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-400"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    MoMo Pay
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setOperator("airtel")}
-                    className={`p-2.5 rounded-xl border text-[11px] font-bold text-center transition-all ${
-                      operator === "airtel"
-                        ? "border-rose-500 bg-rose-50 text-rose-950 ring-1 ring-rose-400"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Airtel Money
+                    <span className="w-3 h-3 rounded-full bg-orange-500 inline-block" />
+                    <span>Orange Money</span>
                   </button>
                 </div>
 
                 {/* Mobile Money Inputs */}
-                <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Mobile Money Phone Number <span className="text-rose-500">*</span>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      {operator === "mtn" ? "MTN MoMo Number" : "Orange Money Number"} <span className="text-rose-500">*</span>
                     </label>
-                    <div className="relative">
-                      <PhoneCall className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                      <input
-                        type="text"
-                        required
-                        value={momoPhone}
-                        onChange={(e) => setMomoPhone(e.target.value)}
-                        placeholder="e.g. +237 670 000 000"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="e.g. 670000000"
+                      value={momoPhone}
+                      onChange={(e) => setMomoPhone(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Registered Mobile Money Account Name (Optional)
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Account Owner Name (Optional)
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. Eleanor Vance"
                       value={momoAccountName}
                       onChange={(e) => setMomoAccountName(e.target.value)}
-                      placeholder="e.g. Jane Doe"
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
                 </div>
 
-                {/* Fabshi Gateway Notice */}
-                <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-[11px] text-amber-900 flex items-start gap-2">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-2">
                   <Smartphone className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Fabshi Payment Gateway: </span>
-                    <span>When you click Pay, a USSD payment prompt will be sent directly to your phone. Enter your Mobile Money PIN to complete the transaction.</span>
+                    <span className="font-bold">Mobile Money USSD Prompt: </span>
+                    <span>When you click Pay, an instant authorization prompt will be sent directly to your phone. Enter your Mobile Money PIN to activate your plan.</span>
                   </div>
                 </div>
               </div>
@@ -443,34 +457,41 @@ export default function CheckoutPage() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
               Judmi Academy Subscription
             </span>
-            <h3 className="text-xl font-bold mt-1 text-white">{currentPlan.title}</h3>
-            <p className="text-xs text-slate-400 mt-0.5">{currentPlan.subtitle}</p>
+            <h3 className="text-xl font-bold text-white mt-1">
+              {currentPlan.title}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              {currentPlan.subtitle}
+            </p>
           </div>
 
-          <div className="pt-3 border-t border-slate-800 flex items-baseline justify-between">
-            <span className="text-xs text-slate-400">Total Due (Mobile Money):</span>
-            <div className="text-2xl font-extrabold text-amber-400">
-              {currentPlan.priceLocal} <span className="text-xs font-normal text-slate-400">(${currentPlan.priceUSD}/mo)</span>
+          <div className="py-4 border-y border-slate-800 space-y-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-slate-400">Subscription Total:</span>
+              <span className="text-2xl font-extrabold text-white">
+                {currentPlan.priceLocal}
+              </span>
+            </div>
+            <div className="text-[11px] text-amber-400 font-semibold">
+              {currentPlan.periodLabel}
             </div>
           </div>
 
-          <div className="space-y-2 pt-3 border-t border-slate-800">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Included in your subscription:
-            </span>
+          <div className="space-y-3">
+            <span className="text-xs font-bold text-slate-300 block">Included Features:</span>
             <ul className="space-y-2 text-xs text-slate-300">
-              {currentPlan.features.map((f, idx) => (
+              {currentPlan.features.map((feat, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>{f}</span>
+                  <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>{feat}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/60 text-[11px] text-slate-400 space-y-1">
-            <span className="font-bold text-slate-200 block">Instant Activation Guarantee</span>
-            <span>Your Judmi Academy account activates immediately after the Mobile Money prompt is confirmed.</span>
+          <div className="pt-4 border-t border-slate-800 flex items-center gap-2 text-[11px] text-slate-400">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>Instant activation via MTN & Orange Mobile Money.</span>
           </div>
         </div>
 

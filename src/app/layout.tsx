@@ -29,7 +29,7 @@ export default function RootLayout({
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <p>© {new Date().getFullYear()} Judmi Academy. AI Assessment & School Management System.</p>
             <p className="flex items-center gap-2">
-              <span>Powered by Google Gemini Vision & Mobile Money (Fabshi)</span>
+              <span>Powered by Google Gemini AI & Mobile Money (MTN & Orange)</span>
             </p>
           </div>
         </footer>

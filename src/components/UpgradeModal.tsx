@@ -11,7 +11,8 @@ import {
   BookOpen, 
   Camera, 
   ShieldCheck,
-  Building2
+  Building2,
+  Smartphone
 } from "lucide-react";
 
 interface UpgradeModalProps {
@@ -94,10 +95,10 @@ export function UpgradeModal({
           <div className="flex items-center justify-between">
             <span className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
               <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
-              <span>Solo Educator Pro (Mobile Money)</span>
+              <span>Solo Teacher Pro (Mobile Money)</span>
             </span>
             <div className="text-lg font-extrabold text-amber-900">
-              10,000 XAF <span className="text-xs font-normal text-slate-500">($15/mo)</span>
+              5,000 FCFA <span className="text-xs font-normal text-slate-500">/ mo</span>
             </div>
           </div>
 
@@ -108,7 +109,7 @@ export function UpgradeModal({
             </li>
             <li className="flex items-center gap-2 font-medium">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span><strong>Unlimited</strong> Camera Paper Script & Essay Scans</span>
+              <span><strong>Unlimited</strong> AI Mark Scripts & Handwritten OCR</span>
             </li>
             <li className="flex items-center gap-2 font-medium">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -127,7 +128,7 @@ export function UpgradeModal({
             href="/checkout?plan=individual"
             className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2"
           >
-            <span>Pay via Mobile Money (~10,000 XAF)</span>
+            <span>Pay 5,000 FCFA via Mobile Money</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
 
@@ -137,7 +138,7 @@ export function UpgradeModal({
               className="text-slate-600 hover:text-indigo-600 font-semibold inline-flex items-center gap-1"
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span>School / 100 Sub-Accounts Plan ($99/mo) →</span>
+              <span>School Plan (25,000 FCFA/mo) →</span>
             </Link>
 
             <button

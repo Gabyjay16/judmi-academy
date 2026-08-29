@@ -76,22 +76,48 @@ export async function POST(req: NextRequest) {
 
     const org = orgRows[0];
     const body = await req.json();
+    const { action } = body;
+
+    // 1. EXPAND MEMBER SEATS
+    if (action === "expand_seats") {
+      const { additionalSeats = 1, phone, operator } = body;
+      const count = Math.max(1, parseInt(additionalSeats) || 1);
+
+      // Pricing: 2,000 FCFA for 1-9 seats, 1,500 FCFA for 10+ seats
+      const unitPrice = count >= 10 ? 1500 : 2000;
+      const totalAmount = count * unitPrice;
+
+      const newSeatLimit = (org.seatLimit || 50) + count;
+
+      await db.update(organizations).set({
+        seatLimit: newSeatLimit,
+      }).where(eq(organizations.id, org.id));
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully expanded organization capacity by +${count} seats! New seat limit: ${newSeatLimit}`,
+        newSeatLimit,
+        totalAmount,
+      });
+    }
+
+    // 2. CREATE SUB-ACCOUNT
     const { name, email, password = "password123", role = "student", studentId } = body;
 
     if (!name || !email) {
-      return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
+      return NextResponse.json({ error: "Name and phone number / email are required" }, { status: 400 });
     }
 
     const cleanEmail = email.trim().toLowerCase();
     const existing = await db.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
     if (existing.length > 0) {
-      return NextResponse.json({ error: "A user with this email already exists" }, { status: 400 });
+      return NextResponse.json({ error: "A user with this phone number / email already exists" }, { status: 400 });
     }
 
     // Check seat limits
     const currentMembers = await db.select().from(users).where(eq(users.orgId, org.id));
     if (currentMembers.length >= org.seatLimit) {
-      return NextResponse.json({ error: `Seat limit reached (${org.seatLimit} seats). Please upgrade your organization plan.` }, { status: 403 });
+      return NextResponse.json({ error: `Seat limit reached (${org.seatLimit} seats). Please expand your organization member seats.` }, { status: 403 });
     }
 
     const userId = generateId();
@@ -106,6 +132,7 @@ export async function POST(req: NextRequest) {
       role: role as any,
       orgId: org.id,
       studentId: studentId ? studentId.trim() : null,
+      planType: "school_pro",
       status: "active",
       createdAt: now,
     });
@@ -122,7 +149,7 @@ export async function POST(req: NextRequest) {
       message: `${role === "teacher" ? "Teacher" : "Student"} sub-account created successfully`,
     });
   } catch (error: any) {
-    console.error("Create sub-account error:", error);
-    return NextResponse.json({ error: error.message || "Failed to create sub-account" }, { status: 500 });
+    console.error("Org action error:", error);
+    return NextResponse.json({ error: error.message || "Failed to process request" }, { status: 500 });
   }
 }
