@@ -243,8 +243,8 @@ export default function OrgDashboardPage() {
               <thead className="bg-slate-50/75 text-slate-500 font-semibold border-b border-slate-100">
                 <tr>
                   <th className="px-5 py-3.5">Student Name</th>
-                  <th className="px-4 py-3.5">Student / Matric ID</th>
-                  <th className="px-4 py-3.5">Email</th>
+                  <th className="px-4 py-3.5">Student Matricule</th>
+                  <th className="px-4 py-3.5">Email / Phone</th>
                   <th className="px-4 py-3.5">Status</th>
                   <th className="px-4 py-3.5">Added Date</th>
                 </tr>
@@ -365,12 +365,12 @@ export default function OrgDashboardPage() {
 
               {subRole === "student" && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Student / Matric ID</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Student Matricule</label>
                   <input
                     type="text"
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
-                    placeholder="e.g. STU-2026-089"
+                    placeholder="e.g. MAT-2026-089"
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>

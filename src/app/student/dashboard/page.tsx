@@ -96,7 +96,7 @@ export default function StudentDashboardPage() {
               {student.name}
             </h1>
             <p className="text-xs text-indigo-200">
-              {student.studentId ? `Matric / ID: ${student.studentId} • ` : ""}
+              {student.studentId ? `Student Matricule: ${student.studentId} • ` : ""}
               {student.email}
             </p>
           </div>

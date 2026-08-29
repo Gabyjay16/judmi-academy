@@ -95,20 +95,21 @@ export async function POST(req: NextRequest) {
 
     // 2. LOGIN
     if (action === "login") {
-      const { email, password } = body;
-      if (!email || !password) {
-        return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+      const identifier = (body.phone || body.email || "").trim().toLowerCase();
+      const { password } = body;
+      if (!identifier || !password) {
+        return NextResponse.json({ error: "Phone number / email and password are required" }, { status: 400 });
       }
 
-      const userRows = await db.select().from(users).where(eq(users.email, email.trim().toLowerCase())).limit(1);
+      const userRows = await db.select().from(users).where(eq(users.email, identifier)).limit(1);
       if (userRows.length === 0) {
-        return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid phone number / email or password" }, { status: 401 });
       }
 
       const user = userRows[0];
       const isValid = await verifyPassword(password, user.passwordHash);
       if (!isValid) {
-        return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid phone number / email or password" }, { status: 401 });
       }
 
       if (user.status === "suspended") {
@@ -149,16 +150,16 @@ export async function POST(req: NextRequest) {
 
     // 3. SIGNUP
     if (action === "signup") {
-      const { name, email, password, role = "student", organizationName, studentId } = body;
+      const { name, password, role = "student", organizationName, studentId } = body;
+      const cleanEmail = (body.phone || body.email || "").trim().toLowerCase();
 
-      if (!name || !email || !password) {
-        return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
+      if (!name || !cleanEmail || !password) {
+        return NextResponse.json({ error: "Name, phone number / email, and password are required" }, { status: 400 });
       }
 
-      const cleanEmail = email.trim().toLowerCase();
       const existing = await db.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
       if (existing.length > 0) {
-        return NextResponse.json({ error: "An account with this email already exists" }, { status: 400 });
+        return NextResponse.json({ error: "An account with this phone number / email already exists" }, { status: 400 });
       }
 
       const now = new Date().toISOString();

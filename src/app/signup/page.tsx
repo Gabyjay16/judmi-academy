@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { 
   Sparkles, 
   Lock, 
-  Mail, 
+  Phone, 
   User, 
   ArrowRight, 
   GraduationCap, 
@@ -20,8 +20,9 @@ export default function SignupPage() {
   const router = useRouter();
   const [role, setRole] = useState<"student" | "teacher" | "org_admin">("teacher");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [studentId, setStudentId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -50,6 +51,18 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validate password confirmation
+    if (password !== confirmPassword) {
+      setError("Passwords do not match. Please retype your password correctly.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -59,7 +72,8 @@ export default function SignupPage() {
         body: JSON.stringify({
           action: "signup",
           name,
-          email,
+          phone,
+          email: phone, // Pass phone as primary user identifier
           password,
           role,
           organizationName: role === "org_admin" ? organizationName : undefined,
@@ -209,16 +223,16 @@ export default function SignupPage() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Email Address <span className="text-rose-500">*</span>
+                Phone Number <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
-                  type="email"
+                  type="tel"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.name@example.com"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g. 670000000 or +237..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -227,13 +241,13 @@ export default function SignupPage() {
             {role === "student" && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Student / Matric ID (Optional)
+                  Student Matricule (Optional)
                 </label>
                 <input
                   type="text"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
-                  placeholder="e.g. STU-2026-104"
+                  placeholder="e.g. MAT-2026-104"
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                 />
               </div>
@@ -257,10 +271,28 @@ export default function SignupPage() {
               </div>
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Retype Password <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Retype your password"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={loading || !name || !email || !password}
+                disabled={loading || !name || !phone || !password || !confirmPassword}
                 className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2"
               >
                 <span>{loading ? "Creating account..." : "Complete Free Registration"}</span>
