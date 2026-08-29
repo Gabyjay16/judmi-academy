@@ -182,7 +182,7 @@ export default function OrgDashboardPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="bg-white/10 px-3.5 py-2.5 rounded-2xl border border-white/15 backdrop-blur-xs flex items-center gap-3 text-xs">
             <div className="space-y-0.5">
-              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block">School Invite Code:</span>
+              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block">Student School Code:</span>
               <span className="font-mono font-bold text-white tracking-wide">{organization.slug || organization.id}</span>
             </div>
             <button
@@ -204,7 +204,7 @@ export default function OrgDashboardPage() {
             className="px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-500/30 transition-all flex items-center gap-1.5 shrink-0"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Add Sub-Account</span>
+            <span>+ Add Teacher / Student</span>
           </button>
         </div>
       </div>

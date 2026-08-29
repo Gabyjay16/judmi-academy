@@ -17,7 +17,8 @@ import {
   HelpCircle,
   Clock,
   Lock,
-  FileCheck2
+  FileCheck2,
+  Building2
 } from "lucide-react";
 import { TestTimer } from "@/components/TestTimer";
 import { StudentViewQuestion } from "@/lib/question-shuffler";
@@ -40,8 +41,10 @@ export default function StudentTestPage({ params }: PageProps) {
   const [previousSubmissionId, setPreviousSubmissionId] = useState<string | null>(null);
 
   // Student details & session
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [studentName, setStudentName] = useState("");
   const [studentId, setStudentId] = useState("");
+  const [inputSchoolCode, setInputSchoolCode] = useState("");
   const [hasStarted, setHasStarted] = useState(false);
   const [startedAt, setStartedAt] = useState<string>("");
 
@@ -55,8 +58,21 @@ export default function StudentTestPage({ params }: PageProps) {
   // Time tracking
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Fetch initial test metadata
+  // Fetch initial test metadata and user session
   useEffect(() => {
+    // Check cached session
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("judmi_user");
+        if (cached) {
+          const u = JSON.parse(cached);
+          setCurrentUser(u);
+          if (u.name) setStudentName(u.name);
+          if (u.studentId) setStudentId(u.studentId);
+        }
+      } catch {}
+    }
+
     const fetchMetadata = async () => {
       try {
         setLoading(true);
@@ -66,6 +82,9 @@ export default function StudentTestPage({ params }: PageProps) {
           setError(data.error || "Test not found");
         } else {
           setTestMeta(data.test);
+          if (data.test?.organization?.slug) {
+            setInputSchoolCode(data.test.organization.slug);
+          }
         }
       } catch (e: any) {
         setError(e.message || "Failed to load test");
@@ -73,6 +92,7 @@ export default function StudentTestPage({ params }: PageProps) {
         setLoading(false);
       }
     };
+
     fetchMetadata();
   }, [code]);
 
@@ -82,6 +102,38 @@ export default function StudentTestPage({ params }: PageProps) {
     if (!studentName.trim()) {
       alert("Please enter your name to start the test.");
       return;
+    }
+
+    // Check school verification if test is administered by an organization
+    const org = testMeta?.organization;
+    const isLinkedToThisOrg = Boolean(currentUser?.orgId && org?.id && currentUser.orgId === org.id);
+
+    if (org && !isLinkedToThisOrg) {
+      if (!inputSchoolCode.trim()) {
+        setError(`This exam is hosted by ${org.name}. Please enter your School Code to verify your enrollment.`);
+        return;
+      }
+      const cleanCode = inputSchoolCode.trim().toLowerCase();
+      if (cleanCode !== org.slug?.toLowerCase() && cleanCode !== org.id?.toLowerCase()) {
+        setError(`Invalid School Code. This exam belongs to ${org.name}. Please enter the correct school code.`);
+        return;
+      }
+      if (!studentId.trim()) {
+        setError(`Student Matricule is strictly required for examinations hosted by ${org.name}.`);
+        return;
+      }
+
+      // Link school in background
+      try {
+        await fetch("/api/student/link-school", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            schoolCode: inputSchoolCode.trim(),
+            studentId: studentId.trim(),
+          }),
+        });
+      } catch {}
     }
 
     try {
@@ -286,18 +338,61 @@ export default function StudentTestPage({ params }: PageProps) {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Student ID / Matric Number (Optional)
-              </label>
-              <input
-                type="text"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                placeholder="e.g. STU-2026-089"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-              />
-            </div>
+            {/* School Enrollment Verification Banner if test is hosted by a school */}
+            {testMeta.organization && (!currentUser?.orgId || currentUser?.orgId !== testMeta.organization.id) ? (
+              <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 text-xs space-y-3">
+                <div className="flex items-center gap-2 text-indigo-950 font-bold">
+                  <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>School Verification: {testMeta.organization.name}</span>
+                </div>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  This examination is administered by <strong>{testMeta.organization.name}</strong>. Please enter your School Code and your Student Matricule to verify your enrollment before starting.
+                </p>
+
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      School Organization Code <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={inputSchoolCode}
+                      onChange={(e) => setInputSchoolCode(e.target.value)}
+                      placeholder="e.g. springfield-academy"
+                      className="w-full px-3.5 py-2 rounded-xl border border-indigo-200 text-xs font-mono font-bold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Student Matricule <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      placeholder="e.g. MAT-2026-104"
+                      className="w-full px-3.5 py-2 rounded-xl border border-indigo-200 text-xs font-mono font-bold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Student ID / Matric Number (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                  placeholder="e.g. STU-2026-089"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                />
+              </div>
+            )}
 
             <div className="pt-2">
               <button

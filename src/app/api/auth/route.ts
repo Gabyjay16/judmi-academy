@@ -181,14 +181,20 @@ export async function POST(req: NextRequest) {
           createdAt: now,
         });
       } else if (schoolCode && schoolCode.trim()) {
-        // Teacher or student joining an existing school by code/slug
+        // Student joining an existing school by code/slug
+        if (role === "student" && (!studentId || !studentId.trim())) {
+          return NextResponse.json({ 
+            error: "Student Matricule is strictly required when registering under a School Organization." 
+          }, { status: 400 });
+        }
+
         const cleanCode = schoolCode.trim().toLowerCase();
         const orgRows = await db.select().from(organizations).limit(100);
         const orgMatch = orgRows.find((o) => o.slug?.toLowerCase() === cleanCode || o.id?.toLowerCase() === cleanCode || o.name?.toLowerCase() === cleanCode);
 
         if (!orgMatch) {
           return NextResponse.json({ 
-            error: "Invalid School Code. Please verify the code with your school administrator or leave it blank to register as an independent educator." 
+            error: "Invalid School Code. Please verify the code with your school administrator or leave it blank to register as an independent student." 
           }, { status: 400 });
         }
 

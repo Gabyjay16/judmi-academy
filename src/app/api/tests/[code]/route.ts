@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
-import { tests, questions, submissions } from "@/db/schema";
+import { tests, questions, submissions, organizations } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { assignQuestionsToStudent } from "@/lib/question-shuffler";
 import { seedDemoData } from "@/db/seed";
@@ -86,6 +86,19 @@ export async function GET(
       test.shuffleOptions === 1
     );
 
+    // Lookup Organization if this is a School/Org test
+    let organization: { id: string; name: string; slug: string } | null = null;
+    if (test.orgId) {
+      const orgRows = await db.select().from(organizations).where(eq(organizations.id, test.orgId)).limit(1);
+      if (orgRows.length > 0) {
+        organization = {
+          id: orgRows[0].id,
+          name: orgRows[0].name,
+          slug: orgRows[0].slug,
+        };
+      }
+    }
+
     return NextResponse.json({
       test: {
         id: test.id,
@@ -98,6 +111,8 @@ export async function GET(
         passScorePercentage: test.passScorePercentage,
         allowRetake: test.allowRetake === 1,
         totalQuestions: studentQuestions.length,
+        orgId: test.orgId || null,
+        organization,
       },
       questions: studentQuestions,
       assignedQuestionIds,

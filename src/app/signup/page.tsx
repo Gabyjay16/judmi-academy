@@ -62,8 +62,9 @@ export default function SignupPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    // Validate student matricule if school code is provided
+    if (role === "student" && schoolCode.trim() && !studentId.trim()) {
+      setError("Student Matricule is strictly required when linking your registration to a school organization.");
       return;
     }
 
@@ -80,7 +81,7 @@ export default function SignupPage() {
           email: phone, // Pass phone as primary user identifier
           password,
           role,
-          schoolCode: role === "teacher" && schoolCode.trim() ? schoolCode.trim() : undefined,
+          schoolCode: role === "student" && schoolCode.trim() ? schoolCode.trim() : undefined,
           organizationName: role === "org_admin" ? organizationName : undefined,
           studentId: role === "student" ? studentId : undefined,
         }),
@@ -249,40 +250,41 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {role === "teacher" && (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                  <span>School Organization Code (Optional)</span>
-                  <span className="text-[11px] font-normal text-indigo-600 font-semibold">Belong to a school?</span>
-                </label>
-                <div className="relative">
-                  <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            {role === "student" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>School Organization Code (Optional)</span>
+                    <span className="text-[11px] font-normal text-indigo-600 font-semibold">Enrolled in a school?</span>
+                  </label>
+                  <div className="relative">
+                    <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type="text"
+                      value={schoolCode}
+                      onChange={(e) => setSchoolCode(e.target.value)}
+                      placeholder="e.g. springfield-academy (or leave blank if independent)"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    * If your teacher or school gave you a School Code, enter it here to link your tests to your school.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>Student Matricule {schoolCode.trim() ? <span className="text-rose-500">* Required with School Code</span> : "(Optional)"}</span>
+                  </label>
                   <input
                     type="text"
-                    value={schoolCode}
-                    onChange={(e) => setSchoolCode(e.target.value)}
-                    placeholder="e.g. st-jude-academy (or leave blank if independent)"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                    required={Boolean(schoolCode.trim())}
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value)}
+                    placeholder="e.g. MAT-2026-104"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  * Enter your school's code to automatically link your account and get full school-sponsored Pro access.
-                </p>
-              </div>
-            )}
-
-            {role === "student" && (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Student Matricule (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  placeholder="e.g. MAT-2026-104"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                />
               </div>
             )}
 
