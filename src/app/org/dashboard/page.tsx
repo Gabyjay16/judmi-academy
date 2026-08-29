@@ -34,6 +34,7 @@ export default function OrgDashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"teachers" | "students" | "tests">("teachers");
+  const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
     fetchOrg();
@@ -126,10 +127,29 @@ export default function OrgDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="bg-white/10 px-3.5 py-2.5 rounded-2xl border border-white/15 backdrop-blur-xs flex items-center gap-3 text-xs">
+            <div className="space-y-0.5">
+              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block">School Invite Code:</span>
+              <span className="font-mono font-bold text-white tracking-wide">{organization.slug || organization.id}</span>
+            </div>
+            <button
+              onClick={() => {
+                if (typeof navigator !== "undefined" && (organization.slug || organization.id)) {
+                  navigator.clipboard.writeText(organization.slug || organization.id);
+                  setCopiedCode(true);
+                  setTimeout(() => setCopiedCode(false), 2000);
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition-colors"
+            >
+              {copiedCode ? "✓ Copied!" : "Copy Code"}
+            </button>
+          </div>
+
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-500/30 transition-all flex items-center gap-1.5"
+            className="px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-500/30 transition-all flex items-center gap-1.5 shrink-0"
           >
             <UserPlus className="w-4 h-4" />
             <span>Add Sub-Account</span>

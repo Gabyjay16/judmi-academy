@@ -25,6 +25,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [studentId, setStudentId] = useState("");
+  const [schoolCode, setSchoolCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,9 @@ export default function SignupPage() {
       const params = new URLSearchParams(window.location.search);
       const roleParam = params.get("role");
       const planParam = params.get("plan");
+      const schoolParam = params.get("school") || params.get("org");
+
+      if (schoolParam) setSchoolCode(schoolParam);
 
       if (planParam === "individual") {
         router.push("/checkout?plan=individual");
@@ -76,6 +80,7 @@ export default function SignupPage() {
           email: phone, // Pass phone as primary user identifier
           password,
           role,
+          schoolCode: role === "teacher" && schoolCode.trim() ? schoolCode.trim() : undefined,
           organizationName: role === "org_admin" ? organizationName : undefined,
           studentId: role === "student" ? studentId : undefined,
         }),
@@ -237,6 +242,28 @@ export default function SignupPage() {
                 />
               </div>
             </div>
+
+            {role === "teacher" && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>School Organization Code (Optional)</span>
+                  <span className="text-[11px] font-normal text-indigo-600 font-semibold">Belong to a school?</span>
+                </label>
+                <div className="relative">
+                  <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    value={schoolCode}
+                    onChange={(e) => setSchoolCode(e.target.value)}
+                    placeholder="e.g. st-jude-academy (or leave blank if independent)"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  * Enter your school's code to automatically link your account and get full school-sponsored Pro access.
+                </p>
+              </div>
+            )}
 
             {role === "student" && (
               <div>

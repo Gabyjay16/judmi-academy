@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
 
     // 3. SIGNUP
     if (action === "signup") {
-      const { name, password, role = "student", organizationName, studentId } = body;
+      const { name, password, role = "student", organizationName, studentId, schoolCode } = body;
       const cleanEmail = (body.phone || body.email || "").trim().toLowerCase();
 
       if (!name || !cleanEmail || !password) {
@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
 
       const now = new Date().toISOString();
       let createdOrgId: string | null = null;
+      let linkedOrgName: string | null = organizationName || null;
 
       // If signing up as School / Organization Owner
       if (role === "org_admin" && organizationName) {
@@ -179,11 +180,33 @@ export async function POST(req: NextRequest) {
           status: "active",
           createdAt: now,
         });
+      } else if (schoolCode && schoolCode.trim()) {
+        // Teacher or student joining an existing school by code/slug
+        const cleanCode = schoolCode.trim().toLowerCase();
+        const orgRows = await db.select().from(organizations).limit(100);
+        const orgMatch = orgRows.find((o) => o.slug?.toLowerCase() === cleanCode || o.id?.toLowerCase() === cleanCode || o.name?.toLowerCase() === cleanCode);
+
+        if (!orgMatch) {
+          return NextResponse.json({ 
+            error: "Invalid School Code. Please verify the code with your school administrator or leave it blank to register as an independent educator." 
+          }, { status: 400 });
+        }
+
+        // Check seat limit
+        const currentMembers = await db.select().from(users).where(eq(users.orgId, orgMatch.id));
+        if (currentMembers.length >= orgMatch.seatLimit) {
+          return NextResponse.json({ 
+            error: `School organization '${orgMatch.name}' has reached its member limit (${orgMatch.seatLimit} seats). Please contact your administrator.` 
+          }, { status: 403 });
+        }
+
+        createdOrgId = orgMatch.id;
+        linkedOrgName = orgMatch.name;
       }
 
       const userId = generateId();
       const passwordHash = await hashPassword(password);
-      const planType = (role === "org_admin" || role === "teacher") && organizationName ? "school_pro" : "free";
+      const planType = (role === "org_admin" || createdOrgId) ? "school_pro" : "free";
 
       await db.insert(users).values({
         id: userId,
@@ -209,7 +232,7 @@ export async function POST(req: NextRequest) {
           role,
           studentId: studentId || null,
           orgId: createdOrgId,
-          organizationName: organizationName || null,
+          organizationName: linkedOrgName,
           planType,
         },
       });
