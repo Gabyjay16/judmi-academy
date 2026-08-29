@@ -9,16 +9,18 @@ import {
   PenTool, 
   LayoutDashboard, 
   KeyRound, 
-  ArrowRight,
-  Menu,
-  X,
-  User,
-  LogOut,
-  ShieldCheck,
-  Building2,
-  GraduationCap,
-  CreditCard,
-  Camera
+  ArrowRight, 
+  Menu, 
+  X, 
+  User, 
+  LogOut, 
+  ShieldCheck, 
+  Building2, 
+  GraduationCap, 
+  CreditCard, 
+  Camera,
+  Zap,
+  Crown
 } from "lucide-react";
 
 export default function Navbar() {
@@ -27,6 +29,8 @@ export default function Navbar() {
   const [quickCode, setQuickCode] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  // Read stored user immediately on load to prevent flash of guest state
   const [currentUser, setCurrentUser] = useState<any | null>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -38,6 +42,11 @@ export default function Navbar() {
     }
     return null;
   });
+
+  const isDashboardRoute = pathname.startsWith("/dashboard") || 
+                           pathname.startsWith("/org") || 
+                           pathname.startsWith("/student") || 
+                           pathname.startsWith("/admin");
 
   useEffect(() => {
     fetchSession();
@@ -51,23 +60,26 @@ export default function Navbar() {
         headers["x-session-token"] = storedToken;
       }
 
-      const res = await fetch("/api/auth", { headers });
+      const res = await fetch("/api/auth", { 
+        headers,
+        credentials: "include" 
+      });
       const data = await res.json();
-      if (data.user) {
+      if (data?.user) {
         setCurrentUser(data.user);
         if (typeof window !== "undefined") {
           if (data.token) localStorage.setItem("judmi_session", data.token);
           localStorage.setItem("judmi_user", JSON.stringify(data.user));
         }
       } else {
-        // If not authenticated and on non-dashboard route, clear user
-        if (typeof window !== "undefined" && !pathname.startsWith("/dashboard") && !pathname.startsWith("/admin") && !pathname.startsWith("/student") && !pathname.startsWith("/org")) {
+        // If not authenticated and on public route, clear local user
+        if (typeof window !== "undefined" && !isDashboardRoute) {
           localStorage.removeItem("judmi_user");
+          setCurrentUser(null);
         }
-        setCurrentUser(null);
       }
     } catch {
-      // keep cached user if network blip
+      // Keep cached user on network delay
     }
   };
 
@@ -81,12 +93,15 @@ export default function Navbar() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "logout" }),
+        credentials: "include"
       });
       setCurrentUser(null);
       setUserDropdownOpen(false);
+      setMobileMenuOpen(false);
       router.push("/login");
     } catch (e) {
-      console.error("Logout failed:", e);
+      console.error("Logout error:", e);
+      router.push("/login");
     }
   };
 
@@ -99,29 +114,31 @@ export default function Navbar() {
     }
   };
 
-  // Compute navigation links based strictly on authenticated user role
+  const isUserAuthenticated = Boolean(currentUser || isDashboardRoute);
+
+  // Compute navigation links based on user role
   let navLinks: { href: string; label: string; icon: any }[] = [];
 
-  if (!currentUser) {
-    // Visitor / Logged Out: ONLY show public links (Never show teacher management tabs)
+  if (!currentUser && !isDashboardRoute) {
+    // Visitor on public pages
     navLinks = [
       { href: "/pricing", label: "Pricing & Plans", icon: CreditCard },
     ];
-  } else if (currentUser?.role === "student") {
+  } else if (currentUser?.role === "student" || pathname.startsWith("/student")) {
     // Student Links
     navLinks = [
-      { href: "/student/dashboard", label: "My Test History", icon: GraduationCap },
+      { href: "/student/dashboard", label: "Student Hub", icon: GraduationCap },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
-  } else if (currentUser?.role === "org_admin") {
+  } else if (currentUser?.role === "org_admin" || pathname.startsWith("/org")) {
     // School Org Administrator
     navLinks = [
-      { href: "/org/dashboard", label: "School Sub-Accounts", icon: Building2 },
+      { href: "/org/dashboard", label: "School Hub", icon: Building2 },
       { href: "/dashboard/scan-scripts", label: "Mark Scripts", icon: Camera },
       { href: "/dashboard", label: "Teacher Studio", icon: LayoutDashboard },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
     ];
-  } else if (currentUser?.role === "admin") {
+  } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     // Super Administrator
     navLinks = [
       { href: "/admin", label: "Admin Panel & Access", icon: ShieldCheck },
@@ -159,7 +176,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Desktop Navigation - Role-Filtered */}
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1.5">
             {navLinks.map((link) => {
               const Icon = link.icon;
@@ -181,7 +198,7 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Right Area: Test Code + User Profile */}
+          {/* Right Area: Test Code + Upgrade/Logout or Profile */}
           <div className="hidden sm:flex items-center gap-3">
             {/* Quick Test Code Input */}
             <form onSubmit={handleJoinByCode} className="relative flex items-center">
@@ -206,107 +223,92 @@ export default function Navbar() {
               </button>
             </form>
 
-            {/* Auth Session Button / Profile */}
-            {currentUser ? (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 p-1.5 pr-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-left transition-colors shadow-xs"
+            {/* If Authenticated: Show Upgrade & Profile with Logout */}
+            {isUserAuthenticated ? (
+              <div className="flex items-center gap-2">
+                {/* Upgrade Button */}
+                <Link
+                  href="/checkout?plan=individual"
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
-                    {currentUser.name[0]}
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 leading-tight">
-                      {currentUser.name.split(" ")[0]}
+                  <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                  <span>Upgrade</span>
+                </Link>
+
+                {/* Profile Dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="flex items-center gap-2 p-1.5 pr-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-left transition-colors shadow-xs"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                      {(currentUser?.name || "U")[0]}
                     </div>
-                    <div className="text-[10px] text-slate-500 capitalize leading-tight">
-                      {currentUser.role.replace("_", " ")}
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 leading-tight">
+                        {(currentUser?.name || "Account").split(" ")[0]}
+                      </div>
+                      <div className="text-[10px] text-slate-500 capitalize leading-tight">
+                        {(currentUser?.role || "Teacher").replace("_", " ")}
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
 
-                {/* Dropdown menu */}
-                {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 space-y-1 z-50 animate-fade-in text-xs">
-                    <div className="p-2.5 border-b border-slate-100">
-                      <div className="font-bold text-slate-900">{currentUser.name}</div>
-                      <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
-                      {currentUser.organizationName && (
-                        <div className="text-[10px] text-indigo-700 font-semibold mt-1">
-                          🏫 {currentUser.organizationName}
-                        </div>
-                      )}
+                  {/* Dropdown menu */}
+                  {userDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 space-y-1 z-50 animate-fade-in text-xs">
+                      <div className="p-2.5 border-b border-slate-100">
+                        <div className="font-bold text-slate-900">{currentUser?.name || "Account"}</div>
+                        <div className="text-[11px] text-slate-500 truncate">{currentUser?.email || ""}</div>
+                        {currentUser?.organizationName && (
+                          <div className="text-[10px] text-indigo-700 font-semibold mt-1">
+                            🏫 {currentUser.organizationName}
+                          </div>
+                        )}
+                      </div>
+
+                      <Link
+                        href="/checkout?plan=individual"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-amber-900 bg-amber-50 hover:bg-amber-100 font-bold"
+                      >
+                        <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
+                        <span>Upgrade Account</span>
+                      </Link>
+
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-indigo-600" />
+                        <span>Teacher Dashboard</span>
+                      </Link>
+
+                      <Link
+                        href="/dashboard/scan-scripts"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
+                      >
+                        <Camera className="w-4 h-4 text-indigo-600" />
+                        <span>Mark Scripts Studio</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-semibold"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
                     </div>
-
-                    {currentUser.role === "student" && (
-                      <Link
-                        href="/student/dashboard"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50"
-                      >
-                        <GraduationCap className="w-4 h-4 text-indigo-600" />
-                        <span>Student Transcripts</span>
-                      </Link>
-                    )}
-
-                    {currentUser.role !== "student" && (
-                      <>
-                        <Link
-                          href="/dashboard"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50"
-                        >
-                          <LayoutDashboard className="w-4 h-4 text-indigo-600" />
-                          <span>Teacher Dashboard</span>
-                        </Link>
-
-                        <Link
-                          href="/dashboard/scan-scripts"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50"
-                        >
-                          <Camera className="w-4 h-4 text-indigo-600" />
-                          <span>Mark Scripts Studio</span>
-                        </Link>
-                      </>
-                    )}
-
-                    {currentUser.role === "admin" && (
-                      <Link
-                        href="/admin"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50"
-                      >
-                        <ShieldCheck className="w-4 h-4 text-purple-600" />
-                        <span>Admin Panel & Access</span>
-                      </Link>
-                    )}
-
-                    {(currentUser.role === "org_admin" || currentUser.role === "admin") && (
-                      <Link
-                        href="/org/dashboard"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50"
-                      >
-                        <Building2 className="w-4 h-4 text-indigo-600" />
-                        <span>School Sub-Accounts</span>
-                      </Link>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-semibold"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            ) : !pathname.startsWith("/dashboard") && !pathname.startsWith("/admin") && !pathname.startsWith("/student") && !pathname.startsWith("/org") ? (
+            ) : (
+              /* Visitor Logged Out Buttons */
               <div className="flex items-center gap-2">
                 <Link
                   href="/login"
@@ -321,7 +323,7 @@ export default function Navbar() {
                   Get Started
                 </Link>
               </div>
-            ) : null}
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -338,9 +340,10 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile dropdown */}
+      {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 px-4 pt-3 pb-4 space-y-3 bg-white text-xs">
+        <div className="md:hidden border-t border-slate-200 px-4 pt-3 pb-5 space-y-3 bg-white text-xs shadow-xl animate-fade-in">
+          {/* Quick Join Test Code Input */}
           <form onSubmit={handleJoinByCode} className="relative flex items-center">
             <div className="absolute left-3 text-slate-400">
               <KeyRound className="w-4 h-4" />
@@ -351,7 +354,7 @@ export default function Navbar() {
               value={quickCode}
               onChange={(e) => setQuickCode(e.target.value.toUpperCase())}
               maxLength={8}
-              className="w-full pl-9 pr-10 py-2 text-sm uppercase font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-10 py-2.5 text-sm uppercase font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
               type="submit"
@@ -362,7 +365,8 @@ export default function Navbar() {
             </button>
           </form>
 
-          <div className="space-y-1">
+          {/* Navigation Links */}
+          <div className="space-y-1 pt-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -375,28 +379,43 @@ export default function Navbar() {
               </Link>
             ))}
 
-            {currentUser ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-rose-600 hover:bg-rose-50"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out ({currentUser.name})</span>
-              </button>
+            {/* Authenticated User Mobile Controls */}
+            {isUserAuthenticated ? (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                {/* Upgrade Account Button */}
+                <Link
+                  href="/checkout?plan=individual"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                >
+                  <Zap className="w-4 h-4 fill-slate-950" />
+                  <span>Upgrade Account</span>
+                </Link>
+
+                {/* Logout Button */}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout ({currentUser?.name || "Sign Out"})</span>
+                </button>
+              </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 pt-2">
+              /* Visitor Public Buttons */
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
                 <Link
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-2 text-center rounded-xl border border-slate-200 font-bold"
+                  className="py-2.5 text-center rounded-xl border border-slate-200 font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-2 text-center rounded-xl bg-indigo-600 text-white font-bold"
+                  className="py-2.5 text-center rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-xs"
                 >
                   Sign Up
                 </Link>

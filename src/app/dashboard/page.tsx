@@ -126,20 +126,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* REVEAL / HIDE STATISTICS TOGGLE BUTTON */}
-      <div className="flex items-center justify-between pt-1">
+      {/* REVEAL / HIDE STATISTICS TOGGLE BUTTON - FULL WIDTH ACROSS SCREEN */}
+      <div className="w-full pt-1">
         <button
           type="button"
           onClick={() => setShowStats(!showStats)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs transition-all"
+          className="w-full flex items-center justify-between px-4 sm:px-5 py-3 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 text-xs font-bold text-slate-800 shadow-xs transition-all"
         >
-          <Sparkles className="w-4 h-4 text-indigo-600" />
-          <span>{showStats ? "Hide Statistics & Quota Tracker ▴" : "Show Statistics & Analytics (4 Cards) ▾"}</span>
-        </button>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span>{showStats ? "Hide Statistics & Quota Tracker ▴" : "Show Statistics & Analytics (4 Cards) ▾"}</span>
+          </div>
 
-        <span className="text-[11px] text-slate-400">
-          {tests.length} published exams • {totalSubmissions} student submissions
-        </span>
+          <span className="text-[11px] text-slate-500 font-normal shrink-0">
+            {tests.length} published exams • {totalSubmissions} submissions
+          </span>
+        </button>
       </div>
 
       {/* FREEMIUM USAGE & STATS (COLLAPSIBLE / HIDDEN BY DEFAULT) */}
@@ -159,7 +161,7 @@ export default function DashboardPage() {
                   Your Free Feature Quota Tracker
                 </h3>
                 <p className="text-xs text-slate-300 max-w-md">
-                  Upgrade to the Individual Educator Plan ($15/mo) for unlimited AI exam creation, camera script scans, and rubric marking.
+                  Upgrade to the Solo Teacher Plan (5,000 FCFA/mo) for unlimited AI exam creation, camera script scans, and rubric marking.
                 </p>
               </div>
 
@@ -184,10 +186,10 @@ export default function DashboardPage() {
 
                 <Link
                   href="/checkout?plan=individual"
-                  className="px-5 py-3 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center gap-1.5 shrink-0"
+                  className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-1.5 shrink-0"
                 >
-                  <Zap className="w-4 h-4" />
-                  <span>Upgrade to Pro ($15/mo)</span>
+                  <Zap className="w-4 h-4 fill-slate-950" />
+                  <span>Upgrade to Pro (5,000 FCFA)</span>
                 </Link>
               </div>
             </div>
