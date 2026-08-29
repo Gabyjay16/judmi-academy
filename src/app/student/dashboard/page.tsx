@@ -50,7 +50,7 @@ export default function StudentDashboardPage() {
 
   // Complaint Form Fields
   const [departmentId, setDepartmentId] = useState("");
-  const [studentLevel, setStudentLevel] = useState("Level 100 / Year 1");
+  const [studentLevel, setStudentLevel] = useState("Year 1");
   const [courseCode, setCourseCode] = useState("");
   const [nature, setNature] = useState("");
   const [subject, setSubject] = useState("");

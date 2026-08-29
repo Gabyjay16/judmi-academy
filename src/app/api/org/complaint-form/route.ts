@@ -17,13 +17,14 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const DEFAULT_LEVELS = [
-  "Level 100 / Year 1",
-  "Level 200 / Year 2",
-  "Level 300 / Year 3",
-  "Level 400 / Year 4",
-  "Level 500 / Year 5",
-  "Postgraduate / Masters",
-  "PhD / Doctorate",
+  "Year 1",
+  "Year 2",
+  "Year 3",
+  "Year 4",
+  "Year 5",
+  "Year 6",
+  "Year 7",
+  "Year 8",
 ];
 
 // GET the complaint form config for an organization

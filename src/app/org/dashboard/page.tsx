@@ -62,12 +62,14 @@ export default function OrgDashboardPage() {
   ]);
   const [newCategoryInput, setNewCategoryInput] = useState("");
   const [formLevels, setFormLevels] = useState<string[]>([
-    "Level 100 / Year 1",
-    "Level 200 / Year 2",
-    "Level 300 / Year 3",
-    "Level 400 / Year 4",
-    "Level 500 / Year 5",
-    "Postgraduate / Masters",
+    "Year 1",
+    "Year 2",
+    "Year 3",
+    "Year 4",
+    "Year 5",
+    "Year 6",
+    "Year 7",
+    "Year 8",
   ]);
   const [newLevelInput, setNewLevelInput] = useState("");
   const [allowDocUpload, setAllowDocUpload] = useState(true);
@@ -1193,6 +1195,46 @@ export default function OrgDashboardPage() {
                       if (newCategoryInput.trim()) {
                         setFormCategories([...formCategories, newCategoryInput.trim()]);
                         setNewCategoryInput("");
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Student Academic Years (Year 1 to Year 8) */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">Student Academic Years (Levels)</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {formLevels.map((lvl, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-[11px] font-bold border border-slate-200">
+                      <span>{lvl}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormLevels(formLevels.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-rose-600 font-normal"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newLevelInput}
+                    onChange={(e) => setNewLevelInput(e.target.value)}
+                    placeholder="Add academic year (e.g. Year 1)..."
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newLevelInput.trim()) {
+                        setFormLevels([...formLevels, newLevelInput.trim()]);
+                        setNewLevelInput("");
                       }
                     }}
                     className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
