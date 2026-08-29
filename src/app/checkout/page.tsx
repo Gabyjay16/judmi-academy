@@ -17,7 +17,8 @@ import {
   Lock,
   Phone,
   User,
-  CheckCheck
+  CheckCheck,
+  Check
 } from "lucide-react";
 
 export default function CheckoutPage() {
@@ -25,6 +26,10 @@ export default function CheckoutPage() {
   const [plan, setPlan] = useState<"individual" | "school_pro">("individual");
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   
+  // Authenticated State & Profile
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+
   // User & Organization Fields
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -40,7 +45,6 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [ussdPromptSent, setUssdPromptSent] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -59,8 +63,52 @@ export default function CheckoutPage() {
       } else {
         setBillingCycle("monthly");
       }
+
+      // Check cached user in local storage immediately
+      try {
+        const cached = localStorage.getItem("judmi_user");
+        if (cached) {
+          const u = JSON.parse(cached);
+          setIsLoggedIn(true);
+          setCurrentUser(u);
+          setName(u.name || "");
+          setPhone(u.email || "");
+          setMomoPhone(u.email || "");
+          if (u.organizationName) setOrganizationName(u.organizationName);
+        }
+      } catch {}
     }
+
+    fetchUserSession();
   }, []);
+
+  const fetchUserSession = async () => {
+    try {
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
+      const headers: Record<string, string> = {};
+      if (storedToken) headers["x-session-token"] = storedToken;
+
+      const res = await fetch("/api/auth", {
+        headers,
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data?.user) {
+        setIsLoggedIn(true);
+        setCurrentUser(data.user);
+        setName(data.user.name || "");
+        setPhone(data.user.email || "");
+        setMomoPhone(data.user.email || "");
+        if (data.user.organizationName) setOrganizationName(data.user.organizationName);
+        if (typeof window !== "undefined") {
+          if (data.token) localStorage.setItem("judmi_session", data.token);
+          localStorage.setItem("judmi_user", JSON.stringify(data.user));
+        }
+      }
+    } catch {
+      // Keep cached state
+    }
+  };
 
   const planDetails = {
     individual: {
@@ -100,49 +148,69 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match. Please retype your password correctly.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
-      return;
-    }
-
-    setLoading(true);
-    setUssdPromptSent(true);
-
-    try {
-      // Simulate Mobile Money Prompt
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      // 1. Create paid account in database with full access
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "signup",
-          name,
-          phone,
-          email: phone,
-          password,
-          role: currentPlan.role,
-          organizationName: plan === "school_pro" ? organizationName : undefined,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || "Mobile Money verification failed.");
-        setLoading(false);
-        setUssdPromptSent(false);
+    // If new user registering, validate passwords
+    if (!isLoggedIn) {
+      if (password !== confirmPassword) {
+        setError("Passwords do not match. Please retype your password correctly.");
         return;
       }
 
-      // Store token in localStorage for resilient session persistence
-      if (data.token && typeof window !== "undefined") {
-        localStorage.setItem("judmi_session", data.token);
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters long.");
+        return;
+      }
+    }
+
+    setLoading(true);
+
+    try {
+      // Simulate Mobile Money Prompt
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (storedToken) headers["x-session-token"] = storedToken;
+
+      const bodyPayload = isLoggedIn
+        ? {
+            action: "upgrade_plan",
+            plan,
+            organizationName: plan === "school_pro" ? organizationName : undefined,
+          }
+        : {
+            action: "signup",
+            name,
+            phone,
+            email: phone,
+            password,
+            role: currentPlan.role,
+            organizationName: plan === "school_pro" ? organizationName : undefined,
+          };
+
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(bodyPayload),
+      });
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error("Response parse error:", parseErr);
+      }
+
+      if (!res.ok || !data?.success) {
+        setError(data?.error || "Mobile Money verification failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Store token & updated user in localStorage
+      if (typeof window !== "undefined") {
+        if (data.token) localStorage.setItem("judmi_session", data.token);
+        if (data.user) localStorage.setItem("judmi_user", JSON.stringify(data.user));
       }
 
       setSuccess(true);
@@ -156,7 +224,6 @@ export default function CheckoutPage() {
     } catch (err: any) {
       setError(err.message || "Mobile Money payment processing failed.");
       setLoading(false);
-      setUssdPromptSent(false);
     }
   };
 
@@ -266,7 +333,7 @@ export default function CheckoutPage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900">Mobile Money Payment Confirmed!</h3>
               <p className="text-xs text-slate-500">
-                Your Judmi Academy account is fully activated. Redirecting to your dashboard...
+                Your Judmi Academy account is fully upgraded to Pro. Redirecting to your dashboard...
               </p>
             </div>
           ) : (
@@ -274,87 +341,134 @@ export default function CheckoutPage() {
               
               {/* Account Details Header */}
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-                  1. {plan === "school_pro" ? "School Organization & Administrator Profile" : "Teacher Account Credentials"}
-                </h3>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    1. Account & Subscription Profile
+                  </h3>
+                  {isLoggedIn && (
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Logged In User
+                    </span>
+                  )}
+                </div>
 
-                {plan === "school_pro" && (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      School / Institution Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={organizationName}
-                      onChange={(e) => setOrganizationName(e.target.value)}
-                      placeholder="e.g. St. Jude International Academy"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                    />
+                {/* If Logged In: Show Clean Profile Card with no password inputs */}
+                {isLoggedIn ? (
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-extrabold text-sm flex items-center justify-center shadow-xs">
+                          {(name || "U")[0]}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">{name}</div>
+                          <div className="text-[11px] text-slate-500 font-mono">{phone}</div>
+                        </div>
+                      </div>
+
+                      <span className="text-[11px] text-slate-400">
+                        {currentUser?.role === "org_admin" ? "School Admin" : "Teacher Account"}
+                      </span>
+                    </div>
+
+                    {plan === "school_pro" && (
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          School / Institution Name <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={organizationName}
+                          onChange={(e) => setOrganizationName(e.target.value)}
+                          placeholder="e.g. St. Jude International Academy"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* New Guest User Registration Fields */
+                  <div className="space-y-4">
+                    {plan === "school_pro" && (
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          School / Institution Name <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={organizationName}
+                          onChange={(e) => setOrganizationName(e.target.value)}
+                          placeholder="e.g. St. Jude International Academy"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          {plan === "school_pro" ? "Administrator Name" : "Teacher Full Name"} <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="e.g. Eleanor Vance"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Account Phone Number <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="e.g. 670000000 or +237..."
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Create Account Password <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          minLength={6}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="At least 6 characters"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Retype Password <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          minLength={6}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Retype password"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      {plan === "school_pro" ? "Administrator Name" : "Teacher Full Name"} <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Dr. Eleanor Vance"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Account Phone Number <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. 670000000 or +237..."
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Account Password <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="At least 6 characters"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Retype Password <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Retype password"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* Mobile Money Payment */}
@@ -438,7 +552,12 @@ export default function CheckoutPage() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={loading || !name || !phone || !password || !confirmPassword || (plan === "school_pro" && !organizationName)}
+                  disabled={
+                    loading || 
+                    (!isLoggedIn && (!name || !phone || !password || !confirmPassword)) || 
+                    (plan === "school_pro" && !organizationName) || 
+                    !momoPhone
+                  }
                   className="w-full py-4 rounded-2xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2"
                 >
                   <span>{loading ? "Sending Mobile Money Prompt..." : `Pay ${currentPlan.priceLocal} via Mobile Money`}</span>

@@ -247,6 +247,70 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
+    // 4. UPGRADE PLAN (For already logged-in users)
+    if (action === "upgrade_plan" || action === "upgrade") {
+      const headerToken = req.headers.get("x-session-token") || req.headers.get("authorization");
+      const currentUser = await getCurrentUser(headerToken);
+
+      if (!currentUser) {
+        return NextResponse.json({ error: "Please log in to upgrade your account" }, { status: 401 });
+      }
+
+      const { plan = "individual", organizationName } = body;
+      const targetPlanType = plan === "school_pro" ? "school_pro" : "individual";
+      const targetRole = plan === "school_pro" ? "org_admin" : (currentUser.role === "student" ? "teacher" : currentUser.role);
+
+      let createdOrgId = currentUser.orgId;
+      let linkedOrgName = organizationName || null;
+
+      if (plan === "school_pro" && organizationName && !currentUser.orgId) {
+        createdOrgId = generateId();
+        const slug = organizationName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const now = new Date().toISOString();
+        await db.insert(organizations).values({
+          id: createdOrgId,
+          name: organizationName.trim(),
+          slug: `${slug}-${Math.floor(Math.random() * 899 + 100)}`,
+          planType: "school_pro",
+          seatLimit: 50,
+          ownerEmail: currentUser.email,
+          status: "active",
+          createdAt: now,
+        });
+      }
+
+      await db.update(users).set({
+        planType: targetPlanType,
+        role: targetRole as any,
+        orgId: createdOrgId,
+      }).where(eq(users.id, currentUser.id));
+
+      const updatedUser = {
+        ...currentUser,
+        planType: targetPlanType,
+        role: targetRole,
+        orgId: createdOrgId,
+        organizationName: linkedOrgName || null,
+      };
+
+      const token = generateSessionToken(currentUser.id);
+      const response = NextResponse.json({
+        success: true,
+        message: "Account plan successfully upgraded via Mobile Money!",
+        user: updatedUser,
+        token,
+      });
+
+      response.cookies.set(AUTH_COOKIE_NAME, token, {
+        path: "/",
+        httpOnly: true,
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: "lax",
+      });
+
+      return response;
+    }
+
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
     console.error("Auth API error:", error);
