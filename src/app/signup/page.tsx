@@ -86,9 +86,15 @@ export default function SignupPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || "Signup failed");
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error("Response JSON parse error:", parseErr);
+      }
+
+      if (!res.ok || !data?.success) {
+        setError(data?.error || "Registration failed. Please verify your details and try again.");
         setLoading(false);
         return;
       }

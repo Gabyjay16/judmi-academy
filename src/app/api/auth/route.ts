@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await initDatabase();
-    await seedDemoData();
+    try { await seedDemoData(); } catch {}
     const body = await req.json();
     const { action = "login" } = body;
 

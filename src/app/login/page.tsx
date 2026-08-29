@@ -37,9 +37,15 @@ export default function LoginPage() {
         body: JSON.stringify({ action: "login", email, password }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || "Login failed");
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error("Login response parse error:", parseErr);
+      }
+
+      if (!res.ok || !data?.success) {
+        setError(data?.error || "Login failed. Please verify your credentials and try again.");
         setLoading(false);
         return;
       }

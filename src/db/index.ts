@@ -2,8 +2,11 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
-const url = process.env.TURSO_DATABASE_URL || "file:local.db";
-const authToken = process.env.TURSO_AUTH_TOKEN || undefined;
+const DEFAULT_TURSO_URL = "libsql://judmi-academy-gabsabrandon.aws-eu-west-1.turso.io";
+const DEFAULT_TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODc5ODAyODUsImlkIjoiMDFhMDRiZWQtYTUwMS03NGU1LWJiYzYtZmUzYjRiMWFiYzczIiwia2lkIjoiM1Z2N2ZFYTVTZU03dVFtSWJHYnlVYVo3Z09xUVdvTzFBZE8wSFFHa0ZDSSIsInJpZCI6ImRjMTA4MmM4LTlkMzktNDM5NS05ZDVlLWY0MjBkZTU3NGQxMyJ9.9i-HIUGPr7XUtXFtyXYt8pusfwaSt-NVAlkK09ojQyRrYP6euG9hGBBifK8YzVdhbhat7U0eWgO6mIhQAzzCAQ";
+
+const url = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_TURSO_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN || DEFAULT_TURSO_TOKEN;
 
 export const client = createClient({
   url,
