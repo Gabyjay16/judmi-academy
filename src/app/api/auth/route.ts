@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
 
     // 3. SIGNUP
     if (action === "signup") {
-      const { name, password, role = "student", organizationName, studentId, schoolCode } = body;
+      const { name, password, role = "student", organizationName, studentId, schoolCode, departmentId } = body;
       const cleanEmail = (body.phone || body.email || "").trim().toLowerCase();
 
       if (!name || !cleanEmail || !password) {
@@ -221,7 +221,8 @@ export async function POST(req: NextRequest) {
         passwordHash,
         role: role as any,
         orgId: createdOrgId,
-        studentId: studentId ? studentId.trim() : null,
+        departmentId: departmentId || null,
+        studentId: role === "student" ? studentId || null : null,
         planType,
         status: "active",
         createdAt: now,

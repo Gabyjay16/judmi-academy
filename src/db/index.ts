@@ -194,6 +194,63 @@ export async function initDatabase() {
       });
     } catch {}
 
+    // Safe column additions for users
+    try { await client.execute(`ALTER TABLE users ADD COLUMN department_id TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE users ADD COLUMN can_manage_complaints INTEGER DEFAULT 0;`); } catch {}
+
+    // 9. Departments table
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS departments (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        code TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // 10. Complaint Forms configuration table
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS complaint_forms (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'inactive',
+        categories_json TEXT NOT NULL,
+        allow_document_upload INTEGER NOT NULL DEFAULT 1,
+        levels_json TEXT NOT NULL,
+        instructions TEXT,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // 11. Complaints table
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS complaints (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        student_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        student_name TEXT NOT NULL,
+        student_matricule TEXT NOT NULL,
+        student_phone TEXT,
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        department_name TEXT,
+        student_level TEXT NOT NULL,
+        course_code TEXT,
+        nature TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        description TEXT NOT NULL,
+        document_url TEXT,
+        document_name TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        assigned_reviewer_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        assigned_reviewer_name TEXT,
+        resolution_note TEXT,
+        resolved_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);

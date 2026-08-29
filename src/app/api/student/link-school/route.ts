@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     await initDatabase();
     const currentUser = await getCurrentUser();
     const body = await req.json();
-    const { schoolCode, studentId } = body;
+    const { schoolCode, studentId, departmentId } = body;
 
     if (!schoolCode || !studentId) {
       return NextResponse.json({ error: "School Code and Student Matricule are required." }, { status: 400 });
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       await db.update(users).set({
         orgId: orgMatch.id,
         studentId: studentId.trim(),
+        departmentId: departmentId || null,
       }).where(eq(users.id, currentUser.id));
     }
 

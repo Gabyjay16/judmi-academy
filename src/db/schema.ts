@@ -11,6 +11,14 @@ export const organizations = sqliteTable("organizations", {
   createdAt: text("created_at").notNull(),
 });
 
+export const departments = sqliteTable("departments", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  code: text("code"),
+  createdAt: text("created_at").notNull(),
+});
+
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -18,12 +26,14 @@ export const users = sqliteTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("student"), // "admin" | "org_admin" | "teacher" | "student"
   orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  departmentId: text("department_id").references(() => departments.id, { onDelete: "set null" }),
   studentId: text("student_id"), // Matriculation / Student ID number
   avatarUrl: text("avatar_url"),
   planType: text("plan_type").notNull().default("free"), // "free" | "individual" | "school_pro" | "enterprise"
   examGenerationsUsed: integer("exam_generations_used").notNull().default(0),
   scriptScansUsed: integer("script_scans_used").notNull().default(0),
   essayGradingsUsed: integer("essay_gradings_used").notNull().default(0),
+  canManageComplaints: integer("can_manage_complaints").notNull().default(0), // 1 = delegated review access
   status: text("status").notNull().default("active"), // "active" | "suspended" | "pending"
   createdAt: text("created_at").notNull(),
 });
@@ -116,6 +126,42 @@ export const essayGradings = sqliteTable("essay_gradings", {
   createdAt: text("created_at").notNull(),
 });
 
+export const complaintForms = sqliteTable("complaint_forms", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().unique().references(() => organizations.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("inactive"), // "active" | "inactive"
+  categoriesJson: text("categories_json").notNull(), // JSON: string[]
+  allowDocumentUpload: integer("allow_document_upload").notNull().default(1), // 1 = true, 0 = false
+  levelsJson: text("levels_json").notNull(), // JSON: string[]
+  instructions: text("instructions"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const complaints = sqliteTable("complaints", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  studentUserId: text("student_user_id").references(() => users.id, { onDelete: "set null" }),
+  studentName: text("student_name").notNull(),
+  studentMatricule: text("student_matricule").notNull(),
+  studentPhone: text("student_phone"),
+  departmentId: text("department_id").references(() => departments.id, { onDelete: "set null" }),
+  departmentName: text("department_name"),
+  studentLevel: text("student_level").notNull(), // e.g. "Level 300 / Year 3"
+  courseCode: text("course_code"), // e.g. "CSC 401"
+  nature: text("nature").notNull(), // Category e.g. "Missing CA", "Grade Discrepancy"
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  documentUrl: text("document_url"), // URL/base64 attachment
+  documentName: text("document_name"),
+  status: text("status").notNull().default("pending"), // "pending" | "under_review" | "resolved" | "rejected"
+  assignedReviewerUserId: text("assigned_reviewer_user_id").references(() => users.id, { onDelete: "set null" }),
+  assignedReviewerName: text("assigned_reviewer_name"),
+  resolutionNote: text("resolution_note"),
+  resolvedAt: text("resolved_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const systemSettings = sqliteTable("system_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(), // "true" | "false" | string
@@ -125,6 +171,8 @@ export const systemSettings = sqliteTable("system_settings", {
 
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
+export type Department = typeof departments.$inferSelect;
+export type NewDepartment = typeof departments.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type PasswordResetRequest = typeof passwordResetRequests.$inferSelect;
@@ -137,5 +185,9 @@ export type Submission = typeof submissions.$inferSelect;
 export type NewSubmission = typeof submissions.$inferInsert;
 export type EssayGrading = typeof essayGradings.$inferSelect;
 export type NewEssayGrading = typeof essayGradings.$inferInsert;
+export type ComplaintForm = typeof complaintForms.$inferSelect;
+export type NewComplaintForm = typeof complaintForms.$inferInsert;
+export type Complaint = typeof complaints.$inferSelect;
+export type NewComplaint = typeof complaints.$inferInsert;
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type NewSystemSetting = typeof systemSettings.$inferInsert;
