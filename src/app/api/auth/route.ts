@@ -6,6 +6,9 @@ import { hashPassword, verifyPassword, generateSessionToken, getCurrentUser, AUT
 import { generateId } from "@/lib/utils";
 import { seedDemoData } from "@/db/seed";
 
+// Persistent login: keep users signed in until they explicitly log out.
+const SESSION_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+
 export async function GET(req: NextRequest) {
   try {
     await initDatabase();
@@ -56,11 +59,11 @@ export async function GET(req: NextRequest) {
       globalSettings,
     });
 
-    // Ensure session cookie is refreshed and persistent for 30 days
+    // Ensure session cookie is refreshed and persistent (users stay logged in until they log out)
     response.cookies.set(AUTH_COOKIE_NAME, token, {
       path: "/",
       httpOnly: true,
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: SESSION_MAX_AGE, // persistent login
       sameSite: "lax",
     });
 
@@ -141,7 +144,7 @@ export async function POST(req: NextRequest) {
       response.cookies.set(AUTH_COOKIE_NAME, token, {
         path: "/",
         httpOnly: true,
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: SESSION_MAX_AGE, // persistent login
         sameSite: "lax",
       });
 
@@ -247,7 +250,7 @@ export async function POST(req: NextRequest) {
       response.cookies.set(AUTH_COOKIE_NAME, token, {
         path: "/",
         httpOnly: true,
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: SESSION_MAX_AGE, // persistent login
         sameSite: "lax",
       });
 
@@ -311,7 +314,7 @@ export async function POST(req: NextRequest) {
       response.cookies.set(AUTH_COOKIE_NAME, token, {
         path: "/",
         httpOnly: true,
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge: SESSION_MAX_AGE,
         sameSite: "lax",
       });
 
