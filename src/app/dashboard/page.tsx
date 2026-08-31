@@ -109,6 +109,14 @@ export default function DashboardPage() {
 
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
+            href="/dashboard/extract-info"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-xs"
+          >
+            <FileCheck2 className="w-3.5 h-3.5 text-teal-100" />
+            <span>Extract Info</span>
+          </Link>
+
+          <Link
             href="/dashboard/scan-scripts"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
           >

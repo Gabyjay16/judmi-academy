@@ -162,6 +162,22 @@ export const complaints = sqliteTable("complaints", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const extractDocuments = sqliteTable("extract_documents", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  fieldDefinitionsJson: text("field_definitions_json").notNull(), // JSON: [{ name, type }]
+  extractedRowsJson: text("extracted_rows_json").notNull(), // JSON: Array<Record<fieldName, value>>
+  pageCount: integer("page_count").notNull().default(1),
+  sourceImagesJson: text("source_images_json"), // JSON: string[] (base64 snapshots)
+  exportFormat: text("export_format").notNull().default("xlsx"), // "xlsx" | "docx" | "csv" | "pdf"
+  status: text("status").notNull().default("ready"), // "processing" | "ready" | "error"
+  error: text("error"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const systemSettings = sqliteTable("system_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(), // "true" | "false" | string
@@ -191,3 +207,5 @@ export type Complaint = typeof complaints.$inferSelect;
 export type NewComplaint = typeof complaints.$inferInsert;
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type NewSystemSetting = typeof systemSettings.$inferInsert;
+export type ExtractDocument = typeof extractDocuments.$inferSelect;
+export type NewExtractDocument = typeof extractDocuments.$inferInsert;

@@ -171,7 +171,26 @@ export async function initDatabase() {
       );
     `);
 
-    // 8. System Settings table (Global Admin switches)
+    // 8. Extract Info Documents table (AI field extraction & export records)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS extract_documents (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        field_definitions_json TEXT NOT NULL,
+        extracted_rows_json TEXT NOT NULL,
+        page_count INTEGER NOT NULL DEFAULT 1,
+        source_images_json TEXT,
+        export_format TEXT NOT NULL DEFAULT 'xlsx',
+        status TEXT NOT NULL DEFAULT 'ready',
+        error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // 9. System Settings table (Global Admin switches)
     await client.execute(`
       CREATE TABLE IF NOT EXISTS system_settings (
         key TEXT PRIMARY KEY,

@@ -29,16 +29,18 @@ import {
   FileText,
   ShieldCheck,
   ExternalLink,
-  Search
+  Search,
+  ScanLine
 } from "lucide-react";
+import ExtractInfoWorkbench from "@/components/ExtractInfoWorkbench";
 
 export default function OrgDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Navigation Tabs: "teachers" | "students" | "departments" | "complaints" | "tests"
-  const [activeTab, setActiveTab] = useState<"teachers" | "students" | "departments" | "complaints" | "tests">("teachers");
+  // Navigation Tabs: "teachers" | "students" | "departments" | "complaints" | "tests" | "extract"
+  const [activeTab, setActiveTab] = useState<"teachers" | "students" | "departments" | "complaints" | "tests" | "extract">("teachers");
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Departments State
@@ -513,6 +515,16 @@ export default function OrgDashboardPage() {
               <BarChart3 className="w-3.5 h-3.5" />
               <span>School Tests ({tests.length})</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab("extract")}
+              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                activeTab === "extract" ? "bg-white text-teal-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <ScanLine className="w-3.5 h-3.5" />
+              <span>Extract Info</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -930,6 +942,13 @@ export default function OrgDashboardPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* 6. EXTRACT INFO TAB */}
+        {activeTab === "extract" && (
+          <div className="p-0">
+            <ExtractInfoWorkbench />
           </div>
         )}
 
