@@ -1,3 +1,5 @@
+import { callOpenRouter, getOpenRouterKey } from "./openrouter";
+
 export interface GeneratedMCQ {
   questionText: string;
   options: string[];
@@ -37,44 +39,14 @@ export interface EssayGradingResult {
   }[];
 }
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_API_KEY = getOpenRouterKey();
 
 /**
- * Direct Google Gemini API caller using modern Fetch
+ * Direct OpenRouter chat completions caller (supports Google Gemini models
+ * and any other model OpenRouter exposes) using modern Fetch.
  */
-async function callGeminiRest(prompt: string, model: string = "gemini-1.5-flash"): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured.");
-  }
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-  
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        topP: 0.95,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Gemini API returned status ${response.status}`);
-  }
-
-  const data = await response.json();
-  const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  return textContent;
+async function callGeminiRest(prompt: string, model: string = "google/gemini-2.5-flash"): Promise<string> {
+  return callOpenRouter(prompt, { model, temperature: 0.4, topP: 0.95, responseFormat: "text" });
 }
 
 /**

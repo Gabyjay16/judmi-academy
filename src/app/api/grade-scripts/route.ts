@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { getCurrentUser } from "@/lib/auth";
 import { generateId } from "@/lib/utils";
+import { callOpenRouter, isOpenRouterKeyConfigured } from "@/lib/openrouter";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,7 +37,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     const gradedResults = [];
 
     for (let i = 0; i < students.length; i++) {
@@ -47,34 +47,22 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // If Gemini API Key is available, call Gemini Vision
-      if (apiKey && apiKey.trim() && apiKey !== "your_api_key_here") {
+      // If AI API Key is available, call the vision model via OpenRouter
+      if (isOpenRouterKeyConfigured()) {
         try {
-          const contents: any[] = [];
-          
-          // Add marking guide image or text
+          const imageParts: string[] = [];
+
+          // Add marking guide image
           if (guideImageBase64) {
-            const cleanGuideBase64 = guideImageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
-            contents.push({
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: cleanGuideBase64,
-              }
-            });
+            imageParts.push(guideImageBase64);
           }
 
           // Add student pages
           for (let pIdx = 0; pIdx < studentPages.length; pIdx++) {
-            const cleanPageBase64 = studentPages[pIdx].replace(/^data:image\/[a-z]+;base64,/, "");
-            contents.push({
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: cleanPageBase64,
-              }
-            });
+            imageParts.push(studentPages[pIdx]);
           }
 
-          // System instructions for Gemini Vision OCR & Grading
+          // System instructions for the vision model OCR & Grading
           const promptText = `
 You are an expert academic examiner and OCR paper script grader.
 You have been provided with:
@@ -130,39 +118,24 @@ Tasks:
 }
 `;
 
-          contents.push({ text: promptText });
-
-          const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: contents }],
-                generationConfig: {
-                  response_mime_type: "application/json",
-                  temperature: 0.1,
-                },
-              }),
-            }
+          const textResponse = await callOpenRouter(
+            promptText,
+            { model: "google/gemini-2.5-flash", temperature: 0.1, responseFormat: "json" },
+            imageParts
           );
 
-          if (geminiRes.ok) {
-            const geminiData = await geminiRes.json();
-            const textResponse = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (textResponse) {
-              const parsed = JSON.parse(textResponse);
-              gradedResults.push({
-                id: generateId(),
-                candidateIndex: i + 1,
-                totalPages: studentPages.length,
-                ...parsed,
-              });
-              continue;
-            }
+          if (textResponse) {
+            const parsed = JSON.parse(textResponse);
+            gradedResults.push({
+              id: generateId(),
+              candidateIndex: i + 1,
+              totalPages: studentPages.length,
+              ...parsed,
+            });
+            continue;
           }
         } catch (visionErr) {
-          console.error("Gemini Vision processing error:", visionErr);
+          console.error("AI Vision processing error:", visionErr);
         }
       }
 
