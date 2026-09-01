@@ -5,7 +5,7 @@ import { essayGradings } from "@/db/schema";
 import { generateId } from "@/lib/utils";
 import { desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
-import { checkUserQuota, incrementUserQuota } from "@/lib/plan-limits";
+import { checkUserQuota, incrementUserQuota, enforceServiceAccess } from "@/lib/plan-limits";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Enforce per-service access control (admin/granted)
+    const denied = await enforceServiceAccess("gradeEssays", currentUser);
+    if (denied) return denied;
 
     // Check user quota for essay gradings
     if (currentUser) {

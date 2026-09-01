@@ -13,6 +13,8 @@ export const organizations = sqliteTable("organizations", {
   brandName: text("brand_name"), // Display name shown instead of "Judmi Academy"
   logoData: text("logo_data"), // base64 PNG/JPEG/WebP logo, or URL
   brandColor: text("brand_color"), // Theme color hex e.g. #4f46e5
+  // Per-service access control (set by super admin). NULL = full access (all services allowed).
+  allowedServices: text("allowed_services"), // JSON: string[] e.g. ["generateQuestions","scanScripts"]
   createdAt: text("created_at").notNull(),
 });
 
@@ -39,6 +41,8 @@ export const users = sqliteTable("users", {
   scriptScansUsed: integer("script_scans_used").notNull().default(0),
   essayGradingsUsed: integer("essay_gradings_used").notNull().default(0),
   canManageComplaints: integer("can_manage_complaints").notNull().default(0), // 1 = delegated review access
+  // Per-service access control (set by super admin). NULL = full access (all services allowed).
+  allowedServices: text("allowed_services"), // JSON: string[]
   status: text("status").notNull().default("active"), // "active" | "suspended" | "pending"
   createdAt: text("created_at").notNull(),
 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateMCQQuestions, generateEssayQuestions } from "@/lib/gemini";
 import { getCurrentUser } from "@/lib/auth";
-import { checkUserQuota, incrementUserQuota } from "@/lib/plan-limits";
+import { checkUserQuota, incrementUserQuota, enforceServiceAccess } from "@/lib/plan-limits";
 import { initDatabase } from "@/db";
 
 export async function POST(req: NextRequest) {
@@ -17,6 +17,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Enforce per-service access control (admin/granted)
+    const denied = await enforceServiceAccess("generateQuestions", currentUser);
+    if (denied) return denied;
 
     // Check freemium usage quota
     if (currentUser) {

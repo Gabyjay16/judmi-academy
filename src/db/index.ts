@@ -40,6 +40,8 @@ export async function initDatabase() {
     try { await client.execute(`ALTER TABLE organizations ADD COLUMN brand_name TEXT;`); } catch {}
     try { await client.execute(`ALTER TABLE organizations ADD COLUMN logo_data TEXT;`); } catch {}
     try { await client.execute(`ALTER TABLE organizations ADD COLUMN brand_color TEXT;`); } catch {}
+    // Per-service access control (JSON string[]; NULL = full access/all services allowed)
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN allowed_services TEXT;`); } catch {}
 
     // 2. Users table
     await client.execute(`
@@ -66,6 +68,7 @@ export async function initDatabase() {
     try { await client.execute(`ALTER TABLE users ADD COLUMN exam_generations_used INTEGER DEFAULT 0;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN script_scans_used INTEGER DEFAULT 0;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN essay_gradings_used INTEGER DEFAULT 0;`); } catch {}
+    try { await client.execute(`ALTER TABLE users ADD COLUMN allowed_services TEXT;`); } catch {}
 
     // 3. Password Reset Requests table
     await client.execute(`

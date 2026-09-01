@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { organizations, users, tests, submissions } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { getCurrentUser, hashPassword } from "@/lib/auth";
+import { isServiceAllowed, getGlobalSystemSettings } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
 
 export async function GET() {
@@ -77,6 +78,15 @@ export async function POST(req: NextRequest) {
     const org = orgRows[0];
     const body = await req.json();
     const { action } = body;
+
+    // Per-service access control (granted by super admin)
+    const isMembersAllowed = isServiceAllowed("members", currentUser, org, await getGlobalSystemSettings());
+    if (!isMembersAllowed && (action === "expand_seats" || action === "create_sub_account")) {
+      return NextResponse.json(
+        { error: "You do not have access to manage members and seats. Contact your administrator." },
+        { status: 403 }
+      );
+    }
 
     // 1. EXPAND MEMBER SEATS
     if (action === "expand_seats") {

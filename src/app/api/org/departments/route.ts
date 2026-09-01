@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { departments, organizations, users } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { enforceServiceAccess } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
 
 // GET departments: by current user org, or by ?schoolCode=... / ?orgId=...
@@ -59,6 +60,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only school administrators can create departments." }, { status: 403 });
     }
 
+    // Per-service access control (granted by super admin)
+    const denied = await enforceServiceAccess("departments", currentUser);
+    if (denied) return denied;
+
     if (!currentUser.orgId) {
       return NextResponse.json({ error: "No organization linked to this account." }, { status: 400 });
     }
@@ -103,6 +108,10 @@ export async function DELETE(req: NextRequest) {
     if (!currentUser || (currentUser.role !== "org_admin" && currentUser.role !== "admin")) {
       return NextResponse.json({ error: "Only school administrators can delete departments." }, { status: 403 });
     }
+
+    // Per-service access control (granted by super admin)
+    const denied = await enforceServiceAccess("departments", currentUser);
+    if (denied) return denied;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

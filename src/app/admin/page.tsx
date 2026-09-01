@@ -41,6 +41,30 @@ export default function AdminPanelPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"resets" | "subscriptions" | "organizations">("subscriptions");
 
+  const SERVICE_OPTIONS: { value: string; label: string }[] = [
+    { value: "generateQuestions", label: "AI Exam Generator" },
+    { value: "scanScripts", label: "Scan & Grade Scripts" },
+    { value: "gradeEssays", label: "AI Essay Grader" },
+    { value: "extractInfo", label: "Extract Info" },
+    { value: "complaints", label: "Complaints" },
+    { value: "departments", label: "Departments" },
+    { value: "branding", label: "Branding & Access Link" },
+    { value: "members", label: "Members & Seats" },
+  ];
+
+  const parseServices = (raw: any): string[] => {
+    if (!raw) return [];
+    try {
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.map(String) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const serviceLabel = (value: string): string =>
+    SERVICE_OPTIONS.find((s) => s.value === value)?.label || value;
+
   useEffect(() => {
     fetchAdminData();
   }, []);
@@ -219,6 +243,60 @@ export default function AdminPanelPage() {
       }
     } catch (e) {
       console.error("Reset quota error:", e);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUpdateUserServices = async (userId: string, service: string, removeService = false) => {
+    try {
+      setActionLoading(`${userId}:${service}`);
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_user_services",
+          targetId: userId,
+          service,
+          remove: removeService,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        fetchAdminData();
+      } else {
+        alert(data.error || "Failed to update service access");
+      }
+    } catch (e) {
+      console.error("Update user services error:", e);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUpdateOrgServices = async (orgId: string, service: string, removeService = false) => {
+    try {
+      setActionLoading(`${orgId}:${service}`);
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_org_services",
+          targetId: orgId,
+          service,
+          remove: removeService,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        fetchAdminData();
+      } else {
+        alert(data.error || "Failed to update service access");
+      }
+    } catch (e) {
+      console.error("Update org services error:", e);
     } finally {
       setActionLoading(null);
     }
@@ -455,6 +533,7 @@ export default function AdminPanelPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {allOrgs.map((org) => {
                 const isPro = org.planType === "school_pro";
+                const orgServices = parseServices(org.allowedServices);
                 return (
                   <div key={org.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between space-y-3">
                     <div>
@@ -469,6 +548,50 @@ export default function AdminPanelPage() {
                       <p className="text-xs text-slate-500 mt-1">
                         Owner: {org.ownerEmail} • Capacity: {org.seatLimit} seats
                       </p>
+                    </div>
+
+                    {/* Service access control */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                          {orgServices.length === 0 ? "Service Access: Full (all services)" : `Allowed Services (${orgServices.length})`}
+                        </span>
+                        {orgServices.length === 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">Bypassed</span>
+                        )}
+                      </div>
+                      {orgServices.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {orgServices.map((s) => (
+                            <span key={s} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-semibold">
+                              {serviceLabel(s)}
+                              <button
+                                type="button"
+                                title={`Revoke ${serviceLabel(s)}`}
+                                disabled={actionLoading === `${org.id}:${s}`}
+                                onClick={() => handleUpdateOrgServices(org.id, s, true)}
+                                className="text-indigo-400 hover:text-rose-600 font-black leading-none"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <select
+                        title="Grant a service to this organization"
+                        value={orgServices.length ? "" : "full"}
+                        onChange={(e) => {
+                          if (e.target.value) handleUpdateOrgServices(org.id, e.target.value);
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="full">Grant Full Access (all services)</option>
+                        <option value="" disabled>{orgServices.length ? `Currently: ${orgServices.map(serviceLabel).join(", ")}` : "Select a service to grant..."}</option>
+                        {SERVICE_OPTIONS.map((s) => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
@@ -533,6 +656,7 @@ export default function AdminPanelPage() {
                     <th className="px-4 py-3">Role</th>
                     <th className="px-4 py-3">Current Plan</th>
                     <th className="px-4 py-3">Usage Meters</th>
+                    <th className="px-4 py-3">Service Access</th>
                     <th className="px-5 py-3 text-right">Admin Actions</th>
                   </tr>
                 </thead>
@@ -563,6 +687,49 @@ export default function AdminPanelPage() {
                         <td className="px-4 py-4 text-slate-600">
                           <div>Exams: <strong className="text-slate-900">{u.examGenerationsUsed || 0}</strong>/3</div>
                           <div>Scans: <strong className="text-slate-900">{u.scriptScansUsed || 0}</strong>/3</div>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {u.role === "admin" ? (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Full — Admin</span>
+                          ) : (
+                            <div className="w-44 space-y-1.5">
+                              {parseServices(u.allowedServices).length === 0 ? (
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">Full Access (bypassed)</span>
+                              ) : (
+                                <div className="flex flex-wrap gap-1">
+                                  {parseServices(u.allowedServices).map((s) => (
+                                    <span key={s} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-semibold">
+                                      {serviceLabel(s)}
+                                      <button
+                                        type="button"
+                                        title={`Revoke ${serviceLabel(s)}`}
+                                        disabled={actionLoading === `${u.id}:${s}`}
+                                        onClick={() => handleUpdateUserServices(u.id, s, true)}
+                                        className="text-indigo-400 hover:text-rose-600 font-black leading-none"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              <select
+                                title="Grant a service to this user"
+                                value={parseServices(u.allowedServices).length ? "" : "full"}
+                                onChange={(e) => {
+                                  if (e.target.value) handleUpdateUserServices(u.id, e.target.value);
+                                }}
+                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              >
+                                <option value="full">Full Access (all services)</option>
+                                <option value="" disabled>{parseServices(u.allowedServices).length ? "Grant more / manage above" : "Select a service to grant..."}</option>
+                                {SERVICE_OPTIONS.map((s) => (
+                                  <option key={s.value} value={s.value}>{s.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </td>
 
                         <td className="px-5 py-4 text-right">

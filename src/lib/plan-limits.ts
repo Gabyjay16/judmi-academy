@@ -1,6 +1,7 @@
 import { db } from "@/db";
-import { users, systemSettings, User } from "@/db/schema";
+import { users, systemSettings, organizations, User } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
 export const FREE_PLAN_LIMITS = {
   examGenerations: 3,
@@ -10,6 +11,126 @@ export const FREE_PLAN_LIMITS = {
 };
 
 export type FeatureType = "examGenerations" | "scriptScans" | "essayGradings";
+
+// Per-service access control set by the super admin.
+// A service list that is null (or empty) means FULL ACCESS: the specific
+// service gate is bypassed and the user/org may use everything.
+export const SERVICE_IDS = [
+  "generateQuestions",
+  "scanScripts",
+  "gradeEssays",
+  "extractInfo",
+  "complaints",
+  "departments",
+  "branding",
+  "members",
+] as const;
+
+export type ServiceId = (typeof SERVICE_IDS)[number];
+
+export const SERVICE_LABELS: Record<ServiceId, string> = {
+  generateQuestions: "AI Exam Generator",
+  scanScripts: "Scan & Grade Scripts",
+  gradeEssays: "AI Essay Grader",
+  extractInfo: "Extract Info",
+  complaints: "Complaints",
+  departments: "Departments",
+  branding: "Branding & Access Link",
+  members: "Members & Seats",
+};
+
+function parseServiceList(raw: string | null | undefined): string[] | null {
+  if (!raw) return null; // null = full access
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length > 0 ? arr.map(String) : null;
+  } catch {
+    return null;
+  }
+}
+
+export type ServiceAccess = { full: boolean; services: string[] };
+
+/**
+ * Effective per-service access for a user.
+ * - Super admin always gets full access.
+ * - The global "free_all_teachers" / "free_all_organizations" master switches
+ *   grant full (bypassed) access to the matching roles.
+ * - A user-level list wins over the org's list.
+ * - Otherwise the org's list is used.
+ * - Otherwise full access (null) → every service gate is bypassed.
+ */
+export function getServiceAccess(
+  user: User | null,
+  organization?: { allowedServices?: string | null } | null,
+  globalSettings?: { freeAllTeachers?: boolean; freeAllOrganizations?: boolean }
+): ServiceAccess {
+  if (!user) return { full: true, services: [] };
+  if (user.role === "admin") return { full: true, services: [] };
+  if (globalSettings?.freeAllTeachers && (user.role === "teacher" || user.role === "admin")) {
+    return { full: true, services: [] };
+  }
+  if (globalSettings?.freeAllOrganizations && (user.role === "org_admin" || user.orgId)) {
+    return { full: true, services: [] };
+  }
+  const userList = parseServiceList(user.allowedServices);
+  if (userList) return { full: false, services: userList };
+  const orgList = parseServiceList(organization?.allowedServices ?? null);
+  if (orgList) return { full: false, services: orgList };
+  return { full: true, services: [] };
+}
+
+export function isServiceAllowed(
+  serviceId: ServiceId,
+  user: User | null,
+  organization?: { allowedServices?: string | null } | null,
+  globalSettings?: { freeAllTeachers?: boolean; freeAllOrganizations?: boolean }
+): boolean {
+  const access = getServiceAccess(user, organization, globalSettings);
+  return access.full || access.services.includes(serviceId);
+}
+
+/**
+ * Fetch a user's organization (only id + allowed_services are needed for gating).
+ * Returns null when the user has no org or the lookup fails.
+ */
+export async function getOrgForGating(user: User | null): Promise<{ allowedServices: string | null } | null> {
+  if (!user?.orgId) return null;
+  try {
+    const rows = await db
+      .select({ allowedServices: organizations.allowedServices })
+      .from(organizations)
+      .where(eq(organizations.id, user.orgId))
+      .limit(1);
+    return rows[0] ?? null;
+  } catch (e) {
+    console.error("Failed to load org for service gating:", e);
+    return null;
+  }
+}
+
+/**
+ * Full service gate for a route: returns null when allowed, or a 403 response
+ * when the user/org has been restricted from this service.
+ */
+export async function enforceServiceAccess(
+  serviceId: ServiceId,
+  user: User | null
+): Promise<NextResponse | null> {
+  if (!user) return null; // anonymous/unauthenticated routes are not gated here
+  const [org, globalSettings] = await Promise.all([
+    getOrgForGating(user),
+    getGlobalSystemSettings(),
+  ]);
+  if (isServiceAllowed(serviceId, user, org, globalSettings)) return null;
+  return NextResponse.json(
+    {
+      error: `You do not have access to ${SERVICE_LABELS[serviceId]}. Your administrator has not granted this service.`,
+      serviceDenied: true,
+    },
+    { status: 403 }
+  );
+}
 
 /**
  * Fetch global system settings switches

@@ -89,6 +89,17 @@ export default function HomePage() {
             <span className="text-[10px] text-slate-500">Sub-Accounts</span>
           </Link>
         </div>
+
+        {/* Discreet Admin / Staff login link */}
+        <div className="pt-1">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Admin / Staff Portal
+          </Link>
+        </div>
       </section>
 
       {/* Feature Highlights Grid */}

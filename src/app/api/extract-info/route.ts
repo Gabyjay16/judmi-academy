@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { extractDocuments } from "@/db/schema";
 import { desc, or, like } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { enforceServiceAccess } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
 import { extractFieldsFromImages, ExtractField } from "@/lib/openrouter";
 
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest) {
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Enforce per-service access control (admin/granted)
+    const denied = await enforceServiceAccess("extractInfo", currentUser);
+    if (denied) return denied;
 
     const body: CreateBody = await req.json();
     const title = (body.title || "").trim() || "Extracted Document";

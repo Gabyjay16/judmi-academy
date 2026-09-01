@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { enforceServiceAccess } from "@/lib/plan-limits";
 
 function generateAccessKey(): string {
   if (typeof crypto !== "undefined" && (crypto as any).randomUUID) {
@@ -73,6 +74,10 @@ export async function PATCH(req: NextRequest) {
     if (!currentUser || (currentUser.role !== "org_admin" && currentUser.role !== "admin")) {
       return NextResponse.json({ error: "Unauthorized. Organization admin privileges required." }, { status: 403 });
     }
+
+    // Per-service access control (granted by super admin)
+    const denied = await enforceServiceAccess("branding", currentUser);
+    if (denied) return denied;
 
     const orgId = currentUser.orgId;
     if (!orgId) {

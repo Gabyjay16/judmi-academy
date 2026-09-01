@@ -11,10 +11,8 @@ import {
   GraduationCap, 
   BookOpen, 
   Building2, 
-  ShieldCheck, 
   CheckCircle2, 
-  AlertCircle,
-  Zap
+  AlertCircle
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -73,11 +71,12 @@ export default function LoginPage() {
     }
   };
 
-  // Quick Demo Logins
-  const handleQuickLogin = (demoEmail: string, demoPass: string, role: any) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
+  // Role selector: highlights the chosen account type without filling the form.
+  // Fields stay empty so the user types their own credentials.
+  const handleSelectRole = (role: "student" | "teacher" | "org_admin") => {
     setSelectedRole(role);
+    setEmail("");
+    setPassword("");
   };
 
   return (
@@ -97,50 +96,44 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* 1-Click Demo Login Box */}
+        {/* Role Selector (no autofill — fields stay empty) */}
         <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 p-4 rounded-2xl border border-indigo-100/80 space-y-2.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
-            <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
-            <span>1-Click Instant Demo Login:</span>
+            <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Who are you signing in as?</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold">
+          <div className="grid grid-cols-3 gap-2 text-[11px] font-semibold">
             <button
               type="button"
-              onClick={() => handleQuickLogin("student@springfield.edu", "password123", "student")}
-              className="p-2 rounded-xl bg-white border border-indigo-200/80 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1.5 transition-colors shadow-xs text-left"
+              onClick={() => handleSelectRole("student")}
+              className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-colors shadow-xs text-center ${selectedRole === "student" ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-indigo-200/80 text-indigo-700 hover:bg-indigo-50"}`}
             >
-              <GraduationCap className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span>Student (Sarah)</span>
+              <GraduationCap className="w-4 h-4 shrink-0" />
+              <span>Student</span>
             </button>
 
             <button
               type="button"
-              onClick={() => handleQuickLogin("teacher@springfield.edu", "password123", "teacher")}
-              className="p-2 rounded-xl bg-white border border-indigo-200/80 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1.5 transition-colors shadow-xs text-left"
+              onClick={() => handleSelectRole("teacher")}
+              className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-colors shadow-xs text-center ${selectedRole === "teacher" ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-indigo-200/80 text-indigo-700 hover:bg-indigo-50"}`}
             >
-              <BookOpen className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span>School Teacher</span>
+              <BookOpen className="w-4 h-4 shrink-0" />
+              <span>Teacher</span>
             </button>
 
             <button
               type="button"
-              onClick={() => handleQuickLogin("principal@springfield.edu", "password123", "org_admin")}
-              className="p-2 rounded-xl bg-white border border-indigo-200/80 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1.5 transition-colors shadow-xs text-left"
+              onClick={() => handleSelectRole("org_admin")}
+              className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-colors shadow-xs text-center ${selectedRole === "org_admin" ? "bg-purple-600 border-purple-600 text-white" : "bg-white border-indigo-200/80 text-purple-700 hover:bg-indigo-50"}`}
             >
-              <Building2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-              <span>School / Org Admin</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickLogin("admin@evalai.com", "admin123", "admin")}
-              className="p-2 rounded-xl bg-white border border-indigo-200/80 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1.5 transition-colors shadow-xs text-left"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>Super Admin</span>
+              <Building2 className="w-4 h-4 shrink-0" />
+              <span>School / Org</span>
             </button>
           </div>
+          <p className="text-[10px] text-slate-500 leading-snug">
+            Just pick your account type — your login fields stay empty for you to fill in.
+          </p>
         </div>
 
         {/* Main Card */}

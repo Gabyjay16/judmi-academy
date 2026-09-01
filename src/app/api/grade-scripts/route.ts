@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { getCurrentUser } from "@/lib/auth";
+import { enforceServiceAccess } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
 import { callOpenRouter, isOpenRouterKeyConfigured } from "@/lib/openrouter";
 
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest) {
     if (!students || students.length === 0) {
       return NextResponse.json({ error: "No student scripts provided." }, { status: 400 });
     }
+
+    // Enforce per-service access control (admin/granted)
+    const denied = await enforceServiceAccess("scanScripts", currentUser);
+    if (denied) return denied;
 
     if (currentUser) {
       const { checkUserQuota } = await import("@/lib/plan-limits");
