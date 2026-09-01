@@ -73,8 +73,10 @@ export default function Navbar() {
           localStorage.setItem("judmi_user", JSON.stringify(data.user));
         }
       } else {
-        // If not authenticated and on public route, clear local user
-        if (typeof window !== "undefined" && !isDashboardRoute) {
+        // If we still hold a session token, don't wipe the user automatically —
+        // treat it as an offline/transient miss and keep the cached user so the
+        // navbar doesn't flash into a "logged out" state on public routes.
+        if (typeof window !== "undefined" && !storedToken) {
           localStorage.removeItem("judmi_user");
           setCurrentUser(null);
         }
@@ -116,6 +118,17 @@ export default function Navbar() {
   };
 
   const isUserAuthenticated = Boolean(currentUser || isDashboardRoute);
+
+  // Where the brand/logo goes: for logged-in users it returns to their own
+  // dashboard instead of the public marketing homepage (which looks logged out).
+  const getHomeHref = () => {
+    if (!isUserAuthenticated) return "/";
+    if (currentUser?.role === "student") return "/student/dashboard";
+    if (currentUser?.role === "org_admin") return "/org/dashboard";
+    if (currentUser?.role === "admin") return "/admin";
+    return "/dashboard";
+  };
+  const homeHref = getHomeHref();
 
   // Compute navigation links based on user role
   let navLinks: { href: string; label: string; icon: any }[] = [];
@@ -166,7 +179,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link href={homeHref} className="flex items-center gap-2.5 group">
             {currentUser?.branding ? (
               <>
                 <div
