@@ -28,7 +28,8 @@ import {
   Check,
   Send,
   HelpCircle,
-  Network
+  Network,
+  ShieldCheck
 } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import { exportStudentTranscriptPDF } from "@/lib/pdf-export";
@@ -281,6 +282,26 @@ export default function StudentDashboardPage() {
             </button>
           </form>
         </div>
+
+        {/* AUTHENTICITY CHECKER TOOL */}
+        <Link
+          href="/student/plagiarism"
+          className="group flex items-center gap-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm p-3 sm:p-4 hover:bg-white/20 transition-all"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/90 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white flex items-center gap-1.5">
+              Plagiarism & Authenticity Checker
+              <span className="text-[9px] font-extrabold bg-emerald-400/90 text-emerald-950 px-1.5 py-0.5 rounded-full">NEW</span>
+            </p>
+            <p className="text-[11px] text-indigo-100/80">
+              Check your work for copied or AI-sounding content, get a verification code, and share it with your teacher.
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-indigo-100 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
 
       {/* Main Navigation Tabs */}

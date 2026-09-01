@@ -215,6 +215,24 @@ export const meetings = sqliteTable("meetings", {
   updatedAt: text("updated_at").notNull(),
 });
 
+// Student-run authenticity/plagiarism checks verified by teachers via a code.
+export const plagiarismChecks = sqliteTable("plagiarism_checks", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  textHash: text("text_hash"), // sha256 of the checked text (integrity check)
+  textExcerpt: text("text_excerpt").notNull(), // preview shown to the teacher
+  wordCount: integer("word_count").notNull().default(0),
+  similarityPercent: integer("similarity_percent").notNull().default(0),
+  aiPercent: integer("ai_percent").notNull().default(0),
+  combinedScore: integer("combined_score").notNull().default(0),
+  verdict: text("verdict").notNull().default("approved"), // "approved" | "flagged"
+  analysisJson: text("analysis_json"), // JSON: { summary, flags: [{ sample, reason }] }
+  createdAt: text("created_at").notNull(),
+});
+
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
 export type Department = typeof departments.$inferSelect;
@@ -235,6 +253,8 @@ export type ComplaintForm = typeof complaintForms.$inferSelect;
 export type NewComplaintForm = typeof complaintForms.$inferInsert;
 export type Complaint = typeof complaints.$inferSelect;
 export type NewComplaint = typeof complaints.$inferInsert;
+export type PlagiarismCheck = typeof plagiarismChecks.$inferSelect;
+export type NewPlagiarismCheck = typeof plagiarismChecks.$inferInsert;
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type NewSystemSetting = typeof systemSettings.$inferInsert;
 export type ExtractDocument = typeof extractDocuments.$inferSelect;

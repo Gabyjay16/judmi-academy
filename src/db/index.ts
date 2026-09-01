@@ -306,6 +306,26 @@ export async function initDatabase() {
     // Safe column additions for meetings (chunked recordings)
     try { await client.execute(`ALTER TABLE meetings ADD COLUMN audio_chunks_json TEXT;`); } catch {}
 
+    // 13. Plagiarism Checks table (student-run authenticity checks, verified by teachers via a code)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS plagiarism_checks (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        text_hash TEXT,
+        text_excerpt TEXT NOT NULL,
+        word_count INTEGER NOT NULL DEFAULT 0,
+        similarity_percent INTEGER NOT NULL DEFAULT 0,
+        ai_percent INTEGER NOT NULL DEFAULT 0,
+        combined_score INTEGER NOT NULL DEFAULT 0,
+        verdict TEXT NOT NULL DEFAULT 'approved',
+        analysis_json TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);

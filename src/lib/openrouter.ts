@@ -168,3 +168,66 @@ Respond with ONLY a valid JSON array, no markdown code fences, no extra text:
 
   return normalized;
 }
+
+export interface PlagiarismAnalysis {
+  similarityPercent: number;
+  aiPercent: number;
+  summary: string;
+  flags: { sample: string; reason: string }[];
+}
+
+/**
+ * Screen a student's text for plagiarism/likely-copying heuristics and likely
+ * AI-generated writing. This is a heuristic authenticity estimate (no web
+ * corpus lookup) — cheap/fast on a Flash model, conservative by default.
+ */
+export async function analyzePlagiarism(text: string): Promise<PlagiarismAnalysis> {
+  const raw = await callOpenRouter(
+    `You are an academic integrity screening engine. Analyze the student's text below and return ONLY valid JSON.
+
+Return this exact shape:
+{
+  "similarityPercent": 0-100,
+  "aiPercent": 0-100,
+  "summary": "one or two plain-language sentences explaining the verdict",
+  "flags": [
+    { "sample": "short verbatim excerpt from the text", "reason": "why it looks copied or AI-written" }
+  ]
+}
+
+Scoring guidance:
+- similarityPercent: how much of the text looks unoriginal/recycled for a student submission. Look for externally quoted or templated blocks, distinctive phrase-for-phrase duplication, overused boilerplate/filler, or abrupt style shifts suggesting pasted content. This is a heuristic estimate, NOT a web-search match. 0 = reads like a student's own writing; 100 = reads like pasted/template text.
+- aiPercent: how strongly the writing shows typical AI-generation markers (uniform polished sentence rhythm, repeated transitions like "Moreover/Furthermore/In conclusion", generic balanced structure, little personal voice or concrete specifics). Only raise this high when evidence is clear; formal academic writing is NOT automatically AI.
+- Be conservative: prefer lower scores when unsure.
+- flags: up to 6 specific examples (short verbatim sample + concise reason). Use an empty array if nothing stands out.
+
+Rules: integers 0-100 only, no markdown, no code fences.
+
+STUDENT TEXT:
+"""${text.slice(0, 60000)}"""`,
+    { model: "google/gemini-3.7-flash", temperature: 0.2, responseFormat: "json" }
+  );
+
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const clamp = (n: unknown) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+  try {
+    const parsed = JSON.parse(cleaned);
+    const flags = Array.isArray(parsed?.flags)
+      ? parsed.flags
+          .map((f: any) => ({
+            sample: String(f?.sample || "").slice(0, 400),
+            reason: String(f?.reason || ""),
+          }))
+          .filter((f: { sample: string; reason: string }) => f.sample || f.reason)
+          .slice(0, 8)
+      : [];
+    return {
+      similarityPercent: clamp(parsed?.similarityPercent),
+      aiPercent: clamp(parsed?.aiPercent),
+      summary: String(parsed?.summary || "").trim() || "Analysis complete.",
+      flags,
+    };
+  } catch {
+    return { similarityPercent: 0, aiPercent: 0, summary: "Analysis complete.", flags: [] };
+  }
+}

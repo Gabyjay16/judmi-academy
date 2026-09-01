@@ -26,6 +26,7 @@ import {
   Music4,
   ChevronRight,
   ChevronDown,
+  ShieldCheck,
   X
 } from "lucide-react";
 import { UpgradeModal } from "@/components/UpgradeModal";
@@ -153,6 +154,14 @@ export default function DashboardPage() {
               <span>Take Minutes</span>
             </Link>
           )}
+
+          <Link
+            href="/dashboard/plagiarism"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-100" />
+            <span>Verify Plagiarism Code</span>
+          </Link>
 
           <Link
             href="/dashboard/scan-scripts"
