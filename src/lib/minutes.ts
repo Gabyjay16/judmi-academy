@@ -37,10 +37,137 @@ export interface MeetingSummary {
   actionItems: { task: string; owner: string | null }[];
 }
 
-const MAX_AUDIO_FILE_BYTES = 20 * 1024 * 1024; // 20 MB safety cap (Blob/transcription)
+const MAX_AUDIO_FILE_BYTES = 15 * 1024 * 1024; // 15MB safety cap (Blob/transcription)
+const GEMINI_MODEL = "gemini-3.7-flash";
+const GEMINI_INLINE_AUDIO_BYTES = 14 * 1024 * 1024; // keep base64 under Gemini's ~20MB inline limit
+
+function getGeminiKey(): string {
+  return (process.env.GEMINI_API_KEY || "").trim();
+}
+
+function toSpeakerLabel(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return `Speaker ${Math.max(1, Math.round(value))}`;
+  const s = String(value).trim();
+  const m = s.match(/(\d+)/);
+  if (m) return `Speaker ${parseInt(m[1], 10)}`;
+  if (/speaker/i.test(s)) return "Speaker 1";
+  return null;
+}
 
 /**
- * Transcribe an audio Buffer via OpenRouter's STT endpoint.
+ * Transcribe via Gemini 3.7 Flash (native Google API) with speaker
+ * diarization and segment timestamps. Returns null when Gemini can't be used.
+ */
+export async function transcribeWithGemini(
+  audioBuffer: Buffer,
+  mimeType: string
+): Promise<{ segments: TranscriptSegment[]; durationSeconds: number; fullText: string } | null> {
+  const apiKey = getGeminiKey();
+  if (!apiKey) return null;
+  if (audioBuffer.length === 0 || audioBuffer.length > GEMINI_INLINE_AUDIO_BYTES) return null;
+
+  const format = mimeToFormat(mimeType);
+  const geminiMime: Record<string, string> = {
+    mp3: "audio/mp3",
+    m4a: "audio/mp4",
+    mp4: "audio/mp4",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    flac: "audio/flac",
+    aac: "audio/aac",
+    webm: "audio/webm",
+  };
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Transcribe the speech in this audio file. For every speaker turn output one JSON object with the fields start (seconds, number, from the start of the file), end (seconds, number), speaker (an integer index; use the SAME index whenever the same person is speaking, and 0 if there is a single speaker), and text (the verbatim words). Include only real speech, no description or recap, no timestamps inside the text.`,
+              },
+              {
+                inlineData: {
+                  mimeType: geminiMime[format] || "audio/webm",
+                  data: audioBuffer.toString("base64"),
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                start: { type: "NUMBER" },
+                end: { type: "NUMBER" },
+                speaker: { type: "NUMBER" },
+                text: { type: "STRING" },
+              },
+              required: ["start", "end", "speaker", "text"],
+            },
+          },
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    let message = `Gemini transcription returned status ${response.status}`;
+    try {
+      const parsed = JSON.parse(errorText);
+      message = parsed?.error?.message || message;
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(message);
+  }
+
+  const data = await response.json();
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  let parsed: any[];
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error("Gemini returned an invalid transcript JSON.");
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error("Gemini returned an empty transcript. Please try again.");
+  }
+
+  const segments: { start: number; end: number; text: string; speaker: string | null }[] = parsed
+    .map((s: any) => ({
+      start: Number(s?.start) || 0,
+      end: Number(s?.end) || (Number(s?.start) || 0) + 3,
+      speaker: toSpeakerLabel(s?.speaker),
+      text: String(s?.text || "").trim(),
+    }))
+    .filter((s) => s.text.length > 0);
+
+  const durationSeconds = segments[segments.length - 1]?.end || 0;
+  const fullText = segments.map((s) => s.text).join(" ");
+
+  return {
+    segments: assignSpeakers(segments),
+    durationSeconds,
+    fullText,
+  };
+}
+
+/**
+ * Transcribe an audio Buffer. Primary path is Gemini 3.7 Flash with real
+ * speaker diarization; fallback is OpenRouter's STT endpoint (whisper).
  * Returns timestamped segments with best-effort speaker clustering.
  */
 export async function transcribeMeetingAudio(
@@ -48,14 +175,34 @@ export async function transcribeMeetingAudio(
   mimeType: string,
   title: string
 ): Promise<{ segments: TranscriptSegment[]; durationSeconds: number; fullText: string }> {
-  const apiKey = getOpenRouterKey();
-  if (!apiKey) {
-    throw new Error("OpenRouter API key is not configured. Set OPENROUTER_API_KEY.");
-  }
   if (audioBuffer.length === 0 || audioBuffer.length > MAX_AUDIO_FILE_BYTES) {
     throw new Error(
-      `Audio file is ${Math.round(audioBuffer.length / 1024 / 1024)}MB. Please keep recordings under 20MB (short meetings).`
+      `Audio file is ${Math.round(audioBuffer.length / 1024 / 1024)}MB. Please keep recordings under 15MB (~15-20 minutes).`
     );
+  }
+
+  // Try Gemini first for top-notch diarized transcription.
+  if (getGeminiKey()) {
+    try {
+      const geminiResult = await transcribeWithGemini(audioBuffer, mimeType);
+      if (geminiResult) {
+        return geminiResult;
+      }
+    } catch (error: any) {
+      console.error("Gemini transcription failed, falling back to whisper:", error?.message || error);
+    }
+  }
+
+  return transcribeWithWhisper(audioBuffer, mimeType);
+}
+
+async function transcribeWithWhisper(
+  audioBuffer: Buffer,
+  mimeType: string
+): Promise<{ segments: TranscriptSegment[]; durationSeconds: number; fullText: string }> {
+  const apiKey = getOpenRouterKey();
+  if (!apiKey) {
+    throw new Error("No AI key is configured. Set GEMINI_API_KEY or OPENROUTER_API_KEY.");
   }
 
   const format = mimeToFormat(mimeType);
@@ -91,7 +238,7 @@ export async function transcribeMeetingAudio(
 
   const data = await response.json();
 
-  // Preferred: segment-level timestamps with speaker indices from the STT model.
+  // Segment-level timestamps from the STT model (rarely includes speakers).
   if (Array.isArray(data?.segments) && data.segments.length > 0) {
     const segments = data.segments
       .map((s: any, i: number) => {
@@ -114,8 +261,6 @@ export async function transcribeMeetingAudio(
     const durationSeconds = Number(data?.duration) || segments[segments.length - 1]?.end || 0;
     const fullText = segments.map((s: { text: string }) => s.text).join(" ");
 
-    // Whisper segments don't carry speaker labels reliably, so run a clustering
-    // pass: group consecutive segments into "utterances" and assign speakers.
     return {
       segments: assignSpeakers(segments),
       durationSeconds,
@@ -123,7 +268,7 @@ export async function transcribeMeetingAudio(
     };
   }
 
-  // Fallback: plain text transcript.
+  // Plain text transcript fallback.
   const fullText = String(data?.text || "").trim();
   if (!fullText) {
     throw new Error("The transcriber returned an empty transcript. Please try again.");
@@ -151,11 +296,9 @@ const MAX_UTTERANCE_SECONDS = 90; // force a boundary so a speaker doesn't monop
 
 /**
  * Cluster Whisper segments into utterances and assign consistent Speaker labels.
- * Uses pause-based boundaries + estimated voice matching (same speaker tends to
- * have similar pitch range / duration pattern), falling back to alternating
- * speakers on voice-change boundaries. In practice we cluster consecutive
- * segments separated by a large pause into the same "turn"; if the pause is
- * short we keep the previous speaker; if the STT gave a speaker index we use it.
+ * When the STT gave a speaker index (Gemini diarization) we trust it. When it
+ * did not (plain whisper), every segment belongs to the same single speaker
+ * ("Speaker 1") — we NEVER invent extra speakers from pauses alone.
  */
 export function assignSpeakers(segments: { start: number; end: number; text: string; speaker: string | null }[]): TranscriptSegment[] {
   const utterances: TranscriptSegment[] = [];
@@ -166,32 +309,22 @@ export function assignSpeakers(segments: { start: number; end: number; text: str
     const prev = segments[i - 1];
     const gap = i === 0 ? 0 : seg.start - (prev?.end ?? prev?.start ?? 0);
 
-    // If STT provided a speaker index, trust it.
+    // If the model supplied a speaker label, trust it; otherwise this whole
+    // transcript is a single speaker.
     if (seg.speaker) {
       currentSpeaker = seg.speaker;
-    } else {
-      // No explicit label: a large pause likely means a new speaker; otherwise
-      // carry the previous speaker forward.
-      if (currentSpeaker === null) {
-        currentSpeaker = utterances.length === 0 ? "Speaker 1" : `Speaker ${utterances.length + 1}`;
-      } else if (gap >= MIN_PAUSE_SECONDS) {
-        // Rotate to a new speaker (round-robin keeps the count small).
-        const lastNum = extractSpeakerNumber(currentSpeaker);
-        currentSpeaker = `Speaker ${lastNum + 1}`;
-      }
+    } else if (currentSpeaker === null) {
+      currentSpeaker = "Speaker 1";
     }
 
-    // Close the previous utterance if this is a new speaker or too long.
     const lastUtterance = utterances[utterances.length - 1];
-    if (
+    const extendable =
       lastUtterance &&
-      (lastUtterance.speaker !== currentSpeaker ||
-        (seg.start - lastUtterance.start) >= MAX_UTTERANCE_SECONDS)
-    ) {
-      // keep boundary
-    }
+      lastUtterance.speaker === currentSpeaker &&
+      seg.start - lastUtterance.start < MAX_UTTERANCE_SECONDS &&
+      gap < MIN_PAUSE_SECONDS;
 
-    if (lastUtterance && lastUtterance.speaker === currentSpeaker && seg.start - lastUtterance.start < MAX_UTTERANCE_SECONDS) {
+    if (extendable && lastUtterance) {
       lastUtterance.end = seg.end;
       lastUtterance.text = `${lastUtterance.text} ${seg.text}`.trim();
     } else {
@@ -212,11 +345,6 @@ export function assignSpeakers(segments: { start: number; end: number; text: str
   });
 
   return normalized;
-}
-
-function extractSpeakerNumber(label: string): number {
-  const m = String(label).match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : 1;
 }
 
 /**

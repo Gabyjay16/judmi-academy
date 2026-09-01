@@ -65,7 +65,7 @@ interface ProcessedResult {
   } | null;
 }
 
-const MAX_RECORD_MS = 20 * 60 * 1000; // 20 minute cap to stay under transcription limits
+const MAX_RECORD_MS = 15 * 60 * 1000; // 15 min cap to stay under the transcription size limit
 
 export default function TakeMinutesPage() {
   const router = useRouter();
@@ -216,9 +216,8 @@ export default function TakeMinutesPage() {
         const segStart = Math.max(0, lastVoiceRef.current);
         const segEnd = now;
         if (segEnd - segStart > 0.5) {
-          const speakerCount = segmentsRef.current.length;
-          const speaker = `Speaker ${Math.max(1, speakerCount + 1)}`;
-          const seg: LiveSegment = { id: `s-${Date.now()}-${segStart}`, start: segStart, end: segEnd, speaker };
+          const turnNumber = segmentsRef.current.length + 1;
+          const seg: LiveSegment = { id: `s-${Date.now()}-${segStart}`, start: segStart, end: segEnd, speaker: `Turn ${turnNumber}` };
           segmentsRef.current = [...segmentsRef.current, seg];
           setSegments(segmentsRef.current);
           lastVoiceRef.current = 0;
@@ -489,7 +488,7 @@ export default function TakeMinutesPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-indigo-600" />
-                Detected Changes (speaker turns)
+                Detected Turns (voice changes)
               </h3>
               <span className="text-[11px] text-slate-400">
                 {recording ? "Listening for voice changes…" : "Press Start Recording to begin."}
@@ -497,15 +496,14 @@ export default function TakeMinutesPage() {
             </div>
             {segments.length === 0 ? (
               <p className="text-xs text-slate-400 py-4 text-center">
-                No speech detected yet. The app splits the recording into speaker turns automatically.
+                No speech detected yet. The app will split the recording into turns; real speakers are identified by AI after the meeting.
               </p>
             ) : (
               <div className="max-h-56 overflow-y-auto space-y-1.5">
                 {segments.map((s, i) => (
                   <div key={s.id} className="flex items-center gap-2 text-xs rounded-lg bg-slate-50 px-3 py-2">
-                    <span className="font-bold text-indigo-700 shrink-0">{s.speaker}</span>
+                    <span className="text-xs text-slate-500 truncate">Turn {i + 1}</span>
                     <span className="text-slate-400 shrink-0">[{formatTime(s.start)} - {formatTime(s.end)}]</span>
-                    <span className="text-slate-500 truncate">Turn {i + 1}</span>
                   </div>
                 ))}
               </div>
@@ -513,7 +511,7 @@ export default function TakeMinutesPage() {
           </div>
 
           <p className="text-[11px] text-slate-400">
-            Recording is capped at 20 minutes. AI transcription runs automatically when you tap <b>End Meeting</b>.
+            Recording automatically stops after 15 minutes. AI transcription (Gemini, with speaker detection) runs automatically when you tap <b>End Meeting</b>.
           </p>
         </div>
       )}

@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
         return {
           allowedContentTypes: ALLOWED_AUDIO_TYPES,
-          maximumSizeInBytes: 25 * 1024 * 1024, // 25MB — under the 20MB transcription cap
+          maximumSizeInBytes: 20 * 1024 * 1024, // 20MB — just above the 15MB processing cap
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ meetingId: meeting.id }),
         };
