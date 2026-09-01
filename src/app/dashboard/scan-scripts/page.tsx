@@ -405,8 +405,8 @@ export default function ScanScriptsPage() {
         </div>
       </div>
 
-      {/* Quota Notice Banner */}
-      {!isPro && (
+      {/* Quota Notice Banner — never shown for school-managed accounts */}
+      {user && !isPro && !user?.orgId && (
         <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="font-bold px-2 py-0.5 rounded-md bg-amber-200/60 text-amber-950 text-[11px]">
