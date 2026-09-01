@@ -89,6 +89,10 @@ export async function PATCH(
     if (typeof body.audioDurationSeconds === "number" && body.audioDurationSeconds >= 0) {
       updates.audioDurationSeconds = Math.round(body.audioDurationSeconds);
     }
+    if (typeof body.status === "string" && ["recording", "processing", "ready", "failed"].includes(body.status)) {
+      updates.status = body.status;
+    }
+    if (typeof body.error === "string") updates.error = body.error;
     if (body.speakers && Array.isArray(body.speakers)) updates.speakersJson = JSON.stringify(body.speakers);
     if (body.summary) updates.summaryJson = JSON.stringify(body.summary);
 

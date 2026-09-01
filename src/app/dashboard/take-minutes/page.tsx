@@ -91,6 +91,7 @@ export default function TakeMinutesPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const meetingIdRef = useRef<string | null>(null);
   const chunksRef = useRef<{ url: string; name: string; durationSeconds: number }[]>([]);
+  const pendingBlobsRef = useRef<{ blob: Blob; name: string }[]>([]);
   const partCounterRef = useRef(0);
   const rotatingRef = useRef(false);
   const rotationPromiseRef = useRef<Promise<void> | null>(null);
@@ -249,20 +250,22 @@ export default function TakeMinutesPage() {
     }
   };
 
-  const uploadChunk = async (blob: Blob) => {
+  const extForMime = (mime: string) =>
+    mime.includes("webm") ? "webm" : mime.includes("mp4") ? "m4a" : "webm";
+
+  const uploadChunk = async (blob: Blob, name?: string) => {
     const mid = meetingIdRef.current;
     if (!mid) return null;
     const mime = blob.type || "audio/webm";
-    const ext = mime.includes("webm") ? "webm" : mime.includes("mp4") ? "m4a" : "webm";
-    const name = `part-${(partCounterRef.current++).toString().padStart(3, "0")}.${ext}`;
-    const pathname = `meetings/${mid}/${name}`;
+    const finalName = name || `part-${(partCounterRef.current++).toString().padStart(3, "0")}.${extForMime(mime)}`;
+    const pathname = `meetings/${mid}/${finalName}`;
     const blobResult = await upload(pathname, blob, {
       access: "public",
       handleUploadUrl: `/api/meetings/${mid}/upload`,
       clientPayload: mid,
       contentType: mime,
     });
-    return { url: blobResult.url, name, durationSeconds: 0 };
+    return { url: blobResult.url, name: finalName, durationSeconds: 0 };
   };
 
   const persistChunks = async () => {
@@ -292,12 +295,20 @@ export default function TakeMinutesPage() {
       audioChunksRef.current = [];
       const blob = new Blob(arr, { type: recorder.mimeType || "audio/webm" });
       if (blob.size > 0) {
-        const chunk = await uploadChunk(blob);
-        if (chunk) {
-          chunksRef.current = [...chunksRef.current, chunk];
-          setChunkTotal(chunksRef.current.length);
-          setSavedSegments(chunksRef.current.length);
-          await persistChunks();
+        // A failed upload must never silently lose the audio: stash the blob
+        // and retry it when the meeting ends.
+        const name = `part-${(partCounterRef.current++).toString().padStart(3, "0")}.${extForMime(recorder.mimeType || "audio/webm")}`;
+        try {
+          const chunk = await uploadChunk(blob, name);
+          if (chunk) {
+            chunksRef.current = [...chunksRef.current, chunk];
+            setChunkTotal(chunksRef.current.length);
+            setSavedSegments(chunksRef.current.length);
+            await persistChunks();
+          }
+        } catch (e: any) {
+          console.error("Chunk upload failed (will retry at end):", e?.message || e);
+          pendingBlobsRef.current = [...pendingBlobsRef.current, { blob, name }];
         }
       }
       if (!final) {
@@ -380,6 +391,18 @@ export default function TakeMinutesPage() {
 
   const processChunks = async () => {
     const mid = meetingIdRef.current;
+
+    // Retry any chunks whose upload failed during the meeting before giving up.
+    for (const p of pendingBlobsRef.current) {
+      try {
+        const chunk = await uploadChunk(p.blob, p.name);
+        if (chunk) chunksRef.current = [...chunksRef.current, chunk];
+      } catch (e: any) {
+        console.error("Final upload retry failed:", e?.message || e);
+      }
+    }
+    pendingBlobsRef.current = [];
+
     const chunks = [...chunksRef.current];
     cleanupMedia();
     setRecording(false);
@@ -387,6 +410,13 @@ export default function TakeMinutesPage() {
 
     if (chunks.length === 0) {
       meetingIdRef.current = null;
+      // No usable audio: remove the empty meeting so it doesn't linger as
+      // stale "recording" history.
+      if (mid) {
+        try {
+          await fetch(`/api/meetings/${mid}`, { method: "DELETE" });
+        } catch {}
+      }
       setError("No audio was captured. Please try recording again.");
       return;
     }
@@ -447,6 +477,16 @@ export default function TakeMinutesPage() {
     } catch (e: any) {
       setProcessing(false);
       setProgressMsg("");
+      // Surface the real reason instead of a zombie "recording" row.
+      try {
+        if (mid) {
+          await fetch(`/api/meetings/${mid}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "failed", error: e?.message || "Processing failed." }),
+          });
+        }
+      } catch {}
       setError(e.message || "Processing failed. Please try again.");
     }
   };
@@ -589,16 +629,15 @@ export default function TakeMinutesPage() {
               <p className="text-[11px] text-slate-400 mt-1">Default title = current date.</p>
             </div>
             {recording ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-rose-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                  REC • {formatTime(elapsed / 1000)}
+              <div className="flex items-center justify-end gap-3">
+                <div className="w-32 flex items-center gap-2 text-xs font-bold text-rose-600 tabular-nums">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                  <span>REC</span>
+                  <span className="font-mono">{formatTime(elapsed / 1000)}</span>
                 </div>
-                {chunkTotal > 0 && (
-                  <span className="text-[11px] font-semibold text-slate-400">
-                    {chunkTotal} segment{chunkTotal === 1 ? "" : "s"} saved
-                  </span>
-                )}
+                <span className="text-[11px] font-semibold text-slate-400 w-28 text-right tabular-nums">
+                  {chunkTotal > 0 ? `${chunkTotal} segment${chunkTotal === 1 ? "" : "s"} saved` : ""}
+                </span>
                 <button
                   onClick={stopRecording}
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-500/20"
