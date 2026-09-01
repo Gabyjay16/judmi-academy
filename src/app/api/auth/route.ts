@@ -145,6 +145,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Your account is suspended. Please contact the administrator." }, { status: 403 });
       }
 
+      // Admin-switch login (used by the header logo popup): the account must be a
+      // school administrator, and when a school is supplied it must be the same one.
+      if (body.adminLogin) {
+        const isSchoolAdmin = user.role === "org_admin" || user.role === "admin";
+        if (!isSchoolAdmin) {
+          return NextResponse.json({ error: "Only a school administrator can sign in here." }, { status: 403 });
+        }
+        const requireOrgId = body.requireOrgId ? String(body.requireOrgId) : null;
+        if (requireOrgId && user.orgId !== requireOrgId) {
+          return NextResponse.json({ error: "This account is not an administrator of this school." }, { status: 403 });
+        }
+      }
+
       let organization = null;
       if (user.orgId) {
         const orgRows = await db.select().from(organizations).where(eq(organizations.id, user.orgId)).limit(1);

@@ -256,8 +256,8 @@ export default function DashboardPage() {
       {/* FREEMIUM USAGE & STATS (COLLAPSIBLE / HIDDEN BY DEFAULT) */}
       {showStats && (
         <div className="space-y-6 sm:space-y-8 animate-fade-in">
-          {/* FREEMIUM USAGE & QUOTA TRACKER BANNER */}
-          {!isPro ? (
+          {/* FREEMIUM USAGE & QUOTA TRACKER BANNER — hidden entirely for school-managed accounts */}
+          {!user?.orgId && (!isPro ? (
             <div className="rounded-[22px] bg-navy-900 p-6 sm:p-8 text-white shadow-[0_18px_40px_-20px_rgba(16,26,46,0.6)] overflow-hidden">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div className="space-y-3 max-w-md">
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                 Unlimited Full Access
               </span>
             </div>
-          )}
+          ))}
 
           {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">

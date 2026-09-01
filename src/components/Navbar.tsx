@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { 
   Sparkles, 
@@ -24,6 +24,7 @@ import {
   ScanLine,
   Music4
 } from "lucide-react";
+import AdminLoginModal from "@/components/AdminLoginModal";
 
 export default function Navbar() {
   const router = useRouter();
@@ -32,6 +33,22 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [schoolBranding, setSchoolBranding] = useState<any | null>(null);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const logoClickCount = useRef(0);
+  const logoClickTimer = useRef<any>(null);
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    logoClickCount.current += 1;
+    if (logoClickTimer.current) clearTimeout(logoClickTimer.current);
+    logoClickTimer.current = setTimeout(() => {
+      logoClickCount.current = 0;
+    }, 600);
+    if (logoClickCount.current >= 3) {
+      logoClickCount.current = 0;
+      setAdminLoginOpen(true);
+    }
+  };
 
   const isSchoolPage = pathname.startsWith("/school/");
 
@@ -145,17 +162,7 @@ export default function Navbar() {
   };
 
   const isUserAuthenticated = Boolean(currentUser || isDashboardRoute);
-
-  // Where the brand/logo goes: for logged-in users it returns to their own
-  // dashboard instead of the public marketing homepage (which looks logged out).
-  const getHomeHref = () => {
-    if (!isUserAuthenticated) return "/";
-    if (currentUser?.role === "student") return "/student/dashboard";
-    if (currentUser?.role === "org_admin") return "/org/dashboard";
-    if (currentUser?.role === "admin") return "/admin";
-    return "/dashboard";
-  };
-  const homeHref = getHomeHref();
+  const isSchoolManaged = Boolean(currentUser?.orgId);
 
   // Build an abbreviation from a school's brand name (e.g. "Springfield Academy" -> "SA").
   const schoolName = schoolBranding?.brandName || schoolBranding?.name || "";
@@ -208,13 +215,78 @@ export default function Navbar() {
       { href: "/dashboard/scan-scripts", label: "Mark Scripts", icon: Camera },
       { href: "/dashboard/extract-info", label: "Extract Info", icon: ScanLine },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
-      { href: "/pricing", label: "Pricing", icon: CreditCard },
     ];
     // Institution teachers only
     if (currentUser?.orgId) {
       navLinks.splice(2, 0, { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 });
     }
+    // Independent teachers (not registered under a school) keep the pricing entry.
+    if (!currentUser?.orgId) {
+      navLinks.push({ href: "/pricing", label: "Pricing", icon: CreditCard });
+    }
   }
+
+  const logoContent = isSchoolPage && schoolBranding ? (
+    <>
+      <div
+        className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
+        style={{ backgroundColor: schoolBranding.brandColor || "#1a2c47" }}
+      >
+        {schoolBranding.logoData ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={schoolBranding.logoData} alt={schoolName} className="w-full h-full object-contain p-1" />
+        ) : (
+          <span className="text-base font-black">{schoolAbbr}</span>
+        )}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug">
+          {schoolName || schoolAbbr}
+        </span>
+        <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold tracking-wide uppercase mt-0.5">
+          Student Enrolment Portal
+        </span>
+      </div>
+    </>
+  ) : currentUser?.branding ? (
+    <>
+      <div
+        className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
+        style={{ backgroundColor: currentUser.branding.brandColor || "#1a2c47" }}
+      >
+        {currentUser.branding.logoData ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={currentUser.branding.logoData} alt={currentUser.branding.brandName} className="w-full h-full object-contain p-1" />
+        ) : (
+          <span className="text-base font-black">
+            {(currentUser.branding.brandName || "S").trim().charAt(0).toUpperCase()}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug break-words">
+          {currentUser.branding.brandName || currentUser.organizationName}
+        </span>
+        <span className="text-[10px] sm:text-[11px] text-gold-600 font-semibold tracking-[0.18em] uppercase mt-0.5">
+          School Portal
+        </span>
+      </div>
+    </>
+  ) : (
+    <>
+      <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl bg-navy-800 flex items-center justify-center text-gold-400 shadow-md group-hover:scale-105 transition-transform">
+        <Sparkles className="w-5 h-5" />
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug">
+          Judmi Academy
+        </span>
+        <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold tracking-wide uppercase mt-0.5">
+          AI Exams & Academic Hub
+        </span>
+      </div>
+    </>
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b border-slate-200/80 shadow-[0_1px_2px_rgba(16,26,46,0.05)]">
@@ -222,76 +294,29 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-[72px]">
           
-          {/* Logo */}
-          <Link href={isSchoolPage ? pathname + window.location.search : homeHref} className="flex items-center gap-2.5 sm:gap-3 group min-w-0 flex-1">
-            {isSchoolPage && schoolBranding ? (
-              <>
-                <div
-                  className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
-                  style={{ backgroundColor: schoolBranding.brandColor || "#1a2c47" }}
-                >
-                  {schoolBranding.logoData ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={schoolBranding.logoData} alt={schoolName} className="w-full h-full object-contain p-1" />
-                  ) : (
-                    <span className="text-base font-black">{schoolAbbr}</span>
-                  )}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug">
-                    {schoolName || schoolAbbr}
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold tracking-wide uppercase mt-0.5">
-                    Student Enrolment Portal
-                  </span>
-                </div>
-              </>
-            ) : currentUser?.branding ? (
-              <>
-                <div
-                  className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
-                  style={{ backgroundColor: currentUser.branding.brandColor || "#1a2c47" }}
-                >
-                  {currentUser.branding.logoData ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={currentUser.branding.logoData} alt={currentUser.branding.brandName} className="w-full h-full object-contain p-1" />
-                  ) : (
-                    <span className="text-base font-black">
-                      {(currentUser.branding.brandName || "S").trim().charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug break-words">
-                    {currentUser.branding.brandName || currentUser.organizationName}
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] text-gold-600 font-semibold tracking-[0.18em] uppercase mt-0.5">
-                    School Portal
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl bg-navy-800 flex items-center justify-center text-gold-400 shadow-md group-hover:scale-105 transition-transform">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug">
-                    Judmi Academy
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold tracking-wide uppercase mt-0.5">
-                    AI Exams & Academic Hub
-                  </span>
-                </div>
-              </>
-            )}
-          </Link>
+          {/* Logo — taps three times fast to open the school admin sign-in */}
+          {currentUser ? (
+            <button
+              type="button"
+              onClick={handleLogoClick}
+              aria-label="School logo — tap three times to open school admin sign-in"
+              title="School logo"
+              className="flex items-center gap-2.5 sm:gap-3 group min-w-0 flex-1 text-left cursor-pointer"
+            >
+              {logoContent}
+            </button>
+          ) : (
+            <Link href={isSchoolPage ? pathname + window.location.search : "/"} className="flex items-center gap-2.5 sm:gap-3 group min-w-0 flex-1">
+              {logoContent}
+            </Link>
+          )}
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1.5">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = pathname === link.href;
+const isActive = pathname === link.href;
+
               return (
                 <Link
                   key={link.href}
@@ -337,14 +362,16 @@ export default function Navbar() {
             {/* If Authenticated: Show Upgrade & Profile with Logout */}
             {isUserAuthenticated ? (
               <div className="flex items-center gap-2">
-                {/* Upgrade Button */}
-                <Link
-                  href="/checkout?plan=individual"
-                  className="px-3 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-950 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
-                >
-                  <Zap className="w-3.5 h-3.5 fill-navy-950" />
-                  <span>Upgrade</span>
-                </Link>
+                {/* Upgrade Button — hidden for school-managed accounts (billing is central) */}
+                {!isSchoolManaged && (
+                  <Link
+                    href="/checkout?plan=individual"
+                    className="px-3 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-950 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-navy-950" />
+                    <span>Upgrade</span>
+                  </Link>
+                )}
 
                 {/* Profile Dropdown */}
                 <div className="relative">
@@ -379,32 +406,53 @@ export default function Navbar() {
                         )}
                       </div>
 
-                      <Link
-                        href="/checkout?plan=individual"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-gold-800 bg-gold-50 hover:bg-gold-100 font-bold"
-                      >
-                        <Zap className="w-4 h-4 text-gold-600 fill-gold-600" />
-                        <span>Upgrade Account</span>
-                      </Link>
+                      {/* School teacher accounts: Admin Login + Logout only */}
+                      {currentUser?.role === "teacher" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setAdminLoginOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-navy-900 bg-navy-50 hover:bg-navy-100 font-bold"
+                        >
+                          <Building2 className="w-4 h-4 text-navy-700" />
+                          <span>Admin Login (School Admin)</span>
+                        </button>
+                      )}
 
-                      <Link
-                        href="/dashboard"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
-                      >
-                        <LayoutDashboard className="w-4 h-4 text-navy-700" />
-                        <span>Teacher Dashboard</span>
-                      </Link>
+                      {currentUser?.role !== "teacher" && !isSchoolManaged ? (
+                        <Link
+                          href="/checkout?plan=individual"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-gold-800 bg-gold-50 hover:bg-gold-100 font-bold"
+                        >
+                          <Zap className="w-4 h-4 text-gold-600 fill-gold-600" />
+                          <span>Upgrade Account</span>
+                        </Link>
+                      ) : null}
 
-                      <Link
-                        href="/dashboard/scan-scripts"
-                        onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
-                      >
-                        <Camera className="w-4 h-4 text-navy-700" />
-                        <span>Mark Scripts Studio</span>
-                      </Link>
+                      {currentUser?.role !== "teacher" && (
+                        <Link
+                          href="/dashboard"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
+                        >
+                          <LayoutDashboard className="w-4 h-4 text-navy-700" />
+                          <span>Teacher Dashboard</span>
+                        </Link>
+                      )}
+
+                      {currentUser?.role !== "teacher" && (
+                        <Link
+                          href="/dashboard/scan-scripts"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
+                        >
+                          <Camera className="w-4 h-4 text-navy-700" />
+                          <span>Mark Scripts Studio</span>
+                        </Link>
+                      )}
 
                       <button
                         type="button"
@@ -493,15 +541,32 @@ export default function Navbar() {
             {/* Authenticated User Mobile Controls */}
             {isUserAuthenticated ? (
               <div className="pt-2 border-t border-slate-100 space-y-2">
-                {/* Upgrade Account Button */}
-                <Link
-                  href="/checkout?plan=individual"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-3 px-4 rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-950 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
-                >
-                  <Zap className="w-4 h-4 fill-navy-950" />
-                  <span>Upgrade Account</span>
-                </Link>
+                {/* School teacher accounts: Admin Login (School Admin) */}
+                {currentUser?.role === "teacher" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setAdminLoginOpen(true);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-navy-900 hover:bg-navy-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                  >
+                    <Building2 className="w-4 h-4 text-gold-400" />
+                    <span>Admin Login (School Admin)</span>
+                  </button>
+                )}
+
+                {/* Upgrade Account Button — hidden for school-managed accounts */}
+                {!isSchoolManaged && (
+                  <Link
+                    href="/checkout?plan=individual"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full py-3 px-4 rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-950 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                  >
+                    <Zap className="w-4 h-4 fill-navy-950" />
+                    <span>Upgrade Account</span>
+                  </Link>
+                )}
 
                 {/* Logout Button */}
                 <button
@@ -535,6 +600,8 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      <AdminLoginModal open={adminLoginOpen} onClose={() => setAdminLoginOpen(false)} orgId={currentUser?.orgId || null} />
     </header>
   );
 }
