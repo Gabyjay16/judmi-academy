@@ -35,6 +35,12 @@ export async function initDatabase() {
       );
     `);
 
+    // Safe column additions for organizations (branded school page / private access link)
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN access_key TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN brand_name TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN logo_data TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN brand_color TEXT;`); } catch {}
+
     // 2. Users table
     await client.execute(`
       CREATE TABLE IF NOT EXISTS users (

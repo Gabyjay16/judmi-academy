@@ -30,17 +30,19 @@ import {
   ShieldCheck,
   ExternalLink,
   Search,
-  ScanLine
+  ScanLine,
+  Palette
 } from "lucide-react";
 import ExtractInfoWorkbench from "@/components/ExtractInfoWorkbench";
+import SchoolBrandingPanel from "@/components/SchoolBrandingPanel";
 
 export default function OrgDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Navigation Tabs: "teachers" | "students" | "departments" | "complaints" | "tests" | "extract"
-  const [activeTab, setActiveTab] = useState<"teachers" | "students" | "departments" | "complaints" | "tests" | "extract">("teachers");
+  // Navigation Tabs: "teachers" | "students" | "departments" | "complaints" | "tests" | "extract" | "branding"
+  const [activeTab, setActiveTab] = useState<"teachers" | "students" | "departments" | "complaints" | "tests" | "extract" | "branding">("teachers");
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Departments State
@@ -525,6 +527,15 @@ export default function OrgDashboardPage() {
               <ScanLine className="w-3.5 h-3.5" />
               <span>Extract Info</span>
             </button>
+            <button
+              onClick={() => setActiveTab("branding")}
+              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                activeTab === "branding" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span>Link &amp; Branding</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -950,6 +961,11 @@ export default function OrgDashboardPage() {
           <div className="p-0">
             <ExtractInfoWorkbench />
           </div>
+        )}
+
+        {/* 7. SCHOOL LINK & BRANDING TAB */}
+        {activeTab === "branding" && (
+          <SchoolBrandingPanel />
         )}
 
       </div>

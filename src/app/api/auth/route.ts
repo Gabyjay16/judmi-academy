@@ -110,6 +110,19 @@ export async function POST(req: NextRequest) {
       }
 
       const user = userRows[0];
+
+      // Branded school login: if an orgId/orgSlug is provided, the account must belong to that organization.
+      if (body.orgId || body.orgSlug) {
+        let scopedOrgId: string | null = body.orgId || null;
+        if (body.orgSlug && !scopedOrgId) {
+          const orgRows = await db.select().from(organizations).where(eq(organizations.slug, String(body.orgSlug).toLowerCase())).limit(1);
+          if (orgRows.length > 0) scopedOrgId = orgRows[0].id;
+        }
+        if (!user.orgId || user.orgId !== scopedOrgId) {
+          return NextResponse.json({ error: "This account does not belong to this school." }, { status: 403 });
+        }
+      }
+
       const isValid = await verifyPassword(password, user.passwordHash);
       if (!isValid) {
         return NextResponse.json({ error: "Invalid phone number / email or password" }, { status: 401 });
@@ -211,6 +224,33 @@ export async function POST(req: NextRequest) {
 
         createdOrgId = orgMatch.id;
         linkedOrgName = orgMatch.name;
+      } else if (body.orgId || body.orgSlug) {
+        // Signing up via a school's branded page: link directly to that organization.
+        if (role === "student" && (!studentId || !studentId.trim())) {
+          return NextResponse.json({
+            error: "Student Matricule is required when registering under a School."
+          }, { status: 400 });
+        }
+        let directOrgId: string | null = body.orgId || null;
+        if (body.orgSlug && !directOrgId) {
+          const orgRows = await db.select().from(organizations).where(eq(organizations.slug, String(body.orgSlug).toLowerCase())).limit(1);
+          if (orgRows.length > 0) directOrgId = orgRows[0].id;
+        }
+        if (!directOrgId) {
+          return NextResponse.json({ error: "Invalid school link." }, { status: 400 });
+        }
+        const orgRows = await db.select().from(organizations).where(eq(organizations.id, directOrgId)).limit(1);
+        if (orgRows.length === 0) {
+          return NextResponse.json({ error: "School not found." }, { status: 404 });
+        }
+        const currentMembers = await db.select().from(users).where(eq(users.orgId, directOrgId));
+        if (currentMembers.length >= orgRows[0].seatLimit) {
+          return NextResponse.json({
+            error: `School organization '${orgRows[0].name}' has reached its member limit (${orgRows[0].seatLimit} seats). Please contact your administrator.`
+          }, { status: 403 });
+        }
+        createdOrgId = directOrgId;
+        linkedOrgName = orgRows[0].name;
       }
 
       const userId = generateId();

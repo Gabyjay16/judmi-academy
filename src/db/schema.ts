@@ -8,6 +8,11 @@ export const organizations = sqliteTable("organizations", {
   seatLimit: integer("seat_limit").notNull().default(50),
   ownerEmail: text("owner_email").notNull(),
   status: text("status").notNull().default("active"), // "active" | "trial" | "past_due"
+  // Branded school page / private access link
+  accessKey: text("access_key"), // Secret required to open the branded /school/[slug] page
+  brandName: text("brand_name"), // Display name shown instead of "Judmi Academy"
+  logoData: text("logo_data"), // base64 PNG/JPEG/WebP logo, or URL
+  brandColor: text("brand_color"), // Theme color hex e.g. #4f46e5
   createdAt: text("created_at").notNull(),
 });
 
