@@ -157,7 +157,10 @@ export default function TakeMinutesPage() {
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) audioChunksRef.current.push(e.data);
     };
-    recorder.start();
+    // Timeslice keeps `dataavailable` flowing the whole time. Safari/iOS only
+    // emit audio when a timeslice is used — without one the final `stop()`
+    // event carries no data and the recording silently comes up empty.
+    recorder.start(1500);
   };
 
   const startRecording = async () => {
@@ -203,11 +206,7 @@ export default function TakeMinutesPage() {
       source.connect(analyser);
       analyserRef.current = analyser;
 
-      const mime = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-          ? "audio/mp4"
-          : "";
+      const mime = supportedMime();
       startRecorderForChunk(stream, mime);
 
       startRef.current = Date.now();
@@ -253,6 +252,13 @@ export default function TakeMinutesPage() {
   const extForMime = (mime: string) =>
     mime.includes("webm") ? "webm" : mime.includes("mp4") ? "m4a" : "webm";
 
+  const supportedMime = () =>
+    MediaRecorder.isTypeSupported("audio/webm")
+      ? "audio/webm"
+      : MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "";
+
   const uploadChunk = async (blob: Blob, name?: string) => {
     const mid = meetingIdRef.current;
     if (!mid) return null;
@@ -287,6 +293,11 @@ export default function TakeMinutesPage() {
     if (!recorder || recorder.state === "inactive") return;
     rotatingRef.current = true;
     try {
+      // Flush any data buffered since the last timeslice before stopping so
+      // nothing is left behind on browsers that don't emit a final stop blob.
+      try {
+        if (recorder.state === "recording") recorder.requestData();
+      } catch {}
       await new Promise<void>((resolve) => {
         recorder.addEventListener("stop", () => resolve(), { once: true });
         recorder.stop();
@@ -314,18 +325,13 @@ export default function TakeMinutesPage() {
       if (!final) {
         const stream = streamRef.current;
         if (stream) {
-          const mime = MediaRecorder.isTypeSupported("audio/webm")
-            ? "audio/webm"
-            : MediaRecorder.isTypeSupported("audio/mp4")
-              ? "audio/mp4"
-              : "";
-          startRecorderForChunk(stream, mime);
+          startRecorderForChunk(stream, supportedMime());
         }
       }
     } catch (e: any) {
       console.error("Chunk rotation failed:", e?.message || e);
       if (!final && streamRef.current) {
-        startRecorderForChunk(streamRef.current, "audio/webm");
+        startRecorderForChunk(streamRef.current, supportedMime());
       }
     } finally {
       rotatingRef.current = false;
@@ -393,6 +399,7 @@ export default function TakeMinutesPage() {
     const mid = meetingIdRef.current;
 
     // Retry any chunks whose upload failed during the meeting before giving up.
+    const pendingBefore = pendingBlobsRef.current.length;
     for (const p of pendingBlobsRef.current) {
       try {
         const chunk = await uploadChunk(p.blob, p.name);
@@ -417,7 +424,11 @@ export default function TakeMinutesPage() {
           await fetch(`/api/meetings/${mid}`, { method: "DELETE" });
         } catch {}
       }
-      setError("No audio was captured. Please try recording again.");
+      setError(
+        pendingBefore > 0
+          ? "Audio was recorded but couldn't be uploaded to storage. Check your connection and try again."
+          : "No audio was captured. Check that your microphone is on and unmuted, then try recording again."
+      );
       return;
     }
 
