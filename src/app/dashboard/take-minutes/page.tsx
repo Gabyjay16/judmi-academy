@@ -22,6 +22,7 @@ import {
   Music4,
   Plus,
   Building2,
+  ChevronDown,
 } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import { upload } from "@vercel/blob/client";
@@ -85,6 +86,7 @@ export default function TakeMinutesPage() {
   const [playingClip, setPlayingClip] = useState<string | null>(null);
   const [savedSegments, setSavedSegments] = useState(0);
   const [chunkTotal, setChunkTotal] = useState(0);
+  const [showTranscript, setShowTranscript] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -876,25 +878,34 @@ export default function TakeMinutesPage() {
               </div>
             )}
 
-            {/* Transcript */}
+            {/* Transcript (hidden until the teacher expands it) */}
             <div>
-              <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5 mb-2">
-                <FileText className="w-4 h-4 text-indigo-600" />
-                Full Transcript ({result.transcript.length} segments)
-              </h3>
-              <div className="max-h-[420px] overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/50 p-4 space-y-2">
-                {result.transcript.map((seg, i) => {
-                  const speakerObj = result.speakers.find((s) => s.label === seg.speaker);
-                  const name = speakerObj?.renamedTo || seg.speaker;
-                  return (
-                    <div key={i} className="text-[13px] leading-relaxed">
-                      <span className="font-bold text-indigo-700">{name}</span>
-                      <span className="text-slate-400 text-[10px] ml-1.5">[{formatTime(seg.start)}]</span>
-                      <p className="text-slate-600">{seg.text}</p>
-                    </div>
-                  );
-                })}
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowTranscript(!showTranscript)}
+                className="w-full flex items-center justify-between rounded-2xl border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 px-4 py-3 transition-colors"
+              >
+                <span className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                  {showTranscript ? "Hide Full Transcript" : "View Full Transcript"} ({result.transcript.length} segments)
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showTranscript ? "rotate-180" : ""}`} />
+              </button>
+              {showTranscript && (
+                <div className="mt-2 max-h-[420px] overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/50 p-4 space-y-2">
+                  {result.transcript.map((seg, i) => {
+                    const speakerObj = result.speakers.find((s) => s.label === seg.speaker);
+                    const name = speakerObj?.renamedTo || seg.speaker;
+                    return (
+                      <div key={i} className="text-[13px] leading-relaxed">
+                        <span className="font-bold text-indigo-700">{name}</span>
+                        <span className="text-slate-400 text-[10px] ml-1.5">[{formatTime(seg.start)}]</span>
+                        <p className="text-slate-600">{seg.text}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

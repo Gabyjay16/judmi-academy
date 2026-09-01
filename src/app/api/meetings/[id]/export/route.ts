@@ -4,7 +4,7 @@ import { meetings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { TranscriptSegment, MeetingSummary, MeetingSpeaker } from "@/lib/minutes";
+import { MeetingSummary } from "@/lib/minutes";
 
 export async function GET(
   req: NextRequest,
@@ -29,8 +29,6 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const segments = JSON.parse(m.transcriptJson || "[]") as TranscriptSegment[];
-    const speakers = JSON.parse(m.speakersJson || "[]") as MeetingSpeaker[];
     const summary = m.summaryJson ? (JSON.parse(m.summaryJson) as MeetingSummary) : null;
 
     const children: Paragraph[] = [];
@@ -97,38 +95,6 @@ export async function GET(
       }
     }
 
-    // Full transcript
-    if (segments.length > 0) {
-      const speakerNames = new Map<string, string>();
-      for (const sp of speakers) {
-        speakerNames.set(sp.label, sp.renamedTo || sp.label);
-      }
-
-      children.push(
-        new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: "Full Transcript", bold: true })] }),
-        new Paragraph({ children: [new TextRun({ text: "Speaker labels are AI-assigned; replace them with real names in the app if needed.", italics: true, size: 18 })] })
-      );
-
-      let lastSpeaker = "";
-      for (const seg of segments) {
-        const label = speakerNames.get(seg.speaker) || seg.speaker;
-        const speakerLine = label !== lastSpeaker;
-        lastSpeaker = label;
-        if (speakerLine) {
-          children.push(
-            new Paragraph({
-              spacing: { before: 160 },
-              children: [
-                new TextRun({ text: `${label}`, bold: true, size: 22 }),
-                new TextRun({ text: `  (${formatTime(seg.start)} - ${formatTime(seg.end)})`, italics: true, size: 18, color: "666666" }),
-              ],
-            })
-          );
-        }
-        children.push(new Paragraph({ children: [new TextRun({ text: seg.text, size: 22 })] }));
-      }
-    }
-
     const doc = new Document({
       sections: [{ children }],
     });
@@ -146,11 +112,4 @@ export async function GET(
     console.error("Export meeting minutes error:", error);
     return NextResponse.json({ error: error?.message || "Failed to export meeting minutes." }, { status: 500 });
   }
-}
-
-function formatTime(sec: number): string {
-  const s = Math.max(0, Math.floor(sec || 0));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${String(m).padStart(1, "0")}:${String(r).padStart(2, "0")}`;
 }
