@@ -40,6 +40,7 @@ export async function GET(
         meetingDate: m.meetingDate,
         audioName: m.audioName,
         audioUrl: m.audioUrl,
+        audioChunks: JSON.parse(m.audioChunksJson || "[]"),
         audioDurationSeconds: m.audioDurationSeconds,
         transcript: JSON.parse(m.transcriptJson || "[]"),
         speakers: JSON.parse(m.speakersJson || "[]"),
@@ -82,6 +83,9 @@ export async function PATCH(
     if (typeof body.meetingDate === "string") updates.meetingDate = body.meetingDate.slice(0, 10);
     if (typeof body.audioUrl === "string") updates.audioUrl = body.audioUrl;
     if (typeof body.audioName === "string") updates.audioName = body.audioName;
+    if (body.audioChunks && Array.isArray(body.audioChunks)) {
+      updates.audioChunksJson = JSON.stringify(body.audioChunks);
+    }
     if (typeof body.audioDurationSeconds === "number" && body.audioDurationSeconds >= 0) {
       updates.audioDurationSeconds = Math.round(body.audioDurationSeconds);
     }
@@ -129,11 +133,17 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Best-effort delete the stored audio blob.
-    if (m.audioUrl) {
+    // Best-effort delete the stored audio blobs (chunked recordings have many).
+    const urls = new Set<string>();
+    if (m.audioUrl) urls.add(m.audioUrl);
+    try {
+      const parsed = JSON.parse(m.audioChunksJson || "[]");
+      if (Array.isArray(parsed)) for (const c of parsed) if (c?.url) urls.add(c.url);
+    } catch {}
+    if (urls.size > 0) {
       try {
         const { del } = await import("@vercel/blob");
-        await del(m.audioUrl).catch(() => {});
+        await Promise.all(Array.from(urls).map((u) => del(u).catch(() => {})));
       } catch {}
     }
 

@@ -22,7 +22,8 @@ export interface MeetingSpeaker {
   id: string; // e.g. "speaker-1"
   label: string; // e.g. "Speaker 1"
   renamedTo: string | null; // user-replaced real name
-  clipStart: number; // seconds — used to play a ~10-15s audio clip for ID
+  clipStart: number; // seconds — used to play a ~10-15s audio clip for ID (local to clipUrl)
+  clipUrl: string | null; // audio file that holds this speaker's clip (chunk URL for chunked meetings)
   utteranceCount: number;
 }
 
@@ -177,7 +178,7 @@ export async function transcribeMeetingAudio(
 ): Promise<{ segments: TranscriptSegment[]; durationSeconds: number; fullText: string }> {
   if (audioBuffer.length === 0 || audioBuffer.length > MAX_AUDIO_FILE_BYTES) {
     throw new Error(
-      `Audio file is ${Math.round(audioBuffer.length / 1024 / 1024)}MB. Please keep recordings under 15MB (~15-20 minutes).`
+      `Audio file is ${Math.round(audioBuffer.length / 1024 / 1024)}MB. Please keep each recording segment under 15MB (~15-20 minutes).`
     );
   }
 
@@ -348,6 +349,88 @@ export function assignSpeakers(segments: { start: number; end: number; text: str
 }
 
 /**
+ * A single transcribed chunk of a chunked recording. Segments are relative to
+ * the start of that chunk (each chunk is its own file).
+ */
+export interface ChunkTranscript {
+  url: string;
+  name: string;
+  durationSeconds: number;
+  segments: TranscriptSegment[];
+}
+
+/**
+ * Merge per-chunk transcripts into a single meeting timeline. Timestamps are
+ * offset using the detected duration of each preceding chunk (so the small gap
+ * while the recorder rotates chunks does not inflate the timeline). Speaker
+ * numbers are re-normalized across the whole meeting by numeric label — the
+ * first time a "Speaker N" label appears its number becomes the global speaker
+ * in that position, so the same position in later chunks maps to the same
+ * person (matching real meetings where the same few people talk throughout).
+ */
+export function mergeChunkedTranscripts(
+  chunks: ChunkTranscript[]
+): {
+  segments: TranscriptSegment[];
+  durationSeconds: number;
+  fullText: string;
+  clipMap: { label: string; clipUrl: string; clipStart: number }[];
+} {
+  let offset = 0;
+  const raw: {
+    start: number;
+    end: number;
+    speaker: string;
+    text: string;
+    chunkIndex: number;
+    localStart: number;
+  }[] = [];
+
+  for (let c = 0; c < chunks.length; c++) {
+    const segs = chunks[c].segments || [];
+    for (const s of segs) {
+      raw.push({
+        start: s.start + offset,
+        end: s.end + offset,
+        speaker: s.speaker,
+        text: s.text,
+        chunkIndex: c,
+        localStart: s.start,
+      });
+    }
+    const last = segs[segs.length - 1];
+    offset += last ? last.end : 0;
+  }
+
+  // Renormalize speaker numbers across chunks by label identity.
+  const labelMap = new Map<string, string>();
+  let next = 0;
+  const segments: TranscriptSegment[] = raw.map((s) => {
+    let global = labelMap.get(s.speaker);
+    if (!global) {
+      next += 1;
+      global = `Speaker ${next}`;
+      labelMap.set(s.speaker, global);
+    }
+    return { start: s.start, end: s.end, speaker: global, text: s.text };
+  });
+
+  // First utterance of each speaker → which chunk file + local time to play.
+  const firstIdx = new Map<string, number>();
+  segments.forEach((s, i) => {
+    if (!firstIdx.has(s.speaker)) firstIdx.set(s.speaker, i);
+  });
+  const clipMap = Array.from(firstIdx.entries()).map(([label, i]) => {
+    const r = raw[i];
+    return { label, clipUrl: chunks[r.chunkIndex].url, clipStart: r.localStart };
+  });
+
+  const durationSeconds = segments[segments.length - 1]?.end || 0;
+  const fullText = segments.map((s) => s.text).join(" ");
+  return { segments, durationSeconds, fullText, clipMap };
+}
+
+/**
  * Build the speaker list (one entry per distinct speaker) with a clipStart
  * pointing at their first utterance so the UI can play a sample for ID.
  */
@@ -363,6 +446,7 @@ export function buildSpeakers(segments: TranscriptSegment[]): MeetingSpeaker[] {
         label: seg.speaker,
         renamedTo: null,
         clipStart: seg.start,
+        clipUrl: null,
         utteranceCount: 1,
       });
     }

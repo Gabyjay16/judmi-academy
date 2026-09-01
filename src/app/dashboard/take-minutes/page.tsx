@@ -52,7 +52,7 @@ interface ProcessedResult {
   audioUrl: string | null;
   audioDurationSeconds: number;
   transcript: { start: number; end: number; speaker: string; text: string }[];
-  speakers: { id: string; label: string; renamedTo: string | null; clipStart: number; utteranceCount: number }[];
+  speakers: { id: string; label: string; renamedTo: string | null; clipStart: number; clipUrl: string | null; utteranceCount: number }[];
   summary: {
     title: string;
     date: string;
@@ -65,7 +65,9 @@ interface ProcessedResult {
   } | null;
 }
 
-const MAX_RECORD_MS = 15 * 60 * 1000; // 15 min cap to stay under the transcription size limit
+const MAX_RECORD_MS = 3 * 60 * 60 * 1000; // 3-hour auto-stop; user can tap End anytime
+const CHUNK_MS = 5 * 60 * 1000; // finalize a ~5-min chunk this often during recording
+const TRANSCRIBE_CONCURRENCY = 4; // parallel per-chunk serverless transcriptions
 
 export default function TakeMinutesPage() {
   const router = useRouter();
@@ -81,10 +83,19 @@ export default function TakeMinutesPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProcessedResult | null>(null);
   const [playingClip, setPlayingClip] = useState<string | null>(null);
+  const [savedSegments, setSavedSegments] = useState(0);
+  const [chunkTotal, setChunkTotal] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const meetingIdRef = useRef<string | null>(null);
+  const chunksRef = useRef<{ url: string; name: string; durationSeconds: number }[]>([]);
+  const partCounterRef = useRef(0);
+  const rotatingRef = useRef(false);
+  const rotationPromiseRef = useRef<Promise<void> | null>(null);
+  const endedRef = useRef(false);
+  const chunkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -139,13 +150,45 @@ export default function TakeMinutesPage() {
     );
   }
 
+  const startRecorderForChunk = (stream: MediaStream, mime: string) => {
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    mediaRecorderRef.current = recorder;
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunksRef.current.push(e.data);
+    };
+    recorder.start();
+  };
+
   const startRecording = async () => {
     setError(null);
     setResult(null);
     setSegments([]);
     setElapsed(0);
+    setSavedSegments(0);
+    setChunkTotal(0);
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Create the meeting record up front so every chunk gets persisted to it.
+      const createRes = await fetch("/api/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: titleRef.current?.value?.trim() || new Date().toLocaleString(),
+          meetingDate: new Date().toISOString().slice(0, 10),
+        }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) {
+        throw new Error(createData.error || "Failed to create meeting.");
+      }
+      meetingIdRef.current = createData.meeting.id;
+      chunksRef.current = [];
+      partCounterRef.current = 0;
+      rotatingRef.current = false;
+      endedRef.current = false;
+      setChunkTotal(0);
+
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       audioChunksRef.current = [];
 
@@ -164,12 +207,7 @@ export default function TakeMinutesPage() {
         : MediaRecorder.isTypeSupported("audio/mp4")
           ? "audio/mp4"
           : "";
-      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-      mediaRecorderRef.current = recorder;
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-      recorder.start();
+      startRecorderForChunk(stream, mime);
 
       startRef.current = Date.now();
       timerRef.current = setInterval(() => {
@@ -180,13 +218,106 @@ export default function TakeMinutesPage() {
         }
       }, 500);
 
+      // Rotate a fresh ~5-min chunk so transcription stays fast and within the
+      // AI size limits no matter how long the meeting runs.
+      chunkTimerRef.current = setInterval(() => {
+        if (rotatingRef.current || endedRef.current) return;
+        const rec = mediaRecorderRef.current;
+        if (!rec || rec.state !== "recording") return;
+        const p = rotateChunk(false);
+        rotationPromiseRef.current = p;
+        p.finally(() => {
+          if (rotationPromiseRef.current === p) rotationPromiseRef.current = null;
+        });
+      }, CHUNK_MS);
+
       setRecording(true);
       setShowRecorder(true);
       lastVoiceRef.current = 0;
       voiceActiveRef.current = false;
       runVoiceDetection();
-    } catch {
-      setError("Microphone access was denied. Please allow microphone access to record the meeting.");
+    } catch (e: any) {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      cleanupMedia();
+      if (meetingIdRef.current) {
+        try {
+          await fetch(`/api/meetings/${meetingIdRef.current}`, { method: "DELETE" });
+        } catch {}
+        meetingIdRef.current = null;
+      }
+      setError(e?.message || "Microphone access was denied. Please allow microphone access to record the meeting.");
+    }
+  };
+
+  const uploadChunk = async (blob: Blob) => {
+    const mid = meetingIdRef.current;
+    if (!mid) return null;
+    const mime = blob.type || "audio/webm";
+    const ext = mime.includes("webm") ? "webm" : mime.includes("mp4") ? "m4a" : "webm";
+    const name = `part-${(partCounterRef.current++).toString().padStart(3, "0")}.${ext}`;
+    const pathname = `meetings/${mid}/${name}`;
+    const blobResult = await upload(pathname, blob, {
+      access: "public",
+      handleUploadUrl: `/api/meetings/${mid}/upload`,
+      clientPayload: mid,
+      contentType: mime,
+    });
+    return { url: blobResult.url, name, durationSeconds: 0 };
+  };
+
+  const persistChunks = async () => {
+    const mid = meetingIdRef.current;
+    if (!mid || chunksRef.current.length === 0) return;
+    try {
+      await fetch(`/api/meetings/${mid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioChunks: chunksRef.current }),
+      });
+    } catch {}
+  };
+
+  // Finalize the current MediaRecorder into a blob, upload it to Blob, and
+  // (when not finishing) immediately start the next chunk.
+  const rotateChunk = async (final: boolean) => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+    rotatingRef.current = true;
+    try {
+      await new Promise<void>((resolve) => {
+        recorder.addEventListener("stop", () => resolve(), { once: true });
+        recorder.stop();
+      });
+      const arr = audioChunksRef.current;
+      audioChunksRef.current = [];
+      const blob = new Blob(arr, { type: recorder.mimeType || "audio/webm" });
+      if (blob.size > 0) {
+        const chunk = await uploadChunk(blob);
+        if (chunk) {
+          chunksRef.current = [...chunksRef.current, chunk];
+          setChunkTotal(chunksRef.current.length);
+          setSavedSegments(chunksRef.current.length);
+          await persistChunks();
+        }
+      }
+      if (!final) {
+        const stream = streamRef.current;
+        if (stream) {
+          const mime = MediaRecorder.isTypeSupported("audio/webm")
+            ? "audio/webm"
+            : MediaRecorder.isTypeSupported("audio/mp4")
+              ? "audio/mp4"
+              : "";
+          startRecorderForChunk(stream, mime);
+        }
+      }
+    } catch (e: any) {
+      console.error("Chunk rotation failed:", e?.message || e);
+      if (!final && streamRef.current) {
+        startRecorderForChunk(streamRef.current, "audio/webm");
+      }
+    } finally {
+      rotatingRef.current = false;
     }
   };
 
@@ -232,93 +363,91 @@ export default function TakeMinutesPage() {
   const segmentsRef = useRef<LiveSegment[]>([]);
 
   const stopRecording = async () => {
-    const recorder = mediaRecorderRef.current;
-    if (!recorder || recorder.state === "inactive") {
-      cleanupMedia();
-      return;
-    }
+    if (endedRef.current) return;
+    endedRef.current = true;
     if (timerRef.current) clearInterval(timerRef.current);
-    await new Promise<void>((resolve) => {
-      recorder.addEventListener("stop", () => resolve(), { once: true });
-      recorder.stop();
-    });
-    onChangeComplete();
+    if (chunkTimerRef.current) clearInterval(chunkTimerRef.current);
+
+    // Wait for any in-flight chunk rotation, then save the final chunk.
+    if (rotationPromiseRef.current) {
+      try {
+        await rotationPromiseRef.current;
+      } catch {}
+    }
+    await rotateChunk(true);
+    await processChunks();
   };
 
-  const onChangeComplete = async () => {
-    const duration = (Date.now() - startRef.current) / 1000;
-    const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+  const processChunks = async () => {
+    const mid = meetingIdRef.current;
+    const chunks = [...chunksRef.current];
     cleanupMedia();
     setRecording(false);
+    setShowRecorder(false);
+
+    if (chunks.length === 0) {
+      meetingIdRef.current = null;
+      setError("No audio was captured. Please try recording again.");
+      return;
+    }
+
     setProcessing(true);
-    setProgressMsg("Preparing recording…");
+    setProgressMsg("Preparing transcription…");
 
     try {
-      // Create the meeting record first.
-      const createRes = await fetch("/api/meetings", {
+      // Transcribe each chunk in a bounded pool of parallel serverless calls.
+      const results: {
+        url: string;
+        name: string;
+        durationSeconds: number;
+        segments: { start: number; end: number; speaker: string; text: string }[];
+      }[] = new Array(chunks.length);
+      let cursor = 0;
+      const worker = async () => {
+        while (cursor < chunks.length) {
+          const idx = cursor++;
+          const c = chunks[idx];
+          setProgressMsg(`Transcribing segment ${idx + 1} of ${chunks.length}…`);
+          const res = await fetch(`/api/meetings/${mid}/process`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chunkUrl: c.url, chunkName: c.name }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || `Failed to transcribe segment ${idx + 1}.`);
+          }
+          results[idx] = {
+            url: c.url,
+            name: c.name,
+            durationSeconds: 0,
+            segments: data.chunk?.segments || [],
+          };
+        }
+      };
+      const workerCount = Math.max(1, Math.min(TRANSCRIBE_CONCURRENCY, chunks.length));
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+      setProgressMsg("Merging transcript and writing minutes…");
+      const finalizeRes = await fetch(`/api/meetings/${mid}/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: titleRef.current?.value?.trim() || new Date().toLocaleString(),
-          meetingDate: new Date().toISOString().slice(0, 10),
-        }),
+        body: JSON.stringify({ chunks: results }),
       });
-      const createData = await createRes.json();
-      if (!createRes.ok) {
-        throw new Error(createData.error || "Failed to create meeting.");
-      }
-      const meetingId = createData.meeting.id;
-
-      // Upload the audio directly from the browser to Vercel Blob. This
-      // bypasses the 4.5MB server-function body limit for recordings.
-      setProgressMsg("Uploading recording…");
-      const pathname = `meetings/${meetingId}/meeting-${Date.now()}.webm`;
-      const blobResult = await upload(pathname, blob, {
-        access: "public",
-        handleUploadUrl: `/api/meetings/${meetingId}/upload`,
-        clientPayload: meetingId,
-        contentType: "audio/webm",
-        onUploadProgress: (e: any) => {
-          const pct = e?.percentage != null ? Math.round(e.percentage) : 0;
-          setProgressMsg(`Uploading recording… ${pct}%`);
-        },
-      });
-
-      // Persist the blob URL so the process route can fetch it.
-      const patchRes = await fetch(`/api/meetings/${meetingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          audioUrl: blobResult.url,
-          audioName: blobResult.pathname.split("/").pop() || "meeting.webm",
-          audioDurationSeconds: Math.round(duration),
-        }),
-      });
-      if (!patchRes.ok) {
-        throw new Error("Failed to save the recording details.");
+      const finalizeData = await finalizeRes.json();
+      if (!finalizeRes.ok) {
+        throw new Error(finalizeData.error || "Failed to finalize the minutes.");
       }
 
-      setProgressMsg("Transcribing audio with AI…");
-      const processRes = await fetch(`/api/meetings/${meetingId}/process`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durationSeconds: Math.round(duration) }),
-      });
-      const processData = await processRes.json();
-      if (!processRes.ok) {
-        throw new Error(processData.error || "Failed to process the meeting.");
-      }
-
-      setProgressMsg("Summarizing minutes…");
-      await new Promise((r) => setTimeout(r, 400));
-      setResult(processData.meeting);
+      meetingIdRef.current = null;
       setProgressMsg("");
       setProcessing(false);
+      setResult(finalizeData.meeting);
       fetchMeetings();
     } catch (e: any) {
       setProcessing(false);
-      setError(e.message || "Processing failed. Please try again.");
       setProgressMsg("");
+      setError(e.message || "Processing failed. Please try again.");
     }
   };
 
@@ -339,14 +468,15 @@ export default function TakeMinutesPage() {
 
   const playSpeakerClip = (speaker: any) => {
     const audio = audioRef.current;
-    if (!audio || !result?.audioUrl) return;
+    const clipSrc = speaker.clipUrl || result?.audioUrl;
+    if (!audio || !clipSrc) return;
     if (playingClip === speaker.id) {
       audio.pause();
       audio.currentTime = 0;
       setPlayingClip(null);
       return;
     }
-    audio.src = result.audioUrl;
+    audio.src = clipSrc;
     audio.currentTime = Math.max(0, speaker.clipStart - 0.5);
     audio.play().then(() => setPlayingClip(speaker.id)).catch(() => setPlayingClip(null));
     audio.onended = () => { setPlayingClip(null); audio.currentTime = 0; };
@@ -464,6 +594,11 @@ export default function TakeMinutesPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
                   REC • {formatTime(elapsed / 1000)}
                 </div>
+                {chunkTotal > 0 && (
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    {chunkTotal} segment{chunkTotal === 1 ? "" : "s"} saved
+                  </span>
+                )}
                 <button
                   onClick={stopRecording}
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-500/20"
@@ -511,7 +646,10 @@ export default function TakeMinutesPage() {
           </div>
 
           <p className="text-[11px] text-slate-400">
-            Recording automatically stops after 15 minutes. AI transcription (Gemini, with speaker detection) runs automatically when you tap <b>End Meeting</b>.
+            Recording automatically stops after <b>3 hours</b> — tap <b>End Meeting</b> anytime to finish early.
+            Every ~5 minutes a chunk is saved in the background. AI transcription (Gemini, with speaker
+            detection) runs automatically when the meeting ends, and each saved chunk is transcribed
+            separately so long meetings stay fast and within AI size limits.
           </p>
         </div>
       )}
@@ -565,14 +703,16 @@ export default function TakeMinutesPage() {
                 Speakers — tap ▶ to hear a clip and identify who it is
               </h3>
               <div className="space-y-2">
-                {result.speakers.map((sp, i) => (
+                {result.speakers.map((sp, i) => {
+                  const clipSrc = sp.clipUrl || result.audioUrl;
+                  return (
                   <div key={sp.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
                     <div className="flex items-center gap-2 min-w-40">
                       <button
                         onClick={() => playSpeakerClip(sp)}
-                        disabled={!result.audioUrl}
+                        disabled={!clipSrc}
                         className="w-9 h-9 shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors disabled:opacity-40"
-                        title={result.audioUrl ? "Play ~10-15s clip to identify this speaker" : "Audio unavailable"}
+                        title={clipSrc ? "Play ~10-15s clip to identify this speaker" : "Audio unavailable"}
                       >
                         {playingClip === sp.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                       </button>
@@ -589,7 +729,8 @@ export default function TakeMinutesPage() {
                       className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <button
@@ -599,9 +740,9 @@ export default function TakeMinutesPage() {
                   <Check className="w-3.5 h-3.5" />
                   Save Speaker Names
                 </button>
-                {result.audioUrl && (
+                {(result.speakers.some((sp) => sp.clipUrl) || result.audioUrl) && (
                   <p className="text-[11px] text-slate-400">
-                    Clips play ~10-15s from each speaker&apos;s first turn in the full recording.
+                    Clips play ~10-15s from each speaker&apos;s first turn in the recording.
                   </p>
                 )}
               </div>

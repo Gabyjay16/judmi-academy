@@ -291,6 +291,7 @@ export async function initDatabase() {
         meeting_date TEXT,
         audio_name TEXT,
         audio_url TEXT,
+        audio_chunks_json TEXT,
         audio_duration_seconds INTEGER,
         transcript_json TEXT,
         speakers_json TEXT,
@@ -301,6 +302,9 @@ export async function initDatabase() {
         updated_at TEXT NOT NULL
       );
     `);
+
+    // Safe column additions for meetings (chunked recordings)
+    try { await client.execute(`ALTER TABLE meetings ADD COLUMN audio_chunks_json TEXT;`); } catch {}
 
     isInitialized = true;
   } catch (error) {

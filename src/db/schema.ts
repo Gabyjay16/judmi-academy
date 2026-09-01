@@ -204,6 +204,7 @@ export const meetings = sqliteTable("meetings", {
   meetingDate: text("meeting_date"),
   audioName: text("audio_name"),
   audioUrl: text("audio_url"), // Vercel Blob public URL for the meeting recording
+  audioChunksJson: text("audio_chunks_json"), // JSON: { url, name, durationSeconds }[] for chunked recordings
   audioDurationSeconds: integer("audio_duration_seconds"),
   transcriptJson: text("transcript_json"), // JSON: TranscriptSegment[]
   speakersJson: text("speakers_json"), // JSON: Speaker[] with optional user-renamed labels + clip start time
