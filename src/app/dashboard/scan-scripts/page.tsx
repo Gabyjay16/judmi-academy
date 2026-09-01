@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { exportClassResultsPDF } from "@/lib/pdf-export";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { isPdfFile, pdfFileToImages } from "@/lib/pdf-images";
 
 const MAX_PAGES_PER_STUDENT = 5;
 const MAX_STUDENTS_PER_BATCH = 20;
@@ -61,6 +62,7 @@ export default function ScanScriptsPage() {
 
   // Grading state
   const [isGrading, setIsGrading] = useState(false);
+  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
   const [gradedResults, setGradedResults] = useState<any[]>([]);
   const [activeReviewIdx, setActiveReviewIdx] = useState<number | null>(null);
 
@@ -102,8 +104,24 @@ export default function ScanScriptsPage() {
   const handleGuideUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const base64 = await fileToBase64(file);
-      setGuideImage(base64);
+      if (isPdfFile(file)) {
+        setIsConvertingPdf(true);
+        try {
+          const images = await pdfFileToImages(file, 1);
+          if (images.length > 0) {
+            setGuideImage(images[0]);
+          } else {
+            alert("Could not read the first page of that PDF. Please upload the marking guide as an image.");
+          }
+        } catch {
+          alert("Could not read that PDF. Please upload the marking guide as an image instead.");
+        } finally {
+          setIsConvertingPdf(false);
+        }
+      } else {
+        const base64 = await fileToBase64(file);
+        setGuideImage(base64);
+      }
     }
     // reset input so same file can be chosen again if needed
     e.target.value = "";
@@ -114,23 +132,32 @@ export default function ScanScriptsPage() {
     const files = e.target.files;
     if (!files || files.length === 0 || !activeTargetStudentId) return;
 
-    const base64List: string[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const b64 = await fileToBase64(files[i]);
-      base64List.push(b64);
-    }
-
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id === activeTargetStudentId) {
-          const combined = [...s.pages, ...base64List].slice(0, MAX_PAGES_PER_STUDENT);
-          return { ...s, pages: combined };
+    setIsConvertingPdf(true);
+    try {
+      const base64List: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        if (isPdfFile(f)) {
+          const pages = await pdfFileToImages(f, MAX_PAGES_PER_STUDENT);
+          base64List.push(...pages);
+        } else {
+          base64List.push(await fileToBase64(f));
         }
-        return s;
-      })
-    );
+      }
 
-    e.target.value = "";
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.id === activeTargetStudentId) {
+            const combined = [...s.pages, ...base64List].slice(0, MAX_PAGES_PER_STUDENT);
+            return { ...s, pages: combined };
+          }
+          return s;
+        })
+      );
+    } finally {
+      setIsConvertingPdf(false);
+      e.target.value = "";
+    }
   };
 
   // Remove a page from a student
@@ -341,7 +368,7 @@ export default function ScanScriptsPage() {
       <input
         type="file"
         ref={pageFileRef}
-        accept="image/*"
+        accept="image/*,application/pdf"
         multiple
         onChange={handleAddPageToStudent}
         className="hidden"
@@ -513,6 +540,12 @@ export default function ScanScriptsPage() {
                   <span className="text-[11px] text-slate-400 text-center font-medium">
                     Select JPEG, PNG, or PDF file
                   </span>
+                  {isConvertingPdf && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Converting PDF…
+                    </span>
+                  )}
                 </button>
               </div>
             )}

@@ -84,6 +84,10 @@ export default function CreateExamPage() {
   const [questionsList, setQuestionsList] = useState<EditableQuestion[]>([]);
   const [showQuestions, setShowQuestions] = useState(false);
 
+  // File reading state
+  const [readingFile, setReadingFile] = useState(false);
+  const [fileReadNotice, setFileReadNotice] = useState<string | null>(null);
+
   // Publishing State
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishedCode, setPublishedCode] = useState<string | null>(null);
@@ -120,12 +124,31 @@ export default function CreateExamPage() {
   // Handle File Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const text = await extractTextFromFile(file);
+    if (!file) return;
+    setReadingFile(true);
+    setFileReadNotice(null);
+    try {
+      const { text, ok, message } = await extractTextFromFile(file);
       setNotes(text);
       if (!title || title === "Midterm Assessment") {
         setTitle(`${file.name.replace(/\.[^/.]+$/, "")} Assessment`);
       }
+      if (!ok) {
+        setFileReadNotice(`Couldn't use "${file.name}" — ${message}`);
+      } else {
+        const words = text.trim().split(/\s+/).filter(Boolean).length;
+        setFileReadNotice(
+          words > 0
+            ? `Imported ${file.name} — ${words.toLocaleString()} words ready for question generation.`
+            : `No text was found in "${file.name}". Please paste the text directly.`
+        );
+      }
+    } catch (err) {
+      console.error("File read error:", err);
+      setFileReadNotice(`Could not read "${file.name}". Please paste the text directly.`);
+    } finally {
+      setReadingFile(false);
+      e.target.value = "";
     }
   };
 
@@ -364,6 +387,23 @@ export default function CreateExamPage() {
                     className="hidden"
                   />
                 </label>
+                {readingFile && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Reading file…
+                  </span>
+                )}
+                {!readingFile && fileReadNotice && (
+                  <span
+                    className={
+                      fileReadNotice.startsWith("Couldn't") || fileReadNotice.startsWith("Could not") || fileReadNotice.startsWith("No text")
+                        ? "text-amber-600 text-xs font-semibold"
+                        : "text-emerald-600 text-xs font-semibold"
+                    }
+                  >
+                    {fileReadNotice}
+                  </span>
+                )}
               </div>
             </div>
 

@@ -22,6 +22,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import CameraStudio from "@/components/CameraStudio";
+import { isPdfFile, pdfFileToImages } from "@/lib/pdf-images";
 
 interface ExtractField {
   name: string;
@@ -66,6 +67,7 @@ export default function ExtractInfoWorkbench() {
   const [newFieldName, setNewFieldName] = useState("");
   const [newFieldType, setNewFieldType] = useState("text");
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
 
   // View (open on site) state
@@ -121,14 +123,23 @@ export default function ExtractInfoWorkbench() {
   };
 
   const addPagesFromFiles = async (files: File[], target: "create" | "update") => {
-    const b64: string[] = [];
-    for (const f of files) {
-      b64.push(await fileToBase64(f));
-    }
-    if (target === "update") {
-      setUpdatePages((prev) => [...prev, ...b64]);
-    } else {
-      setCapturedPages((prev) => [...prev, ...b64]);
+    setIsConvertingPdf(true);
+    try {
+      const b64: string[] = [];
+      for (const f of files) {
+        if (isPdfFile(f)) {
+          b64.push(...(await pdfFileToImages(f, 10)));
+        } else {
+          b64.push(await fileToBase64(f));
+        }
+      }
+      if (target === "update") {
+        setUpdatePages((prev) => [...prev, ...b64]);
+      } else {
+        setCapturedPages((prev) => [...prev, ...b64]);
+      }
+    } finally {
+      setIsConvertingPdf(false);
     }
   };
 
@@ -537,7 +548,13 @@ export default function ExtractInfoWorkbench() {
             Document Pages ({capturedPages.length} snapped):
           </label>
 
-          <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={handleCameraCapture} className="hidden" />
+          <input ref={galleryInputRef} type="file" accept="image/*,application/pdf" multiple onChange={handleCameraCapture} className="hidden" />
+          {isConvertingPdf && (
+            <p className="text-xs font-bold text-indigo-600 inline-flex items-center gap-1.5">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Converting PDF pages…
+            </p>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             {capturedPages.map((page, idx) => (
@@ -982,7 +999,7 @@ export default function ExtractInfoWorkbench() {
               <input
                 ref={updateGalleryInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf"
                 multiple
                 onChange={handleUpdateGallery}
                 className="hidden"
