@@ -67,7 +67,7 @@ export default function CreateExamPage() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Exam Configuration Settings
-  const [title, setTitle] = useState("Midterm Assessment");
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("Automated timed assessment generated from curriculum notes.");
   
   // Timer & Duration settings: blank defaults to number of questions (e.g. 20 questions = 20 mins)
@@ -93,15 +93,10 @@ export default function CreateExamPage() {
   const [publishedCode, setPublishedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Computed number of questions each student answers (drives blank-duration default)
-  const effectiveQuestionsToAnswer = distributionMode === "shuffled" 
-    ? Math.min(questionsPerStudent, Math.max(1, questionsList.length))
-    : Math.max(1, questionsList.length);
-
-  // If the teacher leaves the time blank, use the number of questions (20 questions = 20 mins)
+// Exam time is always set manually by the teacher and is required before publishing.
   const effectiveDurationMinutes = durationMinutes.trim()
-    ? Math.max(1, Math.min(300, parseInt(durationMinutes, 10) || effectiveQuestionsToAnswer))
-    : effectiveQuestionsToAnswer;
+    ? Math.max(1, Math.min(300, parseInt(durationMinutes, 10) || 0))
+    : null;
 
   // Blank "number of questions" is allowed — defaults to 10 when left empty
   const parsedQuestionCount = questionCount.trim()
@@ -130,9 +125,6 @@ export default function CreateExamPage() {
     try {
       const { text, ok, message } = await extractTextFromFile(file);
       setNotes(text);
-      if (!title || title === "Midterm Assessment") {
-        setTitle(`${file.name.replace(/\.[^/.]+$/, "")} Assessment`);
-      }
       if (!ok) {
         setFileReadNotice(`Couldn't use "${file.name}" — ${message}`);
       } else {
@@ -182,9 +174,9 @@ export default function CreateExamPage() {
 
       if (data.questions && data.questions.length > 0) {
         setQuestionsList(data.questions);
-        if (questionsPerStudent > data.questions.length) {
-          setQuestionsPerStudent(data.questions.length);
-        }
+        // Every student receives the full question set the teacher requested
+        // (e.g. "30 questions" means each student answers all 30 questions).
+        setQuestionsPerStudent(Math.max(1, data.questions.length));
         setShowQuestions(false);
         setStep(2);
       } else {
@@ -250,7 +242,12 @@ export default function CreateExamPage() {
   // Publish Exam
   const handlePublish = async () => {
     if (!title.trim()) {
-      alert("Please provide an exam title.");
+      alert("Please provide an exam title. (Students see this title when the exam is about to start.)");
+      return;
+    }
+
+    if (!effectiveDurationMinutes) {
+      alert("Please set the exam time/duration in minutes before publishing.");
       return;
     }
 
@@ -592,12 +589,13 @@ export default function CreateExamPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Exam Title
+                  Exam Title <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. First Term Biology Examination"
                   className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                 />
               </div>
@@ -624,23 +622,28 @@ export default function CreateExamPage() {
                     <Timer className="w-4 h-4 text-indigo-600" />
                     <span>Exam Time / Duration</span>
                   </label>
-                  <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                    {effectiveDurationMinutes} Minutes
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                    effectiveDurationMinutes
+                      ? "text-indigo-700 bg-indigo-50 border-indigo-100"
+                      : "text-amber-700 bg-amber-50 border-amber-200"
+                  }`}>
+                    {effectiveDurationMinutes ? `${effectiveDurationMinutes} Minutes` : "Set time below"}
                   </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Time limit for students (minutes)
+                    Time limit for students (minutes) <span className="text-rose-500">*</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min={1}
                       max={300}
+                      required
                       value={durationMinutes}
                       onChange={(e) => setDurationMinutes(e.target.value)}
-                      placeholder={String(effectiveQuestionsToAnswer)}
+                      placeholder="e.g. 45"
                       className="w-28 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                     <span className="text-slate-500 text-xs">Minutes</span>
@@ -648,7 +651,7 @@ export default function CreateExamPage() {
                   <p className="text-[11px] text-slate-500 mt-1.5">
                     {durationMinutes.trim()
                       ? `Students will have ${effectiveDurationMinutes} minutes.`
-                      : `Leave blank to auto-set to the number of questions (${effectiveQuestionsToAnswer} questions = ${effectiveQuestionsToAnswer} minutes). Type a number to give a custom time.`}
+                      : `Required. Enter how many minutes students get to complete the exam.`}
                   </p>
                 </div>
               </div>
@@ -832,7 +835,7 @@ export default function CreateExamPage() {
 
               <div className="flex flex-wrap gap-2 mt-4 text-[11px] font-semibold">
                 <span className="px-2.5 py-1 rounded-full bg-white/10">{questionsList.length} Questions</span>
-                <span className="px-2.5 py-1 rounded-full bg-white/10">{effectiveDurationMinutes} mins</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{effectiveDurationMinutes ? `${effectiveDurationMinutes} mins` : "Time not set"}</span>
                 <span className="px-2.5 py-1 rounded-full bg-white/10 capitalize">{difficulty}</span>
                 <span className="px-2.5 py-1 rounded-full bg-white/10">{distributionMode === "shuffled" ? "Shuffled mode" : "General mode"}</span>
                 <span className="px-2.5 py-1 rounded-full bg-white/10">{parsedQuestionCount} targeted</span>
@@ -1010,7 +1013,7 @@ export default function CreateExamPage() {
               <div>
                 <h4 className="text-sm font-bold text-slate-900">Ready to publish exam?</h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Duration: <strong className="text-indigo-700">{effectiveDurationMinutes} minutes</strong> • Retakes: <strong className={allowRetake ? "text-emerald-700" : "text-amber-700"}>{allowRetake ? "Allowed" : "Disabled (1 attempt)"}</strong>
+                  Duration: <strong className="text-indigo-700">{effectiveDurationMinutes ? `${effectiveDurationMinutes} minutes` : "not set yet"}</strong> • Retakes: <strong className={allowRetake ? "text-emerald-700" : "text-amber-700"}>{allowRetake ? "Allowed" : "Disabled (1 attempt)"}</strong>
                 </p>
               </div>
 
@@ -1066,7 +1069,7 @@ export default function CreateExamPage() {
                   {publishedCode}
                 </div>
                 <div className="text-[11px] text-indigo-700 font-semibold mt-1">
-                  ⏱️ {effectiveDurationMinutes} Mins • {allowRetake ? "Retakes Allowed" : "One Attempt Only"}
+                  ⏱️ {effectiveDurationMinutes ?? 0} Mins • {allowRetake ? "Retakes Allowed" : "One Attempt Only"}
                 </div>
               </div>
 

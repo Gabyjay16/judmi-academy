@@ -65,7 +65,7 @@ export async function generateMCQQuestions(
 
   try {
     const prompt = `You are an expert exam creator and pedagogical specialist.
-Generate ${count} high-quality Multiple Choice Questions (MCQ) based strictly on the provided teaching notes/material.
+Generate exactly ${count} high-quality Multiple Choice Questions (MCQ) based on the factual content of the teaching notes provided.
 
 ${subject ? `Subject: ${subject}` : ""}
 ${difficulty !== "mixed" ? `Target Difficulty: ${difficulty}` : "Difficulty: Mix of easy, medium, and hard"}
@@ -75,9 +75,20 @@ Teaching Notes/Material:
 ${notes.slice(0, 15000)}
 """
 
+CONTENT RULES (very important):
+- Write QUESTIONS THAT TEST REAL KNOWLEDGE from the notes: exact definitions, names of concepts/terms/processes, properties and characteristics, mechanisms, sequences/order of steps, causes and effects, numbers or calculations stated in the notes, and correct real-world applications.
+- Every question and its correct answer must be directly and specifically supported by sentences or facts in the notes.
+- NEVER write "meta" questions that only ask about the notes document itself. These are FORBIDDEN and must not appear anywhere:
+  * "What is the main topic of chapter one?" / "What is discussed in chapter two?"
+  * "Which subject or topic is this material about?"
+  * "What was mentioned in the notes?" / "According to the notes, which of the following was covered?"
+  * "What is the title of the notes?"
+  * Any question whose only purpose is to check whether the student read the document, instead of checking knowledge of the subject.
+- For each question: pick the correct answer from the notes (use its exact wording or values where the notes are specific), then invent 3 distractors that are plausible but factually wrong (common misconceptions, opposite statements, or wrong values). Do not use "All of the above" or "None of the above".
+
 Requirements for each question:
-1. Exactly 4 distinct and plausible options (A, B, C, D). Avoid "All of the above" or "None of the above" unless essential.
-2. Clearly identify the 0-indexed correct answer (0 for option 1, 1 for option 2, 2 for option 3, 3 for option 4).
+1. Exactly 4 distinct and plausible options (A, B, C, D).
+2. correctAnswerIndex is the 0-indexed position of the correct option (0..3).
 3. Provide a thorough, educational explanation detailing why the correct option is right and why the distractors are incorrect.
 4. Set marks to 1.
 5. Set difficulty ("easy", "medium", "hard").
@@ -216,75 +227,54 @@ Please evaluate the essay thoroughly and return ONLY a valid JSON object matchin
 }
 
 // Smart local fallback generators when API key is not configured
+function cleanSourceLine(line: string): string {
+  const cleaned = line.replace(/^[\s\d\-•*]+/, "").trim();
+  return cleaned.length > 90 ? `${cleaned.slice(0, 90).trimEnd()}…` : cleaned;
+}
+
 function generateFallbackMCQs(notes: string, count: number, subject?: string): GeneratedMCQ[] {
-  const lines = notes.split("\n").map(l => l.trim()).filter(l => l.length > 20);
-  const sampleTopic = subject || (lines[0]?.slice(0, 40) || "General Topic");
-
-  const templates: GeneratedMCQ[] = [
-    {
-      questionText: `According to the material on ${sampleTopic}, what is the central concept or mechanism described?`,
-      options: [
-        `The primary structured process outlined in the core notes`,
-        `An alternative unrelated peripheral theory`,
-        `A historical convention that has been deprecated`,
-        `A static configuration with no dynamic properties`
-      ],
-      correctAnswerIndex: 0,
-      explanation: `Option A accurately summarizes the fundamental principle outlined in the teaching material, whereas other choices present common misconceptions or irrelevant tangents.`,
-      difficulty: "easy",
-      marks: 1
-    },
-    {
-      questionText: `Which of the following best explains the functional relationship between the primary components mentioned in ${sampleTopic}?`,
-      options: [
-        `They operate independently with zero dependency`,
-        `They coordinate hierarchically to optimize overall efficiency and reliability`,
-        `They strictly oppose each other causing bottleneck conditions`,
-        `They are only applicable in simulated theoretical environments`
-      ],
-      correctAnswerIndex: 1,
-      explanation: `Option B reflects the cooperative and hierarchical workflow highlighted in the study material.`,
-      difficulty: "medium",
-      marks: 1
-    },
-    {
-      questionText: `When analyzing the key requirements in ${sampleTopic}, which condition is essential for optimal results?`,
-      options: [
-        `Complete absence of validation rules`,
-        `Randomized unverified parameter execution`,
-        `Structured initialization and consistent state management`,
-        `Manual intervention at every single sub-step`
-      ],
-      correctAnswerIndex: 2,
-      explanation: `Structured initialization and consistent state management ensure stability and adherence to specified standards.`,
-      difficulty: "medium",
-      marks: 1
-    },
-    {
-      questionText: `What is the primary consequence if the critical constraints of ${sampleTopic} are violated?`,
-      options: [
-        `System instability, degraded performance, or inaccurate outputs`,
-        `Exponential speedup in processing throughput`,
-        `Immediate auto-healing with no telemetry logging`,
-        `No observable difference in execution outcomes`
-      ],
-      correctAnswerIndex: 0,
-      explanation: `Violating fundamental operational constraints predictably leads to degradation or incorrect results.`,
-      difficulty: "hard",
-      marks: 1
-    }
-  ];
-
+  const sourceLines = notes
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 25);
+  const pool = sourceLines.length > 0 ? sourceLines : [notes.trim()];
+  const sampleTopic = subject || "the study material";
   const results: GeneratedMCQ[] = [];
+
   for (let i = 0; i < count; i++) {
-    const base = templates[i % templates.length];
-    const sourceLine = lines[i % (lines.length || 1)] || "";
+    const baseIdx = i % pool.length;
+    const base = cleanSourceLine(pool[baseIdx]);
+
+    // Distractors: other factual statements from the notes (real content, not meta)
+    const distractors: string[] = [];
+    let step = 1;
+    while (distractors.length < 3 && step < pool.length) {
+      const d = cleanSourceLine(pool[(baseIdx + step) % pool.length]);
+      if (d !== base && !distractors.includes(d)) distractors.push(d);
+      step++;
+    }
+    while (distractors.length < 3) {
+      distractors.push("This statement is not supported by the study notes.");
+    }
+
+    // Rotate the correct answer position so it is not always option A
+    const options: string[] = new Array(4).fill("");
+    const correctPos = i % 4;
+    options[correctPos] = base;
+    let dIdx = 0;
+    for (let s = 0; s < 4; s++) {
+      if (s === correctPos) continue;
+      options[s] = distractors[dIdx];
+      dIdx++;
+    }
+
     results.push({
-      ...base,
-      questionText: sourceLine.length > 30 
-        ? `Regarding the note: "${sourceLine.slice(0, 80)}...", which of the following is true?`
-        : `Q${i + 1}: ${base.questionText}`,
-      difficulty: (i % 3 === 0 ? "easy" : i % 3 === 1 ? "medium" : "hard") as any
+      questionText: `Which of the following statements about ${sampleTopic} is correct?`,
+      options,
+      correctAnswerIndex: correctPos,
+      explanation: `The notes state: "${base}". The other statements contain details that are not correct for this material.`,
+      difficulty: (i % 3 === 0 ? "easy" : i % 3 === 1 ? "medium" : "hard") as any,
+      marks: 1,
     });
   }
 

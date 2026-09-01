@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
       subject,
       notesContent,
       durationMinutes,
-      isAutoDuration = false,
       distributionMode = "general", // "general" | "shuffled"
       questionsPerStudent = 10,
       passScorePercentage = 50,
@@ -42,13 +41,14 @@ export async function POST(req: NextRequest) {
       ? Math.min(Number(questionsPerStudent) || questionsList.length, questionsList.length)
       : questionsList.length;
 
-    // Time calculation: If teacher didn't set a time or selected auto, calculate 1 min per question to be answered
-    let finalDurationMinutes: number;
-    if (isAutoDuration || !durationMinutes || Number(durationMinutes) <= 0) {
-      finalDurationMinutes = actualQuestionsPerStudent; // 1 min per question
-    } else {
-      finalDurationMinutes = Number(durationMinutes);
+    // The exam time is set manually by the teacher in minutes (no auto-computed duration).
+    if (!durationMinutes || Number(durationMinutes) <= 0) {
+      return NextResponse.json(
+        { error: "Exam duration is required. Please set the time limit in minutes." },
+        { status: 400 }
+      );
     }
+    const finalDurationMinutes = Math.min(300, Math.max(1, Math.round(Number(durationMinutes))));
 
     const testId = generateId();
     let code = generateTestCode();
