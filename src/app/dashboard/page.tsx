@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
-  Sparkles, 
   BookOpen, 
-  PenTool, 
   Timer, 
   Shuffle, 
   Users, 
@@ -14,12 +12,8 @@ import {
   Check, 
   ExternalLink,
   Plus,
-  Play,
   FileCheck2,
-  Calendar,
-  AlertCircle,
   Camera,
-  Crown,
   Zap,
   ArrowRight,
   Trash2,
@@ -27,7 +21,7 @@ import {
   ChevronRight,
   ChevronDown,
   ShieldCheck,
-  X
+  BarChart3
 } from "lucide-react";
 import { UpgradeModal } from "@/components/UpgradeModal";
 
@@ -132,243 +126,296 @@ export default function DashboardPage() {
   const essayGradings = user?.essayGradingsUsed || 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-      
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Hello {user?.name || "there"}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Manage your AI exams, camera-scanned physical papers, and student transcripts.
-          </p>
-        </div>
+    <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 sm:space-y-10">
 
-        <div className="flex flex-wrap items-center gap-2.5">
+      {/* Welcome */}
+      <section className="space-y-3">
+        <span className="inline-block text-[13px] sm:text-sm font-bold uppercase tracking-[0.22em] text-gold-600">
+          Welcome Back
+        </span>
+        <h1 className="text-[32px] sm:text-[42px] font-extrabold tracking-tight text-navy-900 leading-[1.1]">
+          Hello {user?.name || "there"}
+        </h1>
+        <div className="w-16 h-[3px] rounded-full bg-gold-500" />
+        <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
+          Manage your AI exams, camera-scanned physical papers, and student transcripts.
+        </p>
+      </section>
+
+      {/* Quick Actions */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+        {/* Extract Info */}
+        <Link
+          href="/dashboard/extract-info"
+          className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
+        >
+          <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <FileCheck2 className="w-6 h-6" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Extract Info</span>
+            <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
+              Extract details from camera-scanned documents.
+            </span>
+          </span>
+        </Link>
+
+        {/* Take Minutes */}
+        {user?.orgId && (
           <Link
-            href="/dashboard/extract-info"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-xs"
+            href="/dashboard/take-minutes"
+            className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
           >
-            <FileCheck2 className="w-3.5 h-3.5 text-teal-100" />
-            <span>Extract Info</span>
+            <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+              <Music4 className="w-6 h-6" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Take Minutes</span>
+              <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
+                Record meetings and get AI minutes & transcript.
+              </span>
+            </span>
           </Link>
+        )}
 
-          {user?.orgId && (
-            <Link
-              href="/dashboard/take-minutes"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition-all shadow-xs"
-            >
-              <Music4 className="w-3.5 h-3.5 text-violet-100" />
-              <span>Take Minutes</span>
-            </Link>
-          )}
+        {/* Verify Plagiarism Code */}
+        <Link
+          href="/dashboard/plagiarism"
+          className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
+        >
+          <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <ShieldCheck className="w-6 h-6" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Verify Plagiarism Code</span>
+            <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
+              Check a student&apos;s authenticity result by code.
+            </span>
+          </span>
+        </Link>
 
-          <Link
-            href="/dashboard/plagiarism"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-100" />
-            <span>Verify Plagiarism Code</span>
-          </Link>
+        {/* Mark Scripts */}
+        <Link
+          href="/dashboard/scan-scripts"
+          className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
+        >
+          <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <Camera className="w-6 h-6" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Mark Scripts</span>
+            <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
+              Grade camera-scanned papers with AI marking.
+            </span>
+          </span>
+        </Link>
 
-          <Link
-            href="/dashboard/scan-scripts"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
-          >
-            <Camera className="w-3.5 h-3.5 text-indigo-300" />
-            <span>Mark Scripts</span>
-          </Link>
+        {/* Create Exam — Primary */}
+        <Link
+          href="/dashboard/create"
+          className="group relative flex items-center gap-4 rounded-[20px] bg-navy-900 p-6 sm:p-7 text-white shadow-[0_16px_36px_-18px_rgba(16,26,46,0.55)] hover:shadow-[0_20px_42px_-18px_rgba(16,26,46,0.65)] hover:-translate-y-0.5 transition-all overflow-hidden"
+        >
+          <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+          <span className="w-12 h-12 shrink-0 rounded-2xl bg-white/10 border border-gold-400/40 text-gold-400 flex items-center justify-center">
+            <Plus className="w-6 h-6" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-lg sm:text-xl font-bold text-white leading-snug">Create Exam</span>
+            <span className="block mt-1.5 text-[15px] leading-relaxed text-navy-100">
+              Generate AI exams from your teaching notes.
+            </span>
+          </span>
+          <ArrowRight className="w-5 h-5 text-gold-400 shrink-0 transition-transform group-hover:translate-x-1" />
+        </Link>
+      </section>
 
-          <Link
-            href="/dashboard/create"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-md shadow-indigo-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Exam</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* REVEAL / HIDE STATISTICS TOGGLE BUTTON - FULL WIDTH ACROSS SCREEN */}
-      <div className="w-full pt-1">
+      {/* REVEAL / HIDE STATISTICS TOGGLE - FULL WIDTH */}
+      <div className="w-full">
         <button
           type="button"
           onClick={() => setShowStats(!showStats)}
-          className="w-full flex items-center justify-between px-4 sm:px-5 py-3 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 text-xs font-bold text-slate-800 shadow-xs transition-all"
+          className="w-full flex items-center justify-between gap-4 px-5 sm:px-8 py-5 sm:py-6 rounded-[20px] bg-white border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:bg-slate-50/60 transition-all text-left"
         >
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span>{showStats ? "Hide Statistics & Quota Tracker ▴" : "Show Statistics & Analytics (4 Cards) ▾"}</span>
-          </div>
-
-          <span className="text-[11px] text-slate-500 font-normal shrink-0">
-            {tests.length} published exams • {totalSubmissions} submissions
+          <span className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <span className="w-11 h-11 shrink-0 rounded-xl bg-navy-50 text-gold-600 border border-navy-100 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-base sm:text-lg font-bold text-navy-900 leading-tight">
+                {showStats ? "Hide Statistics & Quota Tracker" : "Show Statistics & Analytics (4 Cards)"}
+              </span>
+              <span className="block mt-1 text-[13px] sm:text-sm text-slate-500">
+                {tests.length} published exams • {totalSubmissions} submissions
+              </span>
+            </span>
           </span>
+          <ChevronDown className={`w-5 h-5 text-gold-500 shrink-0 transition-transform ${showStats ? "rotate-180" : ""}`} />
         </button>
       </div>
 
       {/* FREEMIUM USAGE & STATS (COLLAPSIBLE / HIDDEN BY DEFAULT) */}
       {showStats && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6 sm:space-y-8 animate-fade-in">
           {/* FREEMIUM USAGE & QUOTA TRACKER BANNER */}
           {!isPro ? (
-            <div className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-indigo-800/40">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
-                    Free Starter Plan
-                  </span>
-                  <span className="text-xs text-indigo-200">Limited trial services</span>
-                </div>
-                <h3 className="text-lg font-bold text-white">
-                  Your Free Feature Quota Tracker
-                </h3>
-                <p className="text-xs text-slate-300 max-w-md">
-                  Upgrade to the Solo Teacher Plan (5,000 FCFA/mo) for unlimited AI exam creation, camera script scans, and rubric marking.
-                </p>
-              </div>
-
-              <div className="w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                {/* Quota Counters */}
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="p-2.5 rounded-2xl bg-white/10 border border-white/15">
-                    <span className="text-[10px] text-indigo-200 block">AI Exams</span>
-                    <span className="text-sm font-extrabold text-white">{examGens} / 3</span>
+            <div className="rounded-[22px] bg-navy-900 p-6 sm:p-8 text-white shadow-[0_18px_40px_-20px_rgba(16,26,46,0.6)] overflow-hidden">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="space-y-3 max-w-md">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="px-3 py-1 rounded-full bg-gold-500/15 border border-gold-400/40 text-gold-300 text-[13px] font-bold uppercase tracking-wider">
+                      Free Starter Plan
+                    </span>
+                    <span className="text-sm text-navy-200">Limited trial services</span>
                   </div>
-
-                  <div className="p-2.5 rounded-2xl bg-white/10 border border-white/15">
-                    <span className="text-[10px] text-indigo-200 block">Paper Scans</span>
-                    <span className="text-sm font-extrabold text-white">{scriptScans} / 3</span>
-                  </div>
-
-                  <div className="p-2.5 rounded-2xl bg-white/10 border border-white/15">
-                    <span className="text-[10px] text-indigo-200 block">Essays</span>
-                    <span className="text-sm font-extrabold text-white">{essayGradings} / 2</span>
-                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white">Your Free Feature Quota Tracker</h3>
+                  <p className="text-[15px] text-navy-200 leading-relaxed">
+                    Upgrade to the Solo Teacher Plan (5,000 FCFA/mo) for unlimited AI exam creation, camera script scans, and rubric marking.
+                  </p>
                 </div>
 
-                <Link
-                  href="/checkout?plan=individual"
-                  className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-1.5 shrink-0"
-                >
-                  <Zap className="w-4 h-4 fill-slate-950" />
-                  <span>Upgrade to Pro (5,000 FCFA)</span>
-                </Link>
+                <div className="w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                  {/* Quota Counters */}
+                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3 text-left">
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                      <span className="text-[13px] text-gold-300/90 block">AI Exams</span>
+                      <span className="text-lg sm:text-xl font-extrabold text-white">{examGens} / 3</span>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                      <span className="text-[13px] text-gold-300/90 block">Paper Scans</span>
+                      <span className="text-lg sm:text-xl font-extrabold text-white">{scriptScans} / 3</span>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                      <span className="text-[13px] text-gold-300/90 block">Essays</span>
+                      <span className="text-lg sm:text-xl font-extrabold text-white">{essayGradings} / 2</span>
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/checkout?plan=individual"
+                    className="px-5 py-3 rounded-2xl bg-gold-500 hover:bg-gold-400 text-navy-950 font-bold text-[15px] shadow-lg shadow-gold-500/25 transition-all flex items-center justify-center gap-2 shrink-0"
+                  >
+                    <Zap className="w-4 h-4 fill-navy-950" />
+                    <span>Upgrade to Pro (5,000 FCFA)</span>
+                  </Link>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-950 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+            <div className="p-5 sm:p-6 rounded-[20px] bg-white border border-gold-200 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <span className="w-10 h-10 shrink-0 rounded-xl bg-navy-900 text-gold-400 flex items-center justify-center font-bold">
                   ★
                 </span>
-                <div>
-                  <div className="text-xs font-bold text-emerald-950">
+                <div className="min-w-0">
+                  <div className="text-base font-bold text-navy-950">
                     {user?.planType === "school_pro" ? "School Organization Pro Plan Active" : "Individual Educator Pro Plan Active"}
                   </div>
-                  <div className="text-[11px] text-emerald-700">
+                  <div className="text-sm text-navy-700">
                     Unlimited AI exam generations, unlimited camera paper scans, and full cohort analytics unlocked.
                   </div>
                 </div>
               </div>
 
-              <span className="text-[11px] font-bold text-emerald-700 bg-white px-3 py-1 rounded-full border border-emerald-200 shadow-xs">
+              <span className="shrink-0 text-[13px] font-bold text-navy-900 bg-gold-50 px-3 py-1.5 rounded-full border border-gold-200">
                 Unlimited Full Access
               </span>
             </div>
           )}
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-xs font-medium text-slate-500">Total Exams</span>
-                <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+            <div className="bg-white p-5 sm:p-6 rounded-[18px] border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] sm:text-sm font-medium text-slate-500">Total Exams</span>
+                <div className="w-9 h-9 shrink-0 rounded-xl bg-navy-50 text-gold-600 border border-navy-100 flex items-center justify-center">
                   <BookOpen className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+              <div className="text-2xl sm:text-3xl font-extrabold text-navy-900 mt-1.5">
                 {tests.length}
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">Active assessments</div>
+              <div className="text-[13px] text-slate-400 mt-0.5">Active assessments</div>
             </div>
 
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-xs font-medium text-slate-500">Submissions</span>
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="bg-white p-5 sm:p-6 rounded-[18px] border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] sm:text-sm font-medium text-slate-500">Submissions</span>
+                <div className="w-9 h-9 shrink-0 rounded-xl bg-navy-50 text-gold-600 border border-navy-100 flex items-center justify-center">
                   <Users className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+              <div className="text-2xl sm:text-3xl font-extrabold text-navy-900 mt-1.5">
                 {totalSubmissions}
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">Completed tests</div>
+              <div className="text-[13px] text-slate-400 mt-0.5">Completed tests</div>
             </div>
 
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-xs font-medium text-slate-500">Question Pool</span>
-                <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+            <div className="bg-white p-5 sm:p-6 rounded-[18px] border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] sm:text-sm font-medium text-slate-500">Question Pool</span>
+                <div className="w-9 h-9 shrink-0 rounded-xl bg-navy-50 text-gold-600 border border-navy-100 flex items-center justify-center">
                   <FileCheck2 className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+              <div className="text-2xl sm:text-3xl font-extrabold text-navy-900 mt-1.5">
                 {totalQuestions}
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">Items in bank</div>
+              <div className="text-[13px] text-slate-400 mt-0.5">Items in bank</div>
             </div>
 
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] sm:text-xs font-medium text-slate-500">Mark Scripts</span>
-                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className="bg-white p-5 sm:p-6 rounded-[18px] border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] sm:text-sm font-medium text-slate-500">Mark Scripts</span>
+                <div className="w-9 h-9 shrink-0 rounded-xl bg-navy-50 text-gold-600 border border-navy-100 flex items-center justify-center">
                   <Camera className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-base sm:text-lg font-bold text-slate-900 mt-1">
+              <div className="text-xl sm:text-2xl font-bold text-navy-900 mt-1.5">
                 Gemini Vision
               </div>
-              <div className="text-[10px] text-emerald-600 font-medium mt-0.5">● Paper & Essay OCR</div>
+              <div className="text-[13px] sm:text-sm text-emerald-600 font-medium mt-0.5">● Paper & Essay OCR</div>
             </div>
           </div>
         </div>
       )}
 
       {/* Tests Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-indigo-600" />
+      <div className="bg-white rounded-[22px] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-slate-100 flex items-center justify-between gap-3">
+          <h2 className="text-lg sm:text-2xl font-bold text-navy-900 flex items-center gap-3">
+            <span className="w-9 h-9 shrink-0 rounded-xl bg-navy-50 text-navy-700 border border-navy-100 flex items-center justify-center">
+              <BookOpen className="w-[18px] h-[18px]" />
+            </span>
             <span>All Published Exams ({tests.length})</span>
           </h2>
           <Link
             href="/dashboard/create"
-            className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-navy-900 hover:bg-navy-800 text-white text-[13px] font-bold shadow-sm transition-colors"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             <span>Create New</span>
           </Link>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-xs text-slate-500">
-            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            Loading your exams...
+          <div className="p-12 sm:p-16 text-center">
+            <div className="w-9 h-9 border-2 border-navy-700 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-base text-slate-500">Loading your exams...</p>
           </div>
         ) : tests.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-              <BookOpen className="w-6 h-6" />
+          <div className="p-12 sm:p-16 text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-navy-50 text-navy-700 border border-navy-100 flex items-center justify-center mx-auto">
+              <BookOpen className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">No exams created yet</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <h3 className="text-xl font-bold text-navy-900">No exams created yet</h3>
+            <p className="text-base text-slate-500 max-w-sm mx-auto">
               Upload your teaching notes to generate your first AI-powered MCQ or essay test.
             </p>
             <Link
               href="/dashboard/create"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-navy-900 hover:bg-navy-800 text-white text-[15px] font-bold shadow-sm transition-colors mt-2"
             >
               <Plus className="w-4 h-4" />
               Create First Exam
@@ -383,112 +430,110 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setExpandedId(isOpen ? null : test.id)}
-                    className="w-full flex items-center gap-3 px-4 sm:px-5 py-3.5 text-left hover:bg-slate-50/70 transition-colors"
+                    className="w-full flex items-center gap-3 sm:gap-4 px-5 sm:px-8 py-5 sm:py-6 text-left hover:bg-slate-50/60 transition-colors"
                   >
-                    <span
-                      className="shrink-0 w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center transition-colors"
-                    >
+                    <span className="shrink-0 w-9 h-9 rounded-xl bg-navy-50 text-navy-700 border border-navy-100 flex items-center justify-center transition-colors">
                       {isOpen ? (
-                        <ChevronDown className="w-4 h-4" />
+                        <ChevronDown className="w-5 h-5" />
                       ) : (
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-5 h-5" />
                       )}
                     </span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-bold text-slate-800 truncate">
+                      <span className="block text-base sm:text-lg font-bold text-navy-900 truncate">
                         {test.title}
                       </span>
                       {test.subject && (
-                        <span className="block text-[11px] text-slate-400 mt-0.5 truncate">
+                        <span className="block text-sm text-slate-500 mt-0.5 truncate">
                           {test.subject}
                         </span>
                       )}
                     </span>
-                    <span className="shrink-0 text-[11px] font-semibold text-slate-400">
+                    <span className="shrink-0 text-sm font-semibold text-slate-500">
                       {test.submissionCount} submission{test.submissionCount === 1 ? "" : "s"}
                     </span>
                   </button>
 
                   {isOpen && (
-                    <div className="px-4 sm:px-14 pb-4 space-y-3">
+                    <div className="px-5 sm:px-20 pb-6 sm:pb-7 space-y-4">
                       {test.description && (
-                        <p className="text-xs text-slate-500 leading-relaxed">{test.description}</p>
+                        <p className="text-[15px] text-slate-600 leading-relaxed">{test.description}</p>
                       )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-                          <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Access Code</div>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-sm font-mono font-bold text-indigo-700">{test.code}</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3.5">
+                          <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Access Code</div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[15px] font-mono font-bold text-navy-800">{test.code}</span>
                             <button
                               onClick={() => handleCopy(test.code)}
                               title="Copy student link"
-                              className="text-slate-400 hover:text-indigo-700 transition-colors"
+                              className="text-slate-400 hover:text-navy-700 transition-colors"
                             >
                               {copiedCode === test.code ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <Check className="w-4 h-4 text-emerald-600" />
                               ) : (
-                                <Copy className="w-3.5 h-3.5" />
+                                <Copy className="w-4 h-4" />
                               )}
                             </button>
                           </div>
                         </div>
 
-                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-                          <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Distribution</div>
-                          <div className="mt-1">
+                        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3.5">
+                          <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Distribution</div>
+                          <div className="mt-1.5">
                             {test.distributionMode === "shuffled" ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-medium">
-                                <Shuffle className="w-3 h-3" />
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-navy-50 text-navy-800 border border-navy-200 text-sm font-medium">
+                                <Shuffle className="w-3.5 h-3.5" />
                                 Unique / Shuffled
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-sm font-medium">
                                 General (Identical)
                               </span>
                             )}
                           </div>
                         </div>
 
-                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-                          <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Duration</div>
-                          <div className="mt-1 flex items-center gap-1 text-sm font-bold text-slate-800">
-                            <Timer className="w-3.5 h-3.5 text-slate-400" />
+                        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3.5">
+                          <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Duration</div>
+                          <div className="mt-1.5 flex items-center gap-1.5 text-[15px] font-bold text-navy-900">
+                            <Timer className="w-4 h-4 text-slate-400" />
                             <span>{test.durationMinutes} mins</span>
                           </div>
                         </div>
 
-                        <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
-                          <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Questions</div>
-                          <div className="mt-1 text-sm font-bold text-slate-800">{test.totalQuestions}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">
+                        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3.5">
+                          <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Questions</div>
+                          <div className="mt-1 text-[15px] font-bold text-navy-900">{test.totalQuestions}</div>
+                          <div className="text-[13px] text-slate-400 mt-0.5">
                             {test.submissionCount} student{test.submissionCount === 1 ? "" : "s"} took it
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center flex-wrap gap-2 pt-1">
+                      <div className="flex items-center flex-wrap gap-2.5 pt-1">
                         <Link
                           href={`/dashboard/test/${test.id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[15px] font-semibold text-navy-800 bg-navy-50 hover:bg-navy-100 transition-colors"
                         >
-                          <TrendingUp className="w-3.5 h-3.5" />
+                          <TrendingUp className="w-4 h-4" />
                           Analytics
                         </Link>
                         <Link
                           href={`/test/${test.code}`}
                           target="_blank"
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[15px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <ExternalLink className="w-4 h-4" />
                           Preview as Student
                         </Link>
                         <button
                           onClick={() => handleDelete(test)}
                           disabled={deletingId === test.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[15px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                           Delete Exam
                         </button>
                       </div>

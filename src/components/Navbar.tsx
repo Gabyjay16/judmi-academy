@@ -217,17 +217,18 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full bg-white border-b border-slate-200/80 shadow-[0_1px_2px_rgba(16,26,46,0.05)]">
+      <div className="h-[3px] w-full bg-gradient-to-r from-navy-900 via-gold-400 to-navy-900" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 sm:h-[72px]">
           
           {/* Logo */}
-          <Link href={isSchoolPage ? pathname + window.location.search : homeHref} className="flex items-center gap-2.5 group">
+          <Link href={isSchoolPage ? pathname + window.location.search : homeHref} className="flex items-center gap-2.5 sm:gap-3 group min-w-0 flex-1">
             {isSchoolPage && schoolBranding ? (
               <>
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
-                  style={{ backgroundColor: schoolBranding.brandColor || "#4f46e5" }}
+                  className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
+                  style={{ backgroundColor: schoolBranding.brandColor || "#1a2c47" }}
                 >
                   {schoolBranding.logoData ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -236,11 +237,11 @@ export default function Navbar() {
                     <span className="text-base font-black">{schoolAbbr}</span>
                   )}
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xl font-extrabold tracking-tight">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug">
                     {schoolName || schoolAbbr}
                   </span>
-                  <span className="text-[10px] text-slate-500 -mt-1 font-medium tracking-wide">
+                  <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold tracking-wide uppercase mt-0.5">
                     Student Enrolment Portal
                   </span>
                 </div>
@@ -248,8 +249,8 @@ export default function Navbar() {
             ) : currentUser?.branding ? (
               <>
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
-                  style={{ backgroundColor: currentUser.branding.brandColor || "#4f46e5" }}
+                  className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
+                  style={{ backgroundColor: currentUser.branding.brandColor || "#1a2c47" }}
                 >
                   {currentUser.branding.logoData ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -260,25 +261,25 @@ export default function Navbar() {
                     </span>
                   )}
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xl font-extrabold tracking-tight">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug break-words">
                     {currentUser.branding.brandName || currentUser.organizationName}
                   </span>
-                  <span className="text-[10px] text-slate-500 -mt-1 font-medium tracking-wide">
+                  <span className="text-[10px] sm:text-[11px] text-gold-600 font-semibold tracking-[0.18em] uppercase mt-0.5">
                     School Portal
                   </span>
                 </div>
               </>
             ) : (
               <>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl bg-navy-800 flex items-center justify-center text-gold-400 shadow-md group-hover:scale-105 transition-transform">
                   <Sparkles className="w-5 h-5" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xl font-extrabold bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-800 bg-clip-text text-transparent tracking-tight">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-navy-900 leading-snug">
                     Judmi Academy
                   </span>
-                  <span className="text-[10px] text-slate-500 -mt-1 font-medium tracking-wide">
+                  <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold tracking-wide uppercase mt-0.5">
                     AI Exams & Academic Hub
                   </span>
                 </div>
@@ -297,11 +298,11 @@ export default function Navbar() {
                   href={link.href}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                     isActive
-                      ? "bg-indigo-50 text-indigo-700 font-bold"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                      ? "bg-navy-50 text-navy-900 font-bold"
+                      : "text-slate-600 hover:text-navy-900 hover:bg-slate-100/70"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-navy-700" : "text-slate-400"}`} />
                   <span>{link.label}</span>
                 </Link>
               );
@@ -321,12 +322,12 @@ export default function Navbar() {
                 value={quickCode}
                 onChange={(e) => setQuickCode(e.target.value.toUpperCase())}
                 maxLength={8}
-                className="pl-8 pr-8 py-1.5 text-xs uppercase font-mono tracking-wider bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-36 transition-all placeholder:normal-case placeholder:font-sans placeholder:tracking-normal placeholder:text-slate-400"
+                className="pl-8 pr-8 py-1.5 text-xs uppercase font-mono tracking-wider bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500 w-36 transition-all placeholder:normal-case placeholder:font-sans placeholder:tracking-normal placeholder:text-slate-400"
               />
               <button
                 type="submit"
                 disabled={!quickCode.trim()}
-                className="absolute right-1.5 p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-colors"
+                className="absolute right-1.5 p-1 text-slate-400 hover:text-navy-700 disabled:opacity-30 transition-colors"
                 title="Join Test"
               >
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -339,9 +340,9 @@ export default function Navbar() {
                 {/* Upgrade Button */}
                 <Link
                   href="/checkout?plan=individual"
-                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-950 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
                 >
-                  <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                  <Zap className="w-3.5 h-3.5 fill-navy-950" />
                   <span>Upgrade</span>
                 </Link>
 
@@ -352,7 +353,7 @@ export default function Navbar() {
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                     className="flex items-center gap-2 p-1.5 pr-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-left transition-colors shadow-xs"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-lg bg-navy-800 text-white font-bold text-xs flex items-center justify-center">
                       {(currentUser?.name || "U")[0]}
                     </div>
                     <div>
@@ -372,7 +373,7 @@ export default function Navbar() {
                         <div className="font-bold text-slate-900">{currentUser?.name || "Account"}</div>
                         <div className="text-[11px] text-slate-500 truncate">{currentUser?.email || ""}</div>
                         {currentUser?.organizationName && (
-                          <div className="text-[10px] text-indigo-700 font-semibold mt-1">
+                          <div className="text-[11px] text-navy-700 font-semibold mt-1">
                             🏫 {currentUser.organizationName}
                           </div>
                         )}
@@ -381,9 +382,9 @@ export default function Navbar() {
                       <Link
                         href="/checkout?plan=individual"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-amber-900 bg-amber-50 hover:bg-amber-100 font-bold"
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-gold-800 bg-gold-50 hover:bg-gold-100 font-bold"
                       >
-                        <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
+                        <Zap className="w-4 h-4 text-gold-600 fill-gold-600" />
                         <span>Upgrade Account</span>
                       </Link>
 
@@ -392,7 +393,7 @@ export default function Navbar() {
                         onClick={() => setUserDropdownOpen(false)}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
                       >
-                        <LayoutDashboard className="w-4 h-4 text-indigo-600" />
+                        <LayoutDashboard className="w-4 h-4 text-navy-700" />
                         <span>Teacher Dashboard</span>
                       </Link>
 
@@ -401,7 +402,7 @@ export default function Navbar() {
                         onClick={() => setUserDropdownOpen(false)}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
                       >
-                        <Camera className="w-4 h-4 text-indigo-600" />
+                        <Camera className="w-4 h-4 text-navy-700" />
                         <span>Mark Scripts Studio</span>
                       </Link>
 
@@ -428,7 +429,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-all"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-navy-800 hover:bg-navy-900 rounded-xl shadow-xs transition-all"
                 >
                   Get Started
                 </Link>
@@ -464,12 +465,12 @@ export default function Navbar() {
               value={quickCode}
               onChange={(e) => setQuickCode(e.target.value.toUpperCase())}
               maxLength={8}
-              className="w-full pl-9 pr-10 py-2.5 text-sm uppercase font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-10 py-2.5 text-sm uppercase font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-navy-500"
             />
             <button
               type="submit"
               disabled={!quickCode.trim()}
-              className="absolute right-2 p-1.5 text-indigo-600 disabled:opacity-30"
+              className="absolute right-2 p-1.5 text-navy-700 disabled:opacity-30"
             >
               <ArrowRight className="w-5 h-5" />
             </button>
@@ -482,7 +483,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-700 hover:bg-navy-50 hover:text-navy-900"
               >
                 <link.icon className="w-4 h-4 text-slate-400" />
                 <span>{link.label}</span>
@@ -496,9 +497,9 @@ export default function Navbar() {
                 <Link
                   href="/checkout?plan=individual"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 px-4 rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-950 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
                 >
-                  <Zap className="w-4 h-4 fill-slate-950" />
+                  <Zap className="w-4 h-4 fill-navy-950" />
                   <span>Upgrade Account</span>
                 </Link>
 
@@ -525,7 +526,7 @@ export default function Navbar() {
                 <Link
                   href="/signup"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-2.5 text-center rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-xs"
+                  className="py-2.5 text-center rounded-xl bg-navy-800 text-white font-bold hover:bg-navy-900 shadow-xs"
                 >
                   Sign Up
                 </Link>
