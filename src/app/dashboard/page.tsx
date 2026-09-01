@@ -143,19 +143,19 @@ export default function DashboardPage() {
       </section>
 
       {/* Quick Actions */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {/* Extract Info */}
         <Link
           href="/dashboard/extract-info"
-          className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
+          className="group flex items-center gap-3 rounded-[18px] bg-white px-4 py-4 sm:px-5 border border-slate-200 shadow-[0_1px_2px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_10px_24px_-14px_rgba(16,26,46,0.2)] transition-all"
         >
-          <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
-            <FileCheck2 className="w-6 h-6" />
+          <span className="w-10 h-10 shrink-0 rounded-xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <FileCheck2 className="w-5 h-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Extract Info</span>
-            <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
-              Extract details from camera-scanned documents.
+            <span className="block text-base font-bold text-navy-900 leading-tight">Extract Info</span>
+            <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
+              Extract details from scanned documents.
             </span>
           </span>
         </Link>
@@ -164,15 +164,15 @@ export default function DashboardPage() {
         {user?.orgId && (
           <Link
             href="/dashboard/take-minutes"
-            className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
+            className="group flex items-center gap-3 rounded-[18px] bg-white px-4 py-4 sm:px-5 border border-slate-200 shadow-[0_1px_2px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_10px_24px_-14px_rgba(16,26,46,0.2)] transition-all"
           >
-            <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
-              <Music4 className="w-6 h-6" />
+            <span className="w-10 h-10 shrink-0 rounded-xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+              <Music4 className="w-5 h-5" />
             </span>
             <span className="min-w-0">
-              <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Take Minutes</span>
-              <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
-                Record meetings and get AI minutes & transcript.
+              <span className="block text-base font-bold text-navy-900 leading-tight">Take Minutes</span>
+              <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
+                Record meetings and get AI minutes.
               </span>
             </span>
           </Link>
@@ -181,15 +181,15 @@ export default function DashboardPage() {
         {/* Verify Plagiarism Code */}
         <Link
           href="/dashboard/plagiarism"
-          className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
+          className="group flex items-center gap-3 rounded-[18px] bg-white px-4 py-4 sm:px-5 border border-slate-200 shadow-[0_1px_2px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_10px_24px_-14px_rgba(16,26,46,0.2)] transition-all"
         >
-          <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
-            <ShieldCheck className="w-6 h-6" />
+          <span className="w-10 h-10 shrink-0 rounded-xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <ShieldCheck className="w-5 h-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Verify Plagiarism Code</span>
-            <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
-              Check a student&apos;s authenticity result by code.
+            <span className="block text-base font-bold text-navy-900 leading-tight">Verify Plagiarism Code</span>
+            <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
+              Check a student&apos;s authenticity result.
             </span>
           </span>
         </Link>
@@ -197,15 +197,15 @@ export default function DashboardPage() {
         {/* Mark Scripts */}
         <Link
           href="/dashboard/scan-scripts"
-          className="group flex items-start gap-4 rounded-[20px] bg-white p-6 sm:p-7 border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_16px_36px_-18px_rgba(16,26,46,0.22)] hover:-translate-y-0.5 transition-all"
+          className="group flex items-center gap-3 rounded-[18px] bg-white px-4 py-4 sm:px-5 border border-slate-200 shadow-[0_1px_2px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_10px_24px_-14px_rgba(16,26,46,0.2)] transition-all"
         >
-          <span className="w-12 h-12 shrink-0 rounded-2xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
-            <Camera className="w-6 h-6" />
+          <span className="w-10 h-10 shrink-0 rounded-xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <Camera className="w-5 h-5" />
           </span>
           <span className="min-w-0">
-            <span className="block text-lg sm:text-xl font-bold text-navy-900 leading-snug">Mark Scripts</span>
-            <span className="block mt-1.5 text-[15px] leading-relaxed text-slate-600">
-              Grade camera-scanned papers with AI marking.
+            <span className="block text-base font-bold text-navy-900 leading-tight">Mark Scripts</span>
+            <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
+              Grade camera-scanned papers with AI.
             </span>
           </span>
         </Link>
@@ -213,19 +213,19 @@ export default function DashboardPage() {
         {/* Create Exam — Primary */}
         <Link
           href="/dashboard/create"
-          className="group relative flex items-center gap-4 rounded-[20px] bg-navy-900 p-6 sm:p-7 text-white shadow-[0_16px_36px_-18px_rgba(16,26,46,0.55)] hover:shadow-[0_20px_42px_-18px_rgba(16,26,46,0.65)] hover:-translate-y-0.5 transition-all overflow-hidden"
+          className="group relative flex items-center gap-3 rounded-[18px] bg-navy-900 px-4 py-4 sm:px-5 text-white shadow-[0_10px_24px_-14px_rgba(16,26,46,0.55)] hover:shadow-[0_12px_28px_-14px_rgba(16,26,46,0.65)] transition-all overflow-hidden"
         >
           <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
-          <span className="w-12 h-12 shrink-0 rounded-2xl bg-white/10 border border-gold-400/40 text-gold-400 flex items-center justify-center">
-            <Plus className="w-6 h-6" />
+          <span className="w-10 h-10 shrink-0 rounded-xl bg-white/10 border border-gold-400/40 text-gold-400 flex items-center justify-center">
+            <Plus className="w-5 h-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-lg sm:text-xl font-bold text-white leading-snug">Create Exam</span>
-            <span className="block mt-1.5 text-[15px] leading-relaxed text-navy-100">
-              Generate AI exams from your teaching notes.
+            <span className="block text-base font-bold text-white leading-tight">Create Exam</span>
+            <span className="block mt-0.5 text-[13px] leading-snug text-navy-100">
+              Generate AI exams from your notes.
             </span>
           </span>
-          <ArrowRight className="w-5 h-5 text-gold-400 shrink-0 transition-transform group-hover:translate-x-1" />
+          <ArrowRight className="w-4 h-4 text-gold-400 shrink-0 transition-transform group-hover:translate-x-1" />
         </Link>
       </section>
 
