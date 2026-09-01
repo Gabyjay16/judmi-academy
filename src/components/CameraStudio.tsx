@@ -22,16 +22,18 @@ export default function CameraStudio({
 }: CameraStudioProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const twinAngle1Ref = useRef<File | null>(null);
+  const twinKeyRef = useRef<string>(`${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
 
   const [mode, setMode] = useState<StudioMode>("single");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [status, setStatus] = useState("Starting camera...");
   const [captured, setCaptured] = useState<File[]>([]);
   const [thumbs, setThumbs] = useState<string[]>([]);
-  const [twinAngle, setTwinAngle] = useState<1 | 2>(1);
+  const [twinAngles, setTwinAngles] = useState<File[]>([]);
   const [starting, setStarting] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const MAX_TWIN = 4;
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
@@ -78,8 +80,8 @@ export default function CameraStudio({
       setMode("single");
       setCaptured([]);
       setThumbs([]);
-      setTwinAngle(1);
-      twinAngle1Ref.current = null;
+      setTwinAngles([]);
+      twinKeyRef.current = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       setCameraError(null);
       startStream(facingMode);
     } else {
@@ -88,20 +90,34 @@ export default function CameraStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Only clean up on unmount — MUST NOT stop the stream when thumbnails update,
+  // otherwise capturing a photo (which updates thumbs) kills the live camera (black screen).
+  const cleanupRef = useRef<(() => void) | null>(null);
   useEffect(() => {
-    return () => {
+    cleanupRef.current = () => {
       stopStream();
       thumbs.forEach((u) => URL.revokeObjectURL(u));
     };
-  }, [stopStream, thumbs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thumbs, stopStream]);
+
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
 
   if (!open) return null;
 
   const switchMode = (m: StudioMode) => {
     setMode(m);
-    setTwinAngle(1);
-    twinAngle1Ref.current = null;
-    setStatus(m === "twin" ? "Twin mode: snap angle 1 (front) then angle 2 (back)." : m === "multiple" ? "Multiple mode: snap as many photos as you like." : "Single mode: one photo.");
+    setTwinAngles([]);
+    twinKeyRef.current = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setStatus(m === "twin"
+      ? "Twin mode: snap up to 4 angles for ONE item, then press 'Use angles' to keep it as one."
+      : m === "multiple"
+      ? "Multiple mode: snap as many photos as you like."
+      : "Single mode: one photo.");
   };
 
   const addCaptured = (next: File[]) => {
@@ -136,22 +152,16 @@ export default function CameraStudio({
     }
 
     if (mode === "twin") {
-      if (twinAngle === 1) {
-        const twinKey = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        twinAngle1Ref.current = new File([blob], `twin_1_${twinKey}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
-        setTwinAngle(2);
-        setStatus("Angle 1 saved! Aim at the second angle and tap 'Take Angle 2'.");
-        return;
+      const angleNumber = twinAngles.length + 1;
+      const file = new File([blob], `twin_${angleNumber}_${twinKeyRef.current}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+      const nextAngles = [...twinAngles, file];
+      setTwinAngles(nextAngles);
+      if (nextAngles.length >= MAX_TWIN) {
+        // Auto-finalize the 4th angle into a single captured item immediately.
+        finishTwin(nextAngles);
+      } else {
+        setStatus(`Angle ${nextAngles.length} of up to ${MAX_TWIN} saved. Snap another angle, or press "Use angles" to keep this item. To add MORE photos after this item, switch to Multiple mode.`);
       }
-      const match = twinAngle1Ref.current?.name.match(/^twin_1_(.+)\.jpg$/);
-      const twinKey = match ? match[1] : `${Date.now()}`;
-      const photo2 = new File([blob], `twin_2_${twinKey}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
-      const pair = [twinAngle1Ref.current as File, photo2];
-      twinAngle1Ref.current = null;
-      setTwinAngle(1);
-      addCaptured(pair);
-      const pairs = Math.floor((captured.length + 2) / 2);
-      setStatus(`Twin photo #${pairs} captured (2 angles). Snap another or press "Use captured files".`);
       return;
     }
 
@@ -163,6 +173,16 @@ export default function CameraStudio({
       onCapture([photo]);
       onClose();
     }
+  };
+
+  const finishTwin = (angles?: File[]) => {
+    const item = angles || twinAngles;
+    if (item.length === 0) return;
+    addCaptured(item);
+    setTwinAngles([]);
+    twinKeyRef.current = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setMode("multiple");
+    setStatus(`Twin item captured (${item.length} angles as one photo). Switch to Multiple mode to keep adding more photos.`);
   };
 
   const useCaptured = () => {
@@ -180,7 +200,7 @@ export default function CameraStudio({
               <Camera className="w-4 h-4 text-indigo-600" />
               Capture with Camera
             </h3>
-            <p className="text-[11px] text-slate-400">Snap single, multiple, or twin (2-angle) photos.</p>
+            <p className="text-[11px] text-slate-400">Snap single, multiple, or twin (up to {MAX_TWIN} angles as one item).</p>
           </div>
           <button onClick={() => { onClose(); }} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100" title="Close">
             <X className="w-5 h-5" />
@@ -199,7 +219,7 @@ export default function CameraStudio({
             </div>
           )}
           <span className="absolute top-2 left-2 px-2 py-1 rounded-lg bg-slate-900/70 text-white text-[10px] font-bold">
-            {mode === "twin" ? `Twin photo — Angle ${twinAngle}` : mode === "multiple" ? `Multiple — ${captured.length} snapped` : "Single photo"}
+            {mode === "twin" ? `Twin item — Angle ${twinAngles.length} of ${MAX_TWIN}` : mode === "multiple" ? `Multiple — ${captured.length} snapped` : "Single photo"}
           </span>
         </div>
 
@@ -233,7 +253,7 @@ export default function CameraStudio({
               onClick={() => switchMode("twin")}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${mode === "twin" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}`}
             >
-              Twin (2 angles)
+              Twin ({MAX_TWIN} angles as one)
             </button>
           )}
           <button
@@ -264,7 +284,7 @@ export default function CameraStudio({
         )}
 
         {/* Controls */}
-        <div className="px-4 py-4 flex items-center justify-center gap-3">
+        <div className="px-4 py-4 flex items-center justify-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={() => onClose()}
@@ -279,9 +299,19 @@ export default function CameraStudio({
             className="px-8 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-extrabold shadow-md shadow-indigo-500/20 flex items-center gap-2"
           >
             <Camera className="w-4 h-4" />
-            {mode === "twin" && twinAngle === 2 ? "Take Angle 2" : "Take Photo"}
+            {mode === "twin" ? `Take Angle ${twinAngles.length + 1} of ${MAX_TWIN}` : "Take Photo"}
           </button>
-          {mode !== "single" && captured.length > 0 && (
+          {mode === "twin" && twinAngles.length > 0 && (
+            <button
+              type="button"
+              onClick={() => finishTwin()}
+              className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5"
+            >
+              <Check className="w-4 h-4" />
+              Use angles ({twinAngles.length})
+            </button>
+          )}
+          {mode === "multiple" && captured.length > 0 && (
             <button
               type="button"
               onClick={useCaptured}
@@ -295,8 +325,12 @@ export default function CameraStudio({
 
         {mode !== "single" && (
           <div className="px-4 pb-4 -mt-1 flex items-center gap-1.5 text-[11px] text-slate-400">
-            <ImagePlus className="w-3.5 h-3.5" />
-            <span>Twin mode snaps a front + back angle pair for one item. Use the gallery / batch upload for existing photos.</span>
+            <ImagePlus className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              {mode === "twin"
+                ? `Twin mode keeps up to ${MAX_TWIN} angles as ONE item. When your item is done press "Use angles", then switch to Multiple mode to keep adding more photos.`
+                : "Use the gallery / batch upload for already-existing photos."}
+            </span>
           </div>
         )}
       </div>
