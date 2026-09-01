@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
-import { tests, submissions } from "@/db/schema";
+import { tests, submissions, organizations } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { generateExcel } from "@/lib/export-doc";
@@ -22,6 +22,15 @@ export async function GET(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
     const test = testRows[0];
+
+    // Brand the workbook with the school name when the exam belongs to a school.
+    let schoolName: string | null = null;
+    if (test.orgId) {
+      const orgRows = await db.select().from(organizations).where(eq(organizations.id, test.orgId)).limit(1);
+      if (orgRows.length > 0) {
+        schoolName = orgRows[0].brandName || orgRows[0].name;
+      }
+    }
 
     const testSubmissions = await db
       .select()
@@ -64,7 +73,7 @@ export async function GET(
       "Submitted At": new Date(s.submittedAt).toLocaleString(),
     }));
 
-    const title = `${test.title} — Student Results`;
+    const title = `${schoolName ? `${schoolName} — ` : ""}${test.title} — Student Results`;
     const buf = await generateExcel({
       title: title.slice(0, 31),
       columns,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
-import { tests, questions, submissions } from "@/db/schema";
+import { tests, questions, submissions, organizations } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 export async function GET(
@@ -17,6 +17,21 @@ export async function GET(
     }
 
     const test = testRows[0];
+
+    // Resolve the school/organization this exam belongs to so class-result
+    // reports can be branded with the school name instead of the platform name.
+    let organization: { id: string; name: string; brandName: string | null } | null = null;
+    if (test.orgId) {
+      const orgRows = await db.select().from(organizations).where(eq(organizations.id, test.orgId)).limit(1);
+      if (orgRows.length > 0) {
+        organization = {
+          id: orgRows[0].id,
+          name: orgRows[0].name,
+          brandName: orgRows[0].brandName || null,
+        };
+      }
+    }
+
     const testQuestions = await db.select().from(questions).where(eq(questions.testId, testId));
     const testSubmissions = await db
       .select()
@@ -41,7 +56,11 @@ export async function GET(
     }
 
     return NextResponse.json({
-      test,
+      test: {
+        ...test,
+        organizationName: organization ? (organization.brandName || organization.name) : null,
+      },
+      organization,
       totalQuestions: testQuestions.length,
       stats: {
         totalSubmissions,

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { TestTimer } from "@/components/TestTimer";
 import { StudentViewQuestion } from "@/lib/question-shuffler";
+import { getHomePathFromStorage } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -241,7 +242,7 @@ export default function StudentTestPage({ params }: PageProps) {
           {error || "The test code you entered is invalid or the test has ended."}
         </p>
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push(getHomePathFromStorage())}
           className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs transition-colors"
         >
           Return Home
