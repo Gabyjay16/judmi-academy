@@ -58,6 +58,19 @@ export default function StudentDashboardPage() {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentName, setDocumentName] = useState<string | null>(null);
 
+  // Read user's org branding (name/logo/color) from the persistent session.
+  const [branding, setBranding] = useState<any | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("judmi_user");
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      return u?.branding || null;
+    } catch {
+      return null;
+    }
+  });
+
   useEffect(() => {
     fetchHistory();
     fetchComplaints();
@@ -204,10 +217,22 @@ export default function StudentDashboardPage() {
       <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-5 sm:p-8 text-white shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-bold uppercase tracking-wider">
-              <GraduationCap className="w-4 h-4" />
-              <span>Student Examination & Academic Hub</span>
-            </div>
+            {branding?.brandName ? (
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "#e0e7ff" }}>
+                {branding.logoData ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={branding.logoData} alt={branding.brandName} className="w-4 h-4 object-contain bg-white rounded" />
+                ) : (
+                  <Building2 className="w-3.5 h-3.5" />
+                )}
+                <span>{branding.brandName} · School Portal</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                <GraduationCap className="w-4 h-4" />
+                <span>Student Examination & Academic Hub</span>
+              </div>
+            )}
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               {student.name}
             </h1>

@@ -384,13 +384,21 @@ export default function OrgDashboardPage() {
       {/* School Org Header */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: organization.brandColor || "#a5b4fc" }}>
             <Building2 className="w-4 h-4" />
             <span>School / Institutional Organization</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            {organization.name}
-          </h1>
+          <div className="flex items-center gap-3">
+            {organization.logoData && (
+              <div className="w-11 h-11 rounded-xl overflow-hidden bg-white/15 ring-2 ring-white/15 flex items-center justify-center shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={organization.logoData} alt={organization.name} className="w-full h-full object-contain" />
+              </div>
+            )}
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              {organization.brandName || organization.name}
+            </h1>
+          </div>
           <p className="text-xs sm:text-sm text-slate-300">
             Manage departments, faculty teachers, enrolled students, and academic grievance petitions.
           </p>
