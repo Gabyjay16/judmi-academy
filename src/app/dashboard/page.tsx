@@ -99,6 +99,27 @@ export default function DashboardPage() {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
+          {user?.branding && (
+            <div className="flex items-center gap-2 mb-1.5">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black overflow-hidden"
+                style={{ backgroundColor: user.branding.brandColor || "#4f46e5" }}
+              >
+                {user.branding.logoData ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.branding.logoData} alt={user.branding.brandName} className="w-full h-full object-contain p-0.5" />
+                ) : (
+                  (user.branding.brandName || "S").trim().charAt(0).toUpperCase()
+                )}
+              </div>
+              <span
+                className="text-[11px] font-bold uppercase tracking-wider"
+                style={{ color: user.branding.brandColor || "#4f46e5" }}
+              >
+                {user.branding.brandName || user.organizationName} Portal
+              </span>
+            </div>
+          )}
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Teacher Assessment Dashboard
           </h1>

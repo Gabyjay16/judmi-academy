@@ -167,17 +167,45 @@ export default function Navbar() {
           
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-extrabold bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-800 bg-clip-text text-transparent tracking-tight">
-                Judmi Academy
-              </span>
-              <span className="text-[10px] text-slate-500 -mt-1 font-medium tracking-wide">
-                AI Exams & Academic Hub
-              </span>
-            </div>
+            {currentUser?.branding ? (
+              <>
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
+                  style={{ backgroundColor: currentUser.branding.brandColor || "#4f46e5" }}
+                >
+                  {currentUser.branding.logoData ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={currentUser.branding.logoData} alt={currentUser.branding.brandName} className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <span className="text-base font-black">
+                      {(currentUser.branding.brandName || "S").trim().charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xl font-extrabold tracking-tight">
+                    {currentUser.branding.brandName || currentUser.organizationName}
+                  </span>
+                  <span className="text-[10px] text-slate-500 -mt-1 font-medium tracking-wide">
+                    School Portal
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xl font-extrabold bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-800 bg-clip-text text-transparent tracking-tight">
+                    Judmi Academy
+                  </span>
+                  <span className="text-[10px] text-slate-500 -mt-1 font-medium tracking-wide">
+                    AI Exams & Academic Hub
+                  </span>
+                </div>
+              </>
+            )}
           </Link>
 
           {/* Desktop Navigation */}

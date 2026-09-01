@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import PwaRegister from "@/components/PwaRegister";
+import BrandTheme from "@/components/BrandTheme";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -50,6 +51,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
         <Navbar />
+        <BrandTheme />
         <PwaRegister />
         <main className="flex-1">
           {children}

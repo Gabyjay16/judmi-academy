@@ -45,6 +45,13 @@ export async function GET(req: NextRequest) {
         studentId: user.studentId,
         orgId: user.orgId,
         organizationName: organization?.name || null,
+        branding: organization
+          ? {
+              brandName: organization.brandName || organization.name,
+              brandColor: organization.brandColor || "#4f46e5",
+              logoData: organization.logoData || null,
+            }
+          : null,
         planType: isProOverride && user.planType === "free" ? "individual" : (user.planType || "free"),
         actualPlanType: user.planType || "free",
         isPro: isProOverride,
@@ -150,6 +157,13 @@ export async function POST(req: NextRequest) {
           studentId: user.studentId,
           orgId: user.orgId,
           organizationName: organization?.name || null,
+          branding: organization
+            ? {
+                brandName: organization.brandName || organization.name,
+                brandColor: organization.brandColor || "#4f46e5",
+                logoData: organization.logoData || null,
+              }
+            : null,
           planType: user.planType || "free",
         },
       });
@@ -272,6 +286,21 @@ export async function POST(req: NextRequest) {
       });
 
       const token = generateSessionToken(userId);
+
+      let signupBranding: any = null;
+      let signupOrgName = linkedOrgName;
+      if (createdOrgId) {
+        const orgRows2 = await db.select().from(organizations).where(eq(organizations.id, createdOrgId)).limit(1);
+        if (orgRows2.length > 0) {
+          signupBranding = {
+            brandName: orgRows2[0].brandName || orgRows2[0].name,
+            brandColor: orgRows2[0].brandColor || "#4f46e5",
+            logoData: orgRows2[0].logoData || null,
+          };
+          signupOrgName = orgRows2[0].name;
+        }
+      }
+
       const response = NextResponse.json({
         success: true,
         token,
@@ -282,7 +311,8 @@ export async function POST(req: NextRequest) {
           role,
           studentId: studentId || null,
           orgId: createdOrgId,
-          organizationName: linkedOrgName,
+          organizationName: signupOrgName,
+          branding: signupBranding,
           planType,
         },
       });
