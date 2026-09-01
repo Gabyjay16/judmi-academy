@@ -406,20 +406,7 @@ const isActive = pathname === link.href;
                         )}
                       </div>
 
-                      {/* School teacher accounts: Admin Login + Logout only */}
-                      {currentUser?.role === "teacher" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUserDropdownOpen(false);
-                            setAdminLoginOpen(true);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-navy-900 bg-navy-50 hover:bg-navy-100 font-bold"
-                        >
-                          <Building2 className="w-4 h-4 text-navy-700" />
-                          <span>Admin Login (School Admin)</span>
-                        </button>
-                      )}
+                      {/* School teacher accounts: Logout only (admin login is via triple-tapping the logo) */}
 
                       {currentUser?.role !== "teacher" && !isSchoolManaged ? (
                         <Link
@@ -502,6 +489,19 @@ const isActive = pathname === link.href;
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 px-4 pt-3 pb-5 space-y-3 bg-white text-xs shadow-xl animate-fade-in">
+          {currentUser?.role === "teacher" ? (
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-bold text-xs hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout ({currentUser?.name || "Sign Out"})</span>
+              </button>
+            </div>
+          ) : (
+          <>
           {/* Quick Join Test Code Input */}
           <form onSubmit={handleJoinByCode} className="relative flex items-center">
             <div className="absolute left-3 text-slate-400">
@@ -541,21 +541,6 @@ const isActive = pathname === link.href;
             {/* Authenticated User Mobile Controls */}
             {isUserAuthenticated ? (
               <div className="pt-2 border-t border-slate-100 space-y-2">
-                {/* School teacher accounts: Admin Login (School Admin) */}
-                {currentUser?.role === "teacher" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setAdminLoginOpen(true);
-                    }}
-                    className="w-full py-3 px-4 rounded-xl bg-navy-900 hover:bg-navy-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
-                  >
-                    <Building2 className="w-4 h-4 text-gold-400" />
-                    <span>Admin Login (School Admin)</span>
-                  </button>
-                )}
-
                 {/* Upgrade Account Button — hidden for school-managed accounts */}
                 {!isSchoolManaged && (
                   <Link
@@ -598,6 +583,8 @@ const isActive = pathname === link.href;
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       )}
 
