@@ -255,9 +255,12 @@ export async function seedDemoData() {
   // 4. Seed a completed test submission for Student Sarah Williams for instant history display
   const existingSub = await db.select().from(submissions).where(eq(submissions.id, "demo-sub-sarah-001")).limit(1);
   if (existingSub.length === 0) {
+    // Resolve the real BIO101 test id (production may use a legacy id) so the FK reference is valid.
+    const bioTestRows = await db.select().from(tests).where(eq(tests.code, "BIO101")).limit(1);
+    const demoTestId = bioTestRows[0]?.id || testId;
     await db.insert(submissions).values({
       id: "demo-sub-sarah-001",
-      testId: testId,
+      testId: demoTestId,
       studentUserId: "user-student-001",
       studentName: "Sarah Williams",
       studentId: "STU-2026-001",
