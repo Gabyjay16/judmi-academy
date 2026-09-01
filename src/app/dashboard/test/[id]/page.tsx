@@ -101,6 +101,35 @@ export default function TestAnalyticsPage({ params }: PageProps) {
     document.body.removeChild(link);
   };
 
+  const exportExcel = async () => {
+    if (!data?.submissions || data.submissions.length === 0) {
+      alert("No submissions to export yet.");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/analytics/${testId}/export`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        alert(json?.error || "Failed to export. Please try again.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      link.download = match ? match[1] : `${data.test.code}_students.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Excel export error:", e);
+      alert("Failed to export. Please try again.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-16 text-center text-slate-500">
@@ -158,6 +187,14 @@ export default function TestAnalyticsPage({ params }: PageProps) {
           >
             <Download className="w-4 h-4" />
             <span>Download Class Results PDF</span>
+          </button>
+
+          <button
+            onClick={exportExcel}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+          >
+            <FileText className="w-4 h-4" />
+            <span>Excel</span>
           </button>
 
           <button

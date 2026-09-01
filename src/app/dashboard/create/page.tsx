@@ -70,9 +70,8 @@ export default function CreateExamPage() {
   const [title, setTitle] = useState("Midterm Assessment");
   const [description, setDescription] = useState("Automated timed assessment generated from curriculum notes.");
   
-  // Timer & Duration settings: Auto vs Custom
-  const [isAutoDuration, setIsAutoDuration] = useState(true);
-  const [customDurationMinutes, setCustomDurationMinutes] = useState<number>(10);
+  // Timer & Duration settings: blank defaults to number of questions (e.g. 20 questions = 20 mins)
+  const [durationMinutes, setDurationMinutes] = useState("");
 
   const [distributionMode, setDistributionMode] = useState<"general" | "shuffled">("shuffled");
   const [questionsPerStudent, setQuestionsPerStudent] = useState(5);
@@ -90,14 +89,15 @@ export default function CreateExamPage() {
   const [publishedCode, setPublishedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Computed Auto Duration: 1 min per question answered by student
+  // Computed number of questions each student answers (drives blank-duration default)
   const effectiveQuestionsToAnswer = distributionMode === "shuffled" 
     ? Math.min(questionsPerStudent, Math.max(1, questionsList.length))
     : Math.max(1, questionsList.length);
 
-  const effectiveDurationMinutes = isAutoDuration
-    ? effectiveQuestionsToAnswer // 10 questions = 10 mins, 25 questions = 25 mins
-    : customDurationMinutes;
+  // If the teacher leaves the time blank, use the number of questions (20 questions = 20 mins)
+  const effectiveDurationMinutes = durationMinutes.trim()
+    ? Math.max(1, Math.min(300, parseInt(durationMinutes, 10) || effectiveQuestionsToAnswer))
+    : effectiveQuestionsToAnswer;
 
   // Blank "number of questions" is allowed — defaults to 10 when left empty
   const parsedQuestionCount = questionCount.trim()
@@ -242,7 +242,6 @@ export default function CreateExamPage() {
           subject,
           notesContent: notes,
           durationMinutes: effectiveDurationMinutes,
-          isAutoDuration,
           distributionMode,
           questionsPerStudent: distributionMode === "shuffled" ? questionsPerStudent : questionsList.length,
           passScorePercentage,
@@ -583,58 +582,34 @@ export default function CreateExamPage() {
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-slate-800 flex items-center gap-2">
                     <Timer className="w-4 h-4 text-indigo-600" />
-                    <span>Test Duration / Timer</span>
+                    <span>Exam Time / Duration</span>
                   </label>
                   <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                    {effectiveDurationMinutes} Minutes Total
+                    {effectiveDurationMinutes} Minutes
                   </span>
                 </div>
 
-                {/* Auto vs Custom Radio */}
-                <div className="space-y-2 text-xs">
-                  <label className="flex items-start gap-2.5 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-white/80 transition-colors">
-                    <input
-                      type="radio"
-                      name="durationMode"
-                      checked={isAutoDuration}
-                      onChange={() => setIsAutoDuration(true)}
-                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <div>
-                      <span className="font-semibold text-slate-900 flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Auto Calculated Duration (1 min per question)</span>
-                      </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Automatically sets {effectiveQuestionsToAnswer} mins for {effectiveQuestionsToAnswer} questions to be answered (e.g. 10 questions = 10 mins, 25 questions = 25 mins).
-                      </p>
-                    </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Time limit for students (minutes)
                   </label>
-
-                  <label className="flex items-start gap-2.5 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-white/80 transition-colors">
+                  <div className="flex items-center gap-2">
                     <input
-                      type="radio"
-                      name="durationMode"
-                      checked={!isAutoDuration}
-                      onChange={() => setIsAutoDuration(false)}
-                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(e.target.value)}
+                      placeholder={String(effectiveQuestionsToAnswer)}
+                      className="w-28 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
-                    <div className="flex-1">
-                      <span className="font-semibold text-slate-900">Custom Duration</span>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <input
-                          type="number"
-                          min={1}
-                          max={300}
-                          disabled={isAutoDuration}
-                          value={customDurationMinutes}
-                          onChange={(e) => setCustomDurationMinutes(Math.max(1, Number(e.target.value)))}
-                          className="w-24 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-40"
-                        />
-                        <span className="text-slate-500 text-xs">Minutes</span>
-                      </div>
-                    </div>
-                  </label>
+                    <span className="text-slate-500 text-xs">Minutes</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    {durationMinutes.trim()
+                      ? `Students will have ${effectiveDurationMinutes} minutes.`
+                      : `Leave blank to auto-set to the number of questions (${effectiveQuestionsToAnswer} questions = ${effectiveQuestionsToAnswer} minutes). Type a number to give a custom time.`}
+                  </p>
                 </div>
               </div>
 
