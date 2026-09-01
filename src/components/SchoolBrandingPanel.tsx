@@ -1,7 +1,24 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Link2, Copy, Check, RefreshCw, Palette, Upload, ImageIcon, Save, ShieldCheck, ExternalLink } from "lucide-react";
+import { Link2, Copy, Check, RefreshCw, Palette, Upload, ImageIcon, Save, ShieldCheck, ExternalLink, Users, Eye } from "lucide-react";
+
+const COLOR_THEMES = [
+  { name: "Indigo", value: "#4f46e5" },
+  { name: "Purple", value: "#7c3aed" },
+  { name: "Violet", value: "#8b5cf6" },
+  { name: "Blue", value: "#2563eb" },
+  { name: "Sky", value: "#0284c7" },
+  { name: "Teal", value: "#0d9488" },
+  { name: "Emerald", value: "#059669" },
+  { name: "Green", value: "#16a34a" },
+  { name: "Rose", value: "#e11d48" },
+  { name: "Red", value: "#dc2626" },
+  { name: "Orange", value: "#ea580c" },
+  { name: "Amber", value: "#d97706" },
+  { name: "Brown", value: "#78350f" },
+  { name: "Slate", value: "#334155" },
+];
 
 export default function SchoolBrandingPanel() {
   const [data, setData] = useState<any | null>(null);
@@ -43,11 +60,12 @@ export default function SchoolBrandingPanel() {
   }, []);
 
   const link = data?.schoolUrl || "";
+  const fullLink = link ? `${window.location.origin}${link}` : "";
 
   const copyLink = async () => {
-    const full = `${window.location.origin}${link}`;
+    if (!fullLink) return;
     try {
-      await navigator.clipboard.writeText(full);
+      await navigator.clipboard.writeText(fullLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -142,7 +160,9 @@ export default function SchoolBrandingPanel() {
           <Palette className="w-5 h-5 text-indigo-600" /> School Link &amp; Branding
         </h2>
         <p className="text-xs text-slate-500 mt-1">
-          Give your teachers and students a private, branded login page for your institution instead of "Judmi Academy".
+          Choose your school&apos;s color theme, add your logo, and share one unique link so your students
+          can log in or register under your school name instead of "Judmi Academy". Teachers are created from
+          the dashboard — students use this link.
         </p>
       </div>
 
@@ -161,28 +181,33 @@ export default function SchoolBrandingPanel() {
       <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3">
         <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
           <Link2 className="w-4 h-4 text-indigo-600" />
-          Your Private School Login Link
+          Your Unique School Link (Students use this to register)
         </div>
-        <p className="text-[11px] text-slate-600 leading-relaxed">
-          Share this link only with <strong>your</strong> teachers and students. Anyone without this exact link
-          cannot see your branded login page. Other schools cannot access it.
-        </p>
+        <div className="flex items-start gap-2 text-[11px] text-indigo-800/90 leading-relaxed">
+          <Users className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+          <p>
+            Copy this link and share it with your students. Anyone who opens it lands on <strong>your school&apos;s
+            branded page</strong> where they can log in or register as a student under your school. Only people with
+            this exact link can access it.
+          </p>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input
             readOnly
-            value={link}
+            value={fullLink}
             onFocus={(e) => e.target.select()}
-            className="flex-1 min-w-[220px] px-3 py-2 rounded-lg border border-indigo-200 bg-white text-xs font-mono text-slate-700 focus:outline-none"
+            className="flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-indigo-200 bg-white text-xs font-mono text-slate-700 focus:outline-none"
           />
           <button
             onClick={copyLink}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition"
+            disabled={!fullLink}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition disabled:opacity-50"
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? "Copied" : "Copy Link"}
           </button>
           <a
-            href={link}
+            href={fullLink}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition"
@@ -190,13 +215,18 @@ export default function SchoolBrandingPanel() {
             <ExternalLink className="w-3.5 h-3.5" /> Open
           </a>
         </div>
-        <button
-          onClick={regenerateKey}
-          disabled={saving}
-          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-600 hover:text-rose-700 disabled:opacity-50"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Regenerate access key (revokes old link)
-        </button>
+        <div className="flex items-end justify-between gap-2 flex-wrap">
+          <p className="text-[11px] text-indigo-700/80">
+            Students register here — you don&apos;t need to create student accounts manually.
+          </p>
+          <button
+            onClick={regenerateKey}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-600 hover:text-rose-700 disabled:opacity-50"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Regenerate access key (revokes old link)
+          </button>
+        </div>
       </div>
 
       {/* Branding settings */}
@@ -218,13 +248,13 @@ export default function SchoolBrandingPanel() {
 
         <div className="flex items-end gap-4 flex-wrap">
           <div className="flex-1 min-w-[160px]">
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">Brand Color</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Choose Your School Color Theme</label>
             <div className="flex items-center gap-2">
               <input
                 type="color"
                 value={brandColor}
                 onChange={(e) => setBrandColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer"
+                className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer shrink-0"
               />
               <input
                 value={brandColor}
@@ -232,7 +262,25 @@ export default function SchoolBrandingPanel() {
                 className="w-24 px-2 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none text-slate-900"
               />
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">Background color of your school&apos;s login page.</p>
+            {/* Theme presets */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {COLOR_THEMES.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setBrandColor(c.value)}
+                  title={c.name}
+                  aria-label={c.name}
+                  className={`w-9 h-9 rounded-full border-2 transition-all ${
+                    brandColor.toLowerCase() === c.value
+                      ? "border-slate-900 scale-110 shadow-md"
+                      : "border-white shadow-sm hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2">Background color of your school&apos;s login page — pick a preset or choose any color.</p>
           </div>
 
           <div className="flex-1 min-w-[200px]">
@@ -266,6 +314,34 @@ export default function SchoolBrandingPanel() {
             <p className="text-[10px] text-slate-400 mt-1">PNG, JPG or WebP under 2.5MB.</p>
           </div>
         </div>
+      </div>
+
+      {/* Live preview */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+          <Eye className="w-4 h-4 text-indigo-600" /> Live Preview — what your students see
+        </div>
+        <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-md" style={{ backgroundColor: brandColor }}>
+          <div className="p-6 sm:p-8 text-white flex flex-col items-center text-center gap-3">
+            {logoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoPreview} alt="School logo" className="w-16 h-16 rounded-xl bg-white object-contain p-1" />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-white/15 border border-white/30 flex items-center justify-center">
+                <ImageIcon className="w-8 h-8 text-white/90" />
+              </div>
+            )}
+            <h3 className="text-xl font-extrabold">{brandName || data?.organization?.name || "Your School"}</h3>
+            <p className="text-white/85 text-xs">Log in or register as a student to continue to your school.</p>
+            <div className="flex gap-2 mt-1">
+              <span className="px-4 py-1.5 rounded-lg bg-white text-xs font-bold" style={{ color: brandColor }}>Log in</span>
+              <span className="px-4 py-1.5 rounded-lg bg-white/15 border border-white/40 text-white text-xs font-bold">Register as Student</span>
+            </div>
+          </div>
+        </div>
+        <p className="text-[10px] text-slate-400">
+          This is a mock preview. The full page at your school link also includes the student registration form.
+        </p>
       </div>
 
       <div>
