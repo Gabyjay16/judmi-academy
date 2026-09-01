@@ -21,7 +21,8 @@ import {
   Camera,
   Crown,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Trash2
 } from "lucide-react";
 import { UpgradeModal } from "@/components/UpgradeModal";
 
@@ -47,6 +48,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTests();
@@ -83,6 +85,27 @@ export default function DashboardPage() {
     navigator.clipboard.writeText(url);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const handleDelete = async (test: TestItem) => {
+    const confirmMsg = `Delete "${test.title}"?\n\nThis permanently removes the exam and all ${test.submissionCount} student submission${test.submissionCount === 1 ? "" : "s"} linked to it. This cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setDeletingId(test.id);
+      const res = await fetch(`/api/tests/${test.code}`, { method: "DELETE" });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setTests((prev) => prev.filter((t) => t.id !== test.id));
+      } else {
+        alert(json?.error || "Failed to delete the exam. Please try again.");
+      }
+    } catch (err) {
+      console.error("Delete exam error:", err);
+      alert("Failed to delete the exam. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const totalSubmissions = tests.reduce((acc, t) => acc + (t.submissionCount || 0), 0);
@@ -425,6 +448,14 @@ export default function DashboardPage() {
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Link>
+                        <button
+                          onClick={() => handleDelete(test)}
+                          disabled={deletingId === test.id}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Delete Exam"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
