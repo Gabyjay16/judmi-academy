@@ -22,7 +22,8 @@ import {
   Crown,
   Zap,
   ArrowRight,
-  Trash2
+  Trash2,
+  Music4
 } from "lucide-react";
 import { UpgradeModal } from "@/components/UpgradeModal";
 
@@ -159,6 +160,16 @@ export default function DashboardPage() {
             <FileCheck2 className="w-3.5 h-3.5 text-teal-100" />
             <span>Extract Info</span>
           </Link>
+
+          {user?.orgId && (
+            <Link
+              href="/dashboard/take-minutes"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition-all shadow-xs"
+            >
+              <Music4 className="w-3.5 h-3.5 text-violet-100" />
+              <span>Take Minutes</span>
+            </Link>
+          )}
 
           <Link
             href="/dashboard/scan-scripts"

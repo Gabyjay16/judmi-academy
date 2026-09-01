@@ -196,6 +196,24 @@ export const systemSettings = sqliteTable("system_settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const meetings = sqliteTable("meetings", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  meetingDate: text("meeting_date"),
+  audioName: text("audio_name"),
+  audioUrl: text("audio_url"), // Vercel Blob public URL for the meeting recording
+  audioDurationSeconds: integer("audio_duration_seconds"),
+  transcriptJson: text("transcript_json"), // JSON: TranscriptSegment[]
+  speakersJson: text("speakers_json"), // JSON: Speaker[] with optional user-renamed labels + clip start time
+  summaryJson: text("summary_json"), // JSON: MeetingSummary
+  status: text("status").notNull().default("recording"), // "recording" | "processing" | "ready" | "failed"
+  error: text("error"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
 export type Department = typeof departments.$inferSelect;
@@ -220,3 +238,5 @@ export type SystemSetting = typeof systemSettings.$inferSelect;
 export type NewSystemSetting = typeof systemSettings.$inferInsert;
 export type ExtractDocument = typeof extractDocuments.$inferSelect;
 export type NewExtractDocument = typeof extractDocuments.$inferInsert;
+export type Meeting = typeof meetings.$inferSelect;
+export type NewMeeting = typeof meetings.$inferInsert;

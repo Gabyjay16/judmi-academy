@@ -21,7 +21,8 @@ import {
   Camera,
   Zap,
   Crown,
-  ScanLine
+  ScanLine,
+  Music4
 } from "lucide-react";
 
 export default function Navbar() {
@@ -186,6 +187,7 @@ export default function Navbar() {
       { href: "/org/dashboard", label: "School Hub", icon: Building2 },
       { href: "/dashboard/scan-scripts", label: "Mark Scripts", icon: Camera },
       { href: "/dashboard/extract-info", label: "Extract Info", icon: ScanLine },
+      { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 },
       { href: "/dashboard", label: "Teacher Studio", icon: LayoutDashboard },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
     ];
@@ -195,6 +197,7 @@ export default function Navbar() {
       { href: "/admin", label: "Admin Panel & Access", icon: ShieldCheck },
       { href: "/dashboard/scan-scripts", label: "Mark Scripts", icon: Camera },
       { href: "/dashboard/extract-info", label: "Extract Info", icon: ScanLine },
+      { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 },
       { href: "/org/dashboard", label: "School Hub", icon: Building2 },
       { href: "/dashboard", label: "Exam Studio", icon: LayoutDashboard },
     ];
@@ -207,6 +210,10 @@ export default function Navbar() {
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
       { href: "/pricing", label: "Pricing", icon: CreditCard },
     ];
+    // Institution teachers only
+    if (currentUser?.orgId) {
+      navLinks.splice(2, 0, { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 });
+    }
   }
 
   return (

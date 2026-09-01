@@ -24,6 +24,7 @@ export const SERVICE_IDS = [
   "departments",
   "branding",
   "members",
+  "takeMinutes",
 ] as const;
 
 export type ServiceId = (typeof SERVICE_IDS)[number];
@@ -37,6 +38,7 @@ export const SERVICE_LABELS: Record<ServiceId, string> = {
   departments: "Departments",
   branding: "Branding & Access Link",
   members: "Members & Seats",
+  takeMinutes: "Take Minutes",
 };
 
 function parseServiceList(raw: string | null | undefined): string[] | null {

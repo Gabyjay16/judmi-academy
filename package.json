@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
+    "@vercel/blob": "^2.8.0",
     "clsx": "^2.1.1",
     "docx": "^9.7.1",
     "drizzle-orm": "^0.45.2",

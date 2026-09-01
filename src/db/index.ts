@@ -281,6 +281,27 @@ export async function initDatabase() {
       );
     `);
 
+    // 12. Meetings table (Take Minutes — AI meeting transcription & minutes)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS meetings (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        meeting_date TEXT,
+        audio_name TEXT,
+        audio_url TEXT,
+        audio_duration_seconds INTEGER,
+        transcript_json TEXT,
+        speakers_json TEXT,
+        summary_json TEXT,
+        status TEXT NOT NULL DEFAULT 'recording',
+        error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);
