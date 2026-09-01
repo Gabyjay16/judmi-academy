@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { tests, questions, submissions } from "@/db/schema";
 import { generateId, generateTestCode } from "@/lib/utils";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { seedDemoData } from "@/db/seed";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "At least one question is required." }, { status: 400 });
     }
 
-    // Check user plan for shuffled mode permission
     const user = await getCurrentUser();
     const isPaid = user?.planType === "individual" || user?.planType === "school_pro" || user?.role === "admin";
     const finalDistributionMode = (distributionMode === "shuffled" && isPaid && questionsList.length >= 20) ? "shuffled" : "general";
@@ -77,6 +76,8 @@ export async function POST(req: NextRequest) {
       shuffleOptions: shuffleOptions ? 1 : 0,
       showCorrectionsImmediately: showCorrectionsImmediately ? 1 : 0,
       allowRetake: allowRetake ? 1 : 0,
+      teacherUserId: (user as any)?.id || null,
+      orgId: (user as any)?.orgId || null,
       status: "active",
       createdAt: now,
       updatedAt: now,
@@ -121,7 +122,20 @@ export async function GET(req: NextRequest) {
     await initDatabase();
     await seedDemoData();
 
-    const allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
+    // Scope exams to the logged-in user so each teacher/school keeps its own
+    // exams (exams created without an org stay visible as global/legacy).
+    const user = await getCurrentUser();
+    let allTests;
+    if (!user || user.role === "admin") {
+      allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
+    } else {
+      const orgId = (user as any).orgId;
+      const own = eq(tests.teacherUserId, user.id);
+      const legacy = and(isNull(tests.orgId), isNull(tests.teacherUserId));
+      allTests = orgId
+        ? await db.select().from(tests).where(or(eq(tests.orgId, orgId), own, legacy)).orderBy(desc(tests.createdAt))
+        : await db.select().from(tests).where(or(own, legacy)).orderBy(desc(tests.createdAt));
+    }
 
     // Get question count and submission count for each test
     const enrichedTests = await Promise.all(

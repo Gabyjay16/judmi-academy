@@ -369,6 +369,7 @@ export default function OrgDashboardPage() {
   const organization = data?.organization || { name: "Organization", seatLimit: 50, planType: "school_pro" };
   const seats = data?.seats || { total: 50, used: 0, available: 50 };
   const orgSlug = organization.slug || organization.id || "";
+  const displayTitle = organization.brandName || organization.name || "School";
   const enrolmentLink =
     orgSlug && organization.accessKey
       ? `${typeof window !== "undefined" ? window.location.origin : ""}/school/${orgSlug}?key=${organization.accessKey}`
@@ -406,23 +407,34 @@ export default function OrgDashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
           {enrolmentLink ? (
-            <div className="bg-white/10 px-3.5 py-2.5 rounded-2xl border border-white/15 backdrop-blur-xs flex items-center gap-3 text-xs w-full sm:w-auto sm:max-w-[480px]">
-              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider shrink-0">Student Enrolment Link</span>
-              <span className="font-mono font-bold text-white tracking-wide truncate flex-1" title={enrolmentLink}>{enrolmentLink}</span>
-              <button
-                onClick={() => {
-                  if (typeof navigator !== "undefined") {
-                    navigator.clipboard.writeText(enrolmentLink);
-                    setCopiedCode(true);
-                    setTimeout(() => setCopiedCode(false), 2000);
-                  }
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition-colors shrink-0"
-              >
-                {copiedCode ? "✓ Copied!" : "Copy"}
-              </button>
+            <div className="bg-white/10 p-3 rounded-2xl border border-white/15 backdrop-blur-xs w-full sm:w-auto space-y-2">
+              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" />
+                {displayTitle} Student Enrolment Link
+              </span>
+              {/* Mobile-friendly: full link wraps onto multiple lines */}
+              <div className="flex items-center gap-2">
+                <span
+                  className="font-mono font-bold text-white tracking-wide text-[10px] sm:text-xs leading-relaxed break-all flex-1 min-w-0"
+                  title={enrolmentLink}
+                >
+                  {enrolmentLink}
+                </span>
+                <button
+                  onClick={() => {
+                    if (typeof navigator !== "undefined") {
+                      navigator.clipboard.writeText(enrolmentLink);
+                      setCopiedCode(true);
+                      setTimeout(() => setCopiedCode(false), 2000);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition-colors shrink-0"
+                >
+                  {copiedCode ? "✓ Copied!" : "Copy"}
+                </button>
+              </div>
             </div>
           ) : (
             <button

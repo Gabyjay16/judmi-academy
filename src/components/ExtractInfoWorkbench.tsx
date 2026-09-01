@@ -11,16 +11,17 @@ import {
   Search,
   ScanLine,
   Layers,
-  ArrowLeft,
   X,
   Check,
   Sparkles,
   RefreshCw,
   Pencil,
-  Table2,
-  FileSpreadsheet,
-  FileDown,
+  Eye,
+  UploadCloud,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import CameraStudio from "@/components/CameraStudio";
 
 interface ExtractField {
   name: string;
@@ -67,8 +68,25 @@ export default function ExtractInfoWorkbench() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
 
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  // View (open on site) state
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [viewDoc, setViewDoc] = useState<any | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  // Update / tag file state
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updatingTitle, setUpdatingTitle] = useState("");
+  const [updateFields, setUpdateFields] = useState<ExtractField[]>([]);
+  const [updatePages, setUpdatePages] = useState<string[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // Camera studio state
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<"create" | "update">("create");
+
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const updateGalleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchDocs();
@@ -98,12 +116,29 @@ export default function ExtractInfoWorkbench() {
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    await addPagesFromFiles(Array.from(files), "create");
+    e.target.value = "";
+  };
+
+  const addPagesFromFiles = async (files: File[], target: "create" | "update") => {
     const b64: string[] = [];
-    for (const f of Array.from(files)) {
+    for (const f of files) {
       b64.push(await fileToBase64(f));
     }
-    setCapturedPages((prev) => [...prev, ...b64]);
-    e.target.value = "";
+    if (target === "update") {
+      setUpdatePages((prev) => [...prev, ...b64]);
+    } else {
+      setCapturedPages((prev) => [...prev, ...b64]);
+    }
+  };
+
+  const handleCameraStudioCapture = async (files: File[]) => {
+    await addPagesFromFiles(files, cameraTarget);
+  };
+
+  const openCameraFor = (target: "create" | "update") => {
+    setCameraTarget(target);
+    setShowCamera(true);
   };
 
   const removePage = (idx: number) => {
@@ -292,9 +327,80 @@ export default function ExtractInfoWorkbench() {
     try {
       await fetch(`/api/extract-info/${id}`, { method: "DELETE" });
       if (editingId === id) setEditingId(null);
+      if (viewingId === id) { setViewingId(null); setViewDoc(null); }
+      if (updatingId === id) setUpdatingId(null);
       fetchDocs();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  // Open a document on the site (read-only viewer)
+  const openView = async (id: string) => {
+    try {
+      const res = await fetch(`/api/extract-info/${id}`);
+      const json = await res.json();
+      if (json?.document) {
+        setViewDoc(json.document);
+        setViewingId(id);
+      }
+    } catch (e) {
+      console.error("Failed to open doc", e);
+    }
+  };
+
+  // Tag a file so new extractions are added to it
+  const openUpdate = (d: DocSummary) => {
+    setUpdatingId(d.id);
+    setUpdatingTitle(d.title);
+    setUpdateFields(d.fieldDefinitions || []);
+    setUpdatePages([]);
+    setUpdateError(null);
+  };
+
+  const removeUpdatePage = (idx: number) => {
+    setUpdatePages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateGallery = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    await addPagesFromFiles(Array.from(files), "update");
+    e.target.value = "";
+  };
+
+  const handleAppend = async () => {
+    if (!updatingId) return;
+    if (updatePages.length === 0) {
+      setUpdateError("Please snap or upload at least one document page first.");
+      return;
+    }
+    setIsUpdating(true);
+    setUpdateError(null);
+    try {
+      const res = await fetch(`/api/extract-info/${updatingId}/append`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          images: updatePages,
+          fields: updateFields,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setUpdateError(json.error || "Update failed.");
+      } else if (json.success === false) {
+        setUpdateError(json.error || "AI could not read the new pages. Please retake clearer photos.");
+      } else {
+        setUpdatingId(null);
+        setUpdatePages([]);
+        setUpdateFields([]);
+        fetchDocs();
+      }
+    } catch (err: any) {
+      setUpdateError(err.message || "Update failed.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -431,7 +537,6 @@ export default function ExtractInfoWorkbench() {
             Document Pages ({capturedPages.length} snapped):
           </label>
 
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple onChange={handleCameraCapture} className="hidden" />
           <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={handleCameraCapture} className="hidden" />
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -454,12 +559,12 @@ export default function ExtractInfoWorkbench() {
 
             <button
               type="button"
-              onClick={() => cameraInputRef.current?.click()}
+              onClick={() => openCameraFor("create")}
               className="rounded-2xl border-2 border-dashed border-indigo-400 bg-indigo-50/60 hover:bg-indigo-100 aspect-[3/4] flex flex-col items-center justify-center gap-2 text-center p-2"
             >
               <Camera className="w-6 h-6 text-indigo-600" />
               <span className="text-[11px] font-extrabold text-indigo-900">Snap Page</span>
-              <span className="text-[9px] text-indigo-600">camera</span>
+              <span className="text-[9px] text-indigo-600">single / multiple / twin</span>
             </button>
             <button
               type="button"
@@ -473,7 +578,9 @@ export default function ExtractInfoWorkbench() {
           </div>
 
           <p className="text-[11px] text-slate-500">
-            A document can be 2–3 pages. Snap each page with the camera, or "Batch Upload" to select many photos at once — all snapped pages are processed together as one document.
+            A document can be 2–3 pages. "Snap Page" opens the camera to take single, multiple or twin (2-angle)
+            photos — snap each page in turn. "Batch Upload" selects many photos at once from your gallery; all
+            snapped/selected pages are processed together as one document.
           </p>
         </div>
 
@@ -541,75 +648,64 @@ export default function ExtractInfoWorkbench() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50/75 text-slate-500 font-semibold border-b border-slate-100">
-                <tr>
-                  <th className="px-5 py-3">Document</th>
-                  <th className="px-4 py-3">Pages</th>
-                  <th className="px-4 py-3">Fields</th>
-                  <th className="px-4 py-3">Records</th>
-                  <th className="px-4 py-3">Format</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredDocs.map((d) => (
-                  <tr key={d.id} className="hover:bg-slate-50/50">
-                    <td className="px-5 py-4">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                        {d.title}
-                        {d.status === "error" && (
-                          <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">Error</span>
-                        )}
-                      </div>
-                      {d.error && <div className="text-[11px] text-rose-500 mt-0.5">{d.error}</div>}
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">{d.pageCount}</td>
-                    <td className="px-4 py-4 text-slate-600">{d.fieldDefinitions.map((f) => f.name).join(", ")}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-800">{d.rowCount}</td>
-                    <td className="px-4 py-4">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold uppercase">
-                        {d.exportFormat}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-slate-400 text-xs">
-                      {new Date(d.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEditor(d.id)}
-                          className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50"
-                          title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => downloadDoc(d.id, d.exportFormat || "xlsx")}
-                          className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1"
-                          title={`Download as ${d.exportFormat.toUpperCase()}`}
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          Download
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteDoc(d.id)}
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-slate-100">
+            {filteredDocs.map((d) => (
+              <div key={d.id} className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 hover:bg-slate-50/60 transition-colors">
+                {/* File name (click to open/view on the site) */}
+                <button
+                  type="button"
+                  onClick={() => openView(d.id)}
+                  className="flex items-center gap-3 min-w-0 text-left flex-1"
+                  title="Open & view this file"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 truncate flex items-center gap-2">
+                      <span className="truncate">{d.title}</span>
+                      {d.status === "error" && (
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 shrink-0">Error</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {d.pageCount} page{d.pageCount === 1 ? "" : "s"} • {d.rowCount} record{d.rowCount === 1 ? "" : "s"} • {d.exportFormat.toUpperCase()} • {new Date(d.createdAt).toLocaleDateString()}
+                    </div>
+                    {d.error && <div className="text-[11px] text-rose-500 mt-0.5">{d.error}</div>}
+                  </div>
+                </button>
+
+                {/* Update / Edit / Delete */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => openUpdate(d)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-sky-700 text-[11px] font-bold hover:bg-sky-100 transition-colors"
+                    title="Add new extracted pages to this same file"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    Update
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEditor(d.id)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold hover:bg-indigo-100 transition-colors"
+                    title="Edit records & fields"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteDoc(d.id)}
+                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -722,6 +818,247 @@ export default function ExtractInfoWorkbench() {
           </div>
         </div>
       )}
+
+      {/* ====== View (Open on site) Modal ====== */}
+      {viewingId && viewDoc && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-4xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900 truncate flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                  {viewDoc.title}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {viewDoc.pageCount} page{viewDoc.pageCount === 1 ? "" : "s"} • {viewDoc.rows?.length || 0} record{(viewDoc.rows?.length || 0) === 1 ? "" : "s"} • {viewDoc.exportFormat.toUpperCase()} • Updated {new Date(viewDoc.updatedAt).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { const id = viewDoc.id; setViewingId(null); setViewDoc(null); openEditor(id); }}
+                  className="px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold hover:bg-indigo-100 inline-flex items-center gap-1.5"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadDoc(viewDoc.id, viewDoc.exportFormat || "xlsx")}
+                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </button>
+                <button
+                  onClick={() => { setViewingId(null); setViewDoc(null); }}
+                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {viewDoc.sourceImages && viewDoc.sourceImages.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 mb-2">
+                  <Layers className="w-4 h-4 text-indigo-600" />
+                  Source Pages
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                  {viewDoc.sourceImages.map((img: string, idx: number) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setLightbox(img)}
+                      className="relative rounded-xl overflow-hidden border border-slate-200 bg-white aspect-[3/4] group"
+                    >
+                      <img src={img} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
+                      <span className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/40 flex items-center justify-center">
+                        <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100" />
+                      </span>
+                      <span className="absolute top-1 left-1 text-[9px] font-bold bg-slate-900/80 text-white px-1.5 py-0.5 rounded">
+                        Page {idx + 1}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border border-slate-200 rounded-2xl overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
+                  <tr>
+                    <th className="px-3 py-2">#</th>
+                    {(viewDoc.fieldDefinitions || []).map((f: ExtractField) => (
+                      <th key={f.name} className="px-3 py-2">{f.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(viewDoc.rows || []).map((row: Record<string, string>, idx: number) => (
+                    <tr key={idx}>
+                      <td className="px-3 py-2 font-bold text-slate-500">{idx + 1}</td>
+                      {(viewDoc.fieldDefinitions || []).map((f: ExtractField) => (
+                        <td key={f.name} className="px-3 py-2 text-slate-700">{row[f.name] || "—"}</td>
+                      ))}
+                    </tr>
+                  ))}
+                  {(viewDoc.rows || []).length === 0 && (
+                    <tr>
+                      <td colSpan={(viewDoc.fieldDefinitions || []).length + 1} className="px-3 py-6 text-center text-slate-400">
+                        No records in this file yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== Lightbox ====== */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[70] bg-slate-950/90 flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setLightbox(null)}
+        >
+          <img src={lightbox} alt="Document page" className="max-w-full max-h-full rounded-2xl shadow-2xl" />
+        </div>
+      )}
+
+      {/* ====== Update / Tag File Modal ====== */}
+      {updatingId && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900 truncate flex items-center gap-2">
+                  <UploadCloud className="w-5 h-5 text-sky-600 shrink-0" />
+                  Update File
+                </h3>
+                <p className="text-xs text-slate-500 truncate">Adding pages to: <strong className="text-slate-700">{updatingTitle}</strong></p>
+              </div>
+              <button
+                onClick={() => { setUpdatingId(null); setUpdatePages([]); setUpdateError(null); }}
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200 text-[11px] text-sky-900 leading-relaxed flex items-start gap-2">
+              <Check className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+              <span>
+                This file is now <strong>tagged for updates</strong> — anything you snap or upload below is extracted
+                and <strong>added to this same file</strong> (new records + new pages), keeping everything in one place.
+              </span>
+            </div>
+
+            {/* Fields already on the file (kept so new rows match) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Data Fields (kept from this file)</label>
+              <div className="flex flex-wrap gap-2">
+                {updateFields.map((f, idx) => (
+                  <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-bold text-indigo-800">
+                    {f.name} <span className="text-[10px] text-indigo-400 normal-case">({f.type})</span>
+                  </span>
+                ))}
+                {updateFields.length === 0 && (
+                  <span className="text-xs text-slate-400">No fields — edit the file to add fields first.</span>
+                )}
+              </div>
+            </div>
+
+            {/* New pages to add */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-800">
+                Pages to Add ({updatePages.length}):
+              </label>
+              <input
+                ref={updateGalleryInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleUpdateGallery}
+                className="hidden"
+              />
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {updatePages.map((page, idx) => (
+                  <div key={idx} className="relative rounded-2xl overflow-hidden border-2 border-sky-200 bg-white shadow-xs aspect-[3/4] group">
+                    <img src={page} alt={`Add page ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeUpdatePage(idx)}
+                      className="absolute top-1.5 right-1.5 p-1 rounded-full bg-rose-600 text-white hover:bg-rose-700"
+                      title="Remove page"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => openCameraFor("update")}
+                  className="rounded-2xl border-2 border-dashed border-sky-400 bg-sky-50/60 hover:bg-sky-100 aspect-[3/4] flex flex-col items-center justify-center gap-2 text-center p-2"
+                >
+                  <Camera className="w-6 h-6 text-sky-600" />
+                  <span className="text-[11px] font-extrabold text-sky-900">Snap Page</span>
+                  <span className="text-[9px] text-sky-600">single / multiple / twin</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateGalleryInputRef.current?.click()}
+                  className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-white aspect-[3/4] flex flex-col items-center justify-center gap-2 text-center p-2"
+                >
+                  <Layers className="w-6 h-6 text-slate-500" />
+                  <span className="text-[11px] font-extrabold text-slate-700">Batch Add</span>
+                </button>
+              </div>
+            </div>
+
+            {updateError && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+                {updateError}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isUpdating || updatePages.length === 0}
+                onClick={handleAppend}
+                className="px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2"
+              >
+                {isUpdating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    AI Reading & Adding to File...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Extract & Add to File
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== Camera Studio ====== */}
+      <CameraStudio
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCameraStudioCapture}
+        allowMultiple
+        allowTwin
+      />
     </div>
   );
 }

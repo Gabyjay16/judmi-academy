@@ -20,7 +20,10 @@ import {
   BookOpen,
   Lock,
   Zap,
-  Crown
+  Crown,
+  ListChecks,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { extractTextFromFile } from "@/lib/pdf-parser";
 import { UpgradeModal } from "@/components/UpgradeModal";
@@ -59,7 +62,7 @@ export default function CreateExamPage() {
   // Note & Generation inputs
   const [notes, setNotes] = useState("");
   const [subject, setSubject] = useState("General Science & Tech");
-  const [questionCount, setQuestionCount] = useState(10);
+  const [questionCount, setQuestionCount] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "mixed">("mixed");
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -80,6 +83,7 @@ export default function CreateExamPage() {
 
   // Generated Questions List
   const [questionsList, setQuestionsList] = useState<EditableQuestion[]>([]);
+  const [showQuestions, setShowQuestions] = useState(false);
 
   // Publishing State
   const [isPublishing, setIsPublishing] = useState(false);
@@ -94,6 +98,11 @@ export default function CreateExamPage() {
   const effectiveDurationMinutes = isAutoDuration
     ? effectiveQuestionsToAnswer // 10 questions = 10 mins, 25 questions = 25 mins
     : customDurationMinutes;
+
+  // Blank "number of questions" is allowed — defaults to 10 when left empty
+  const parsedQuestionCount = questionCount.trim()
+    ? Math.max(1, Math.min(100, parseInt(questionCount, 10) || 10))
+    : 10;
 
   // Sample notes loader for quick testing
   const handleLoadSampleNotes = () => {
@@ -134,7 +143,7 @@ export default function CreateExamPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           notes,
-          count: questionCount,
+          count: parsedQuestionCount,
           difficulty,
           subject,
           type: "mcq",
@@ -153,6 +162,7 @@ export default function CreateExamPage() {
         if (questionsPerStudent > data.questions.length) {
           setQuestionsPerStudent(data.questions.length);
         }
+        setShowQuestions(false);
         setStep(2);
       } else {
         alert(data.error || "Could not generate questions. Please try again.");
@@ -390,22 +400,19 @@ export default function CreateExamPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Questions to Generate <span className="text-slate-400 font-normal">(Type any number)</span>
+                  Questions to Generate <span className="text-slate-400 font-normal">(Type a number — leave blank to use 10)</span>
                 </label>
                 <input
                   type="number"
                   min={1}
                   max={100}
                   value={questionCount}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value) || 1;
-                    setQuestionCount(Math.max(1, Math.min(100, val)));
-                  }}
+                  onChange={(e) => setQuestionCount(e.target.value)}
                   placeholder="e.g. 10, 20, 25, 50"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
-                  {distributionMode === "shuffled" ? "Minimum 20 questions required for Shuffled Mode" : "Enter the exact number of questions you want generated"}
+                  {distributionMode === "shuffled" ? "Minimum 20 questions required for Shuffled Mode" : "Leave blank and we will generate 10. Type a number for a custom amount."}
                 </span>
               </div>
 
@@ -468,8 +475,8 @@ export default function CreateExamPage() {
                       return;
                     }
                     setDistributionMode("shuffled");
-                    if (questionCount < 20) {
-                      setQuestionCount(20);
+                    if (parsedQuestionCount < 20) {
+                      setQuestionCount("20");
                     }
                   }}
                   className={`p-4 rounded-2xl border-2 cursor-pointer transition-all relative ${
@@ -796,32 +803,96 @@ export default function CreateExamPage() {
             </div>
           </div>
 
+          {/* Review & Approve (Approve-first) */}
+          {!showQuestions && (
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-indigo-600/20">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-[11px] font-bold">
+                <Sparkles className="w-3.5 h-3.5" />
+                {questionsList.length} question{questionsList.length === 1 ? "" : "s"} are ready
+              </div>
+              <h3 className="text-xl font-extrabold mt-3">Review & Approve Your Exam</h3>
+              <p className="text-sm text-white/80 mt-1 max-w-lg">
+                Nothing has been published yet. View and edit every question, or approve right away to generate the exam code.
+              </p>
+
+              <div className="flex flex-wrap gap-2 mt-4 text-[11px] font-semibold">
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{questionsList.length} Questions</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{effectiveDurationMinutes} mins</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10 capitalize">{difficulty}</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{distributionMode === "shuffled" ? "Shuffled mode" : "General mode"}</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{parsedQuestionCount} targeted</span>
+              </div>
+
+              <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowQuestions(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white text-indigo-700 font-bold text-sm hover:bg-indigo-50 transition-colors"
+                >
+                  <ListChecks className="w-4 h-4" />
+                  View & Edit Questions
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={isPublishing || questionsList.length === 0}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-bold text-sm transition-colors"
+                >
+                  {isPublishing ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4" />
+                  )}
+                  {isPublishing ? "Publishing..." : "Approve & Generate Exam"}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 mt-3 text-[11px] text-white/70">
+                <Lock className="w-3.5 h-3.5" />
+                Publishing generates a 6-character code students use to join this exam.
+              </div>
+            </div>
+          )}
+
           {/* Question Bank Review & Editor */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuestions((s) => !s)}
+                    className="inline-flex items-center gap-1.5 p-2 -ml-2 rounded-xl hover:bg-slate-100 text-slate-700"
+                    title={showQuestions ? "Collapse question bank" : "Expand question bank"}
+                  >
+                    {showQuestions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
                   <span>Question Bank Studio</span>
                   <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                     {questionsList.length} Items
                   </span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Click on an option letter to change the correct answer key. Edit text freely.
+                  {showQuestions
+                    ? "Click on an option letter to change the correct answer key. Edit text freely."
+                    : "Questions are ready — click “View & Edit Questions” above to fine-tune them before publishing."}
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddCustomQuestion}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Question
-              </button>
+              {showQuestions && (
+                <button
+                  type="button"
+                  onClick={handleAddCustomQuestion}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Question
+                </button>
+              )}
             </div>
 
             {/* Questions List */}
+            {showQuestions && (
             <div className="space-y-4">
               {questionsList.map((q, qIdx) => (
                 <div
@@ -917,6 +988,7 @@ export default function CreateExamPage() {
                 </div>
               ))}
             </div>
+            )}
 
             {/* Bottom Action CTA */}
             <div className="p-6 bg-white rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
