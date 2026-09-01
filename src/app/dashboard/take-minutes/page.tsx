@@ -92,6 +92,7 @@ export default function TakeMinutesPage() {
   const meetingIdRef = useRef<string | null>(null);
   const chunksRef = useRef<{ url: string; name: string; durationSeconds: number }[]>([]);
   const pendingBlobsRef = useRef<{ blob: Blob; name: string }[]>([]);
+  const uploadErrorRef = useRef<string | null>(null);
   const partCounterRef = useRef(0);
   const rotatingRef = useRef(false);
   const rotationPromiseRef = useRef<Promise<void> | null>(null);
@@ -259,19 +260,47 @@ export default function TakeMinutesPage() {
         ? "audio/mp4"
         : "";
 
+  // Browsers negotiate a codec-suffixed mime type (e.g. "audio/webm;codecs=opus").
+  // Vercel Blob matches allowedContentTypes EXACTLY, so we must upload the base
+  // subtype or the store rejects the file (403 "contentType ... is not allowed").
+  const mimeBase = (mime?: string) =>
+    (mime || "").split(";")[0].trim() || "audio/webm";
+
   const uploadChunk = async (blob: Blob, name?: string) => {
     const mid = meetingIdRef.current;
     if (!mid) return null;
-    const mime = blob.type || "audio/webm";
+    const mime = mimeBase(blob.type);
     const finalName = name || `part-${(partCounterRef.current++).toString().padStart(3, "0")}.${extForMime(mime)}`;
     const pathname = `meetings/${mid}/${finalName}`;
-    const blobResult = await upload(pathname, blob, {
-      access: "public",
-      handleUploadUrl: `/api/meetings/${mid}/upload`,
-      clientPayload: mid,
-      contentType: mime,
-    });
-    return { url: blobResult.url, name: finalName, durationSeconds: 0 };
+    try {
+      const blobResult = await upload(pathname, blob, {
+        access: "public",
+        handleUploadUrl: `/api/meetings/${mid}/upload`,
+        clientPayload: mid,
+        contentType: mime,
+      });
+      return { url: blobResult.url, name: finalName, durationSeconds: 0 };
+    } catch (e: any) {
+      // The client upload() throws a generic message; fetch the token route
+      // directly to surface the actual server reason for the UI.
+      let detail = e?.message || "Upload failed";
+      try {
+        const probe = await fetch(`/api/meetings/${mid}/upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "blob.generate-client-token",
+            payload: { pathname, clientPayload: mid, multipart: false },
+          }),
+        });
+        if (!probe.ok) {
+          const data = await probe.json().catch(() => ({}));
+          detail = data?.error || `Storage rejected the upload (HTTP ${probe.status}).`;
+        }
+      } catch {}
+      uploadErrorRef.current = detail;
+      throw new Error(detail);
+    }
   };
 
   const persistChunks = async () => {
@@ -304,7 +333,7 @@ export default function TakeMinutesPage() {
       });
       const arr = audioChunksRef.current;
       audioChunksRef.current = [];
-      const blob = new Blob(arr, { type: recorder.mimeType || "audio/webm" });
+      const blob = new Blob(arr, { type: mimeBase(recorder.mimeType) });
       if (blob.size > 0) {
         // A failed upload must never silently lose the audio: stash the blob
         // and retry it when the meeting ends.
@@ -426,7 +455,7 @@ export default function TakeMinutesPage() {
       }
       setError(
         pendingBefore > 0
-          ? "Audio was recorded but couldn't be uploaded to storage. Check your connection and try again."
+          ? `Audio was recorded but couldn't be uploaded to storage${uploadErrorRef.current ? ` (${uploadErrorRef.current})` : ""}. Check your connection and try again.`
           : "No audio was captured. Check that your microphone is on and unmuted, then try recording again."
       );
       return;

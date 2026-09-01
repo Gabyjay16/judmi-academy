@@ -21,6 +21,7 @@ const ALLOWED_AUDIO_TYPES = [
   "audio/ogg",
   "audio/wav",
   "audio/x-m4a",
+  "audio/*", // Safety net: browsers may negotiate codec-suffixed types (e.g. audio/webm;codecs=opus)
 ];
 
 // Browser uploads go straight to Vercel Blob (bypassing the 4.5MB function
