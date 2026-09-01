@@ -128,7 +128,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Teacher Assessment Dashboard
+            Hello {user?.name || "there"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Manage your AI exams, camera-scanned physical papers, and student transcripts.
