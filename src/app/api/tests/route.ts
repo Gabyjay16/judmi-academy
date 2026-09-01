@@ -122,19 +122,31 @@ export async function GET(req: NextRequest) {
     await initDatabase();
     await seedDemoData();
 
-    // Scope exams to the logged-in user so each teacher/school keeps its own
-    // exams (exams created without an org stay visible as global/legacy).
+    // Scope exams to the logged-in user. Admins see everything, org admins see
+    // their whole school, and teachers (including school-registered teachers)
+    // see ONLY the exams they created themselves — so the delete action on
+    // their dashboard always applies to an exam they own.
     const user = await getCurrentUser();
     let allTests;
-    if (!user || user.role === "admin") {
+    if (!user || user.role === "admin" || user.role === "super_admin") {
       allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
-    } else {
+    } else if (user.role === "org_admin") {
       const orgId = (user as any).orgId;
       const own = eq(tests.teacherUserId, user.id);
+      const byOrg = orgId ? or(eq(tests.orgId, orgId), own) : own;
       const legacy = and(isNull(tests.orgId), isNull(tests.teacherUserId));
-      allTests = orgId
-        ? await db.select().from(tests).where(or(eq(tests.orgId, orgId), own, legacy)).orderBy(desc(tests.createdAt))
-        : await db.select().from(tests).where(or(own, legacy)).orderBy(desc(tests.createdAt));
+      allTests = await db
+        .select()
+        .from(tests)
+        .where(or(byOrg, legacy))
+        .orderBy(desc(tests.createdAt));
+    } else {
+      // Teachers (with or without a school): only their own exams.
+      allTests = await db
+        .select()
+        .from(tests)
+        .where(eq(tests.teacherUserId, user.id))
+        .orderBy(desc(tests.createdAt));
     }
 
     // Get question count and submission count for each test
