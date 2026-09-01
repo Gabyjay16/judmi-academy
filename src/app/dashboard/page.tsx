@@ -50,7 +50,16 @@ export default function DashboardPage() {
   const [tests, setTests] = useState<TestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<any | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("judmi_user");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  });
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
