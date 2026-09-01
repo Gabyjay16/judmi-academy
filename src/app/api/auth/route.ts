@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { users, organizations } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { hashPassword, verifyPassword, generateSessionToken, getCurrentUser, AUTH_COOKIE_NAME } from "@/lib/auth";
 import { generateId } from "@/lib/utils";
 import { seedDemoData } from "@/db/seed";
@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
         id: user.id,
         name: user.name,
         email: user.email,
+        username: user.username || null,
         role: user.role,
         studentId: user.studentId,
         orgId: user.orgId,
@@ -108,12 +109,17 @@ export async function POST(req: NextRequest) {
       const identifier = (body.phone || body.email || "").trim().toLowerCase();
       const { password } = body;
       if (!identifier || !password) {
-        return NextResponse.json({ error: "Phone number / email and password are required" }, { status: 400 });
+        return NextResponse.json({ error: "Username, phone number or email and password are required" }, { status: 400 });
       }
 
-      const userRows = await db.select().from(users).where(eq(users.email, identifier)).limit(1);
+      // Match by email OR username (usernames are stored lowercase, e.g. "brandonjudmi")
+      const userRows = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.email, identifier), eq(users.username, identifier)))
+        .limit(1);
       if (userRows.length === 0) {
-        return NextResponse.json({ error: "Invalid phone number / email or password" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid username / phone / email or password" }, { status: 401 });
       }
 
       const user = userRows[0];
@@ -132,7 +138,7 @@ export async function POST(req: NextRequest) {
 
       const isValid = await verifyPassword(password, user.passwordHash);
       if (!isValid) {
-        return NextResponse.json({ error: "Invalid phone number / email or password" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid username / phone / email or password" }, { status: 401 });
       }
 
       if (user.status === "suspended") {
@@ -153,6 +159,7 @@ export async function POST(req: NextRequest) {
           id: user.id,
           name: user.name,
           email: user.email,
+          username: user.username || null,
           role: user.role,
           studentId: user.studentId,
           orgId: user.orgId,

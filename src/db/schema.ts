@@ -30,6 +30,7 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
+  username: text("username"), // Optional login username (e.g. super admin "brandonjudmi")
   passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("student"), // "admin" | "org_admin" | "teacher" | "student"
   orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),

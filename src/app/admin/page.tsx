@@ -39,7 +39,11 @@ export default function AdminPanelPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"resets" | "subscriptions" | "organizations">("subscriptions");
+  const [activeTab, setActiveTab] = useState<"resets" | "subscriptions" | "organizations" | "settings">("subscriptions");
+  const [adminInfo, setAdminInfo] = useState<any>(null);
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pwLoading, setPwLoading] = useState(false);
 
   const SERVICE_OPTIONS: { value: string; label: string }[] = [
     { value: "generateQuestions", label: "AI Exam Generator" },
@@ -72,7 +76,13 @@ export default function AdminPanelPage() {
   const fetchAdminData = async () => {
     try {
       setLoading(true);
-      
+
+      // Load current admin identity from the persisted session (for the Settings tab)
+      try {
+        const stored = typeof window !== "undefined" ? window.localStorage.getItem("judmi_user") : null;
+        if (stored) setAdminInfo(JSON.parse(stored));
+      } catch {}
+
       // 1. Fetch password reset requests
       const resetRes = await fetch("/api/auth/reset-password");
       if (resetRes.status === 403 || resetRes.status === 401) {
@@ -302,6 +312,42 @@ export default function AdminPanelPage() {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwMsg(null);
+    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
+      setPwMsg({ ok: false, text: "Please fill in all password fields." });
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      setPwMsg({ ok: false, text: "New passwords do not match." });
+      return;
+    }
+    if (pwForm.next.length < 6) {
+      setPwMsg({ ok: false, text: "New password must be at least 6 characters long." });
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const res = await fetch("/api/admin/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: pwForm.current, newPassword: pwForm.next }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPwMsg({ ok: false, text: data.error || "Failed to update password." });
+      } else {
+        setPwMsg({ ok: true, text: "Admin password updated successfully." });
+        setPwForm({ current: "", next: "", confirm: "" });
+      }
+    } catch (err: any) {
+      setPwMsg({ ok: false, text: err.message || "Network error. Please try again." });
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
   const copyResetUrl = (token: string) => {
     const url = `${window.location.origin}/reset-password?token=${token}`;
     navigator.clipboard.writeText(url);
@@ -373,6 +419,16 @@ export default function AdminPanelPage() {
           >
             <Building2 className="w-3.5 h-3.5" />
             <span>School Hub</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === "settings" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Admin Settings</span>
           </button>
         </div>
       </div>
@@ -951,6 +1007,110 @@ export default function AdminPanelPage() {
                 Open Org Dashboard
               </Link>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: Admin Settings (account + change password) */}
+      {activeTab === "settings" && (
+        <div className="max-w-xl space-y-6">
+          {/* Admin Account Card */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Admin Account</h3>
+                <p className="text-xs text-slate-500">Your super admin login identity</p>
+              </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500">Username</span>
+                <span className="text-sm font-extrabold text-slate-900 font-mono">{adminInfo?.username || "brandonjudmi"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500">Name</span>
+                <span className="text-sm font-bold text-slate-900">{adminInfo?.name || "Brandon Judmi"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500">Email</span>
+                <span className="text-sm font-bold text-slate-900 font-mono">{adminInfo?.email || "admin@evalai.com"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500">Role</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold uppercase">Super Admin</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Change Password Card */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Change Admin Password</h3>
+                <p className="text-xs text-slate-500">Update the password used to sign in to this admin panel.</p>
+              </div>
+            </div>
+
+            {pwMsg && (
+              <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                pwMsg.ok ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"
+              }`}>
+                {pwMsg.ok ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                <span>{pwMsg.text}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={pwForm.current}
+                  onChange={(e) => setPwForm((p) => ({ ...p, current: e.target.value }))}
+                  placeholder="Enter your current password"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">New Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={pwForm.next}
+                  onChange={(e) => setPwForm((p) => ({ ...p, next: e.target.value }))}
+                  placeholder="At least 6 characters"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
+                  placeholder="Re-enter your new password"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={pwLoading}
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-2"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>{pwLoading ? "Updating..." : "Update Admin Password"}</span>
+              </button>
+            </form>
           </div>
         </div>
       )}

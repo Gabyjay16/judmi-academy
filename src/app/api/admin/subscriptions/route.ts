@@ -19,6 +19,7 @@ export async function GET() {
         id: users.id,
         name: users.name,
         email: users.email,
+        username: users.username,
         role: users.role,
         planType: users.planType,
         status: users.status,

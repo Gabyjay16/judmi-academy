@@ -69,6 +69,7 @@ export async function initDatabase() {
     try { await client.execute(`ALTER TABLE users ADD COLUMN script_scans_used INTEGER DEFAULT 0;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN essay_gradings_used INTEGER DEFAULT 0;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN allowed_services TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE users ADD COLUMN username TEXT;`); } catch {}
 
     // 3. Password Reset Requests table
     await client.execute(`

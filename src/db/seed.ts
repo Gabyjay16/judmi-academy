@@ -31,8 +31,9 @@ export async function seedDemoData() {
   const demoUsers = [
     {
       id: "user-admin-001",
-      name: "System Super Admin",
+      name: "Brandon Judmi",
       email: "admin@evalai.com",
+      username: "brandonjudmi",
       passwordHash: adminPasswordHash,
       role: "admin",
       orgId: null,
@@ -91,6 +92,13 @@ export async function seedDemoData() {
     if (existing.length === 0) {
       await db.insert(users).values(u);
     }
+  }
+
+  // Ensure the super admin login username is set (covers DBs seeded before the username column existed)
+  try {
+    await db.update(users).set({ username: "brandonjudmi", name: "Brandon Judmi" }).where(eq(users.id, "user-admin-001"));
+  } catch (e) {
+    console.error("Failed to set admin username:", e);
   }
 
   // 3. Seed Demo Test (BIO101)
