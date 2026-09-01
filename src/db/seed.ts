@@ -253,7 +253,7 @@ export async function seedDemoData() {
   }
 
   // 4. Seed a completed test submission for Student Sarah Williams for instant history display
-  const existingSub = await db.select().from(submissions).where(eq(submissions.studentUserId, "user-student-001")).limit(1);
+  const existingSub = await db.select().from(submissions).where(eq(submissions.id, "demo-sub-sarah-001")).limit(1);
   if (existingSub.length === 0) {
     await db.insert(submissions).values({
       id: "demo-sub-sarah-001",
