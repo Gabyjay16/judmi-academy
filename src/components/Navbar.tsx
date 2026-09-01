@@ -30,6 +30,9 @@ export default function Navbar() {
   const [quickCode, setQuickCode] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [schoolBranding, setSchoolBranding] = useState<any | null>(null);
+
+  const isSchoolPage = pathname.startsWith("/school/");
 
   // Read stored user immediately on load to prevent flash of guest state
   const [currentUser, setCurrentUser] = useState<any | null>(() => {
@@ -52,6 +55,29 @@ export default function Navbar() {
   useEffect(() => {
     fetchSession();
   }, [pathname]);
+
+  // On a public school-branded page, show that school's abbreviation in the
+  // top header instead of the default "Judmi Academy" branding.
+  useEffect(() => {
+    if (!isSchoolPage) {
+      setSchoolBranding(null);
+      return;
+    }
+    const slug = pathname.split("/")[2] || "";
+    const key = new URLSearchParams(window.location.search).get("key") || "";
+    if (!slug || !key) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/school/${encodeURIComponent(slug)}?key=${encodeURIComponent(key)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data?.success || cancelled) return;
+        setSchoolBranding(data.branding || { name: data.organization?.name });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [pathname, isSchoolPage]);
 
   const fetchSession = async () => {
     try {
@@ -130,6 +156,16 @@ export default function Navbar() {
   };
   const homeHref = getHomeHref();
 
+  // Build an abbreviation from a school's brand name (e.g. "Springfield Academy" -> "SA").
+  const schoolName = schoolBranding?.brandName || schoolBranding?.name || "";
+  const schoolAbbr = schoolName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w: string) => w[0])
+    .join("")
+    .slice(0, 3)
+    .toUpperCase() || "SA";
+
   // Compute navigation links based on user role
   let navLinks: { href: string; label: string; icon: any }[] = [];
 
@@ -179,8 +215,30 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           
           {/* Logo */}
-          <Link href={homeHref} className="flex items-center gap-2.5 group">
-            {currentUser?.branding ? (
+          <Link href={isSchoolPage ? pathname + window.location.search : homeHref} className="flex items-center gap-2.5 group">
+            {isSchoolPage && schoolBranding ? (
+              <>
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"
+                  style={{ backgroundColor: schoolBranding.brandColor || "#4f46e5" }}
+                >
+                  {schoolBranding.logoData ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={schoolBranding.logoData} alt={schoolName} className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <span className="text-base font-black">{schoolAbbr}</span>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xl font-extrabold tracking-tight">
+                    {schoolName || schoolAbbr}
+                  </span>
+                  <span className="text-[10px] text-slate-500 -mt-1 font-medium tracking-wide">
+                    Student Enrolment Portal
+                  </span>
+                </div>
+              </>
+            ) : currentUser?.branding ? (
               <>
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden"

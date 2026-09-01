@@ -35,6 +35,7 @@ export const users = sqliteTable("users", {
   role: text("role").notNull().default("student"), // "admin" | "org_admin" | "teacher" | "student"
   orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
   departmentId: text("department_id").references(() => departments.id, { onDelete: "set null" }),
+  year: text("year"), // Student academic year / level (e.g. "Year 1", "Level 300")
   studentId: text("student_id"), // Matriculation / Student ID number
   avatarUrl: text("avatar_url"),
   planType: text("plan_type").notNull().default("free"), // "free" | "individual" | "school_pro" | "enterprise"

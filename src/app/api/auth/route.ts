@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
 
     // 3. SIGNUP
     if (action === "signup") {
-      const { name, password, role = "student", organizationName, studentId, schoolCode, departmentId } = body;
+      const { name, password, role = "student", organizationName, studentId, schoolCode, departmentId, year } = body;
       const cleanEmail = (body.phone || body.email || "").trim().toLowerCase();
 
       // Teacher accounts must be created by an admin — teachers cannot self-register.
@@ -293,6 +293,7 @@ export async function POST(req: NextRequest) {
         role: role as any,
         orgId: createdOrgId,
         departmentId: departmentId || null,
+        year: role === "student" ? year || null : null,
         studentId: role === "student" ? studentId || null : null,
         planType,
         status: "active",
@@ -324,6 +325,8 @@ export async function POST(req: NextRequest) {
           email: cleanEmail,
           role,
           studentId: studentId || null,
+          departmentId: departmentId || null,
+          year: role === "student" ? year || null : null,
           orgId: createdOrgId,
           organizationName: signupOrgName,
           branding: signupBranding,

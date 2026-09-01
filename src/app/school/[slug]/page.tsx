@@ -30,6 +30,9 @@ export default function SchoolBrandedPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [studentId, setStudentId] = useState("");
+  const [year, setYear] = useState("");
+  const [departments, setDepartments] = useState<{ id: string; name: string; code: string | null }[]>([]);
+  const [departmentId, setDepartmentId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +79,20 @@ export default function SchoolBrandedPage() {
     })();
   }, [slug, searchParams]);
 
+  // Load the school's added departments so students can pick one at signup.
+  useEffect(() => {
+    if (!org?.id) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/org/departments?orgId=${encodeURIComponent(org.id)}`);
+        const data = await res.json();
+        if (data?.departments) {
+          setDepartments(data.departments);
+        }
+      } catch {}
+    })();
+  }, [org?.id]);
+
   const displayName = branding?.brandName || org?.name || "School";
 
   const submit = async (e: React.FormEvent) => {
@@ -98,7 +115,8 @@ export default function SchoolBrandedPage() {
         body.name = name;
         if (role === "student") {
           body.studentId = studentId;
-          body.departmentId = null;
+          body.departmentId = departmentId || null;
+          body.year = year;
         }
         body.email = email;
         body.phone = email;
@@ -264,17 +282,53 @@ export default function SchoolBrandedPage() {
             )}
 
             {mode === "signup" && role === "student" && (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Matricule / Student ID</label>
-                <input
-                  type="text"
-                  required
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  placeholder="e.g. FE20-1234"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 text-slate-900"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Matricule / Student ID</label>
+                  <input
+                    type="text"
+                    required
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value)}
+                    placeholder="e.g. FE20-1234"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 text-slate-900"
+                  />
+                </div>
+
+                {departments.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">Department</label>
+                    <select
+                      required
+                      value={departmentId}
+                      onChange={(e) => setDepartmentId(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 text-slate-900 bg-white"
+                    >
+                      <option value="">Select your department...</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}{d.code ? ` (${d.code})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Year / Level</label>
+                  <select
+                    required
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 text-slate-900 bg-white"
+                  >
+                    <option value="">Select your year / level...</option>
+                    {["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6"].map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
 
             <div>
