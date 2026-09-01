@@ -190,6 +190,13 @@ export async function POST(req: NextRequest) {
       const { name, password, role = "student", organizationName, studentId, schoolCode, departmentId } = body;
       const cleanEmail = (body.phone || body.email || "").trim().toLowerCase();
 
+      // Teacher accounts must be created by an admin — teachers cannot self-register.
+      if (role === "teacher") {
+        return NextResponse.json({
+          error: "Teacher accounts are created by your school administrator only. Please contact them to get your login credentials."
+        }, { status: 403 });
+      }
+
       if (!name || !cleanEmail || !password) {
         return NextResponse.json({ error: "Name, phone number / email, and password are required" }, { status: 400 });
       }

@@ -211,11 +211,11 @@ export default function SchoolBrandedPage() {
             </button>
             <button
               type="button"
-              onClick={() => { setMode("signup"); setError(null); }}
+              onClick={() => { setMode("signup"); setRole("student"); setError(null); }}
               className={`py-2 rounded-xl transition-all ${mode === "signup" ? "bg-white shadow-sm" : "text-slate-500"}`}
               style={{ color: mode === "signup" ? brandColor : undefined, fontWeight: mode === "signup" ? 800 : 700 }}
             >
-              Create Account
+              Create Account / Student Register
             </button>
           </div>
 
@@ -231,8 +231,9 @@ export default function SchoolBrandedPage() {
             <button
               type="button"
               onClick={() => { setRole("teacher"); setError(null); }}
-              className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${role === "teacher" ? "bg-white shadow-sm" : "text-slate-500"}`}
+              className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${role === "teacher" ? "bg-white shadow-sm" : "text-slate-500"} ${mode === "signup" ? "opacity-40 pointer-events-none" : ""}`}
               style={{ color: role === "teacher" ? brandColor : undefined }}
+              title={mode === "signup" ? "Teacher accounts are created by your school administrator only." : undefined}
             >
               <BookOpen className="w-3.5 h-3.5" /> Teacher / Staff
             </button>
