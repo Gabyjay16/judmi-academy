@@ -190,6 +190,7 @@ export const extractDocuments = sqliteTable("extract_documents", {
   advancedSetId: text("advanced_set_id").references(() => extractAdvancedSets.id, { onDelete: "set null" }),
   routeValue: text("route_value"), // the routing value this document collects (lowercase, trimmed)
   routeLabel: text("route_label"), // display label for the routing value (e.g. "Banking")
+  rowHistoryJson: text("row_history_json"), // JSON: Array<{ rows, at, label? }> of prior row snapshots for undo/revert
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Layers, X, FileText, Eye, RefreshCw, Download } from "lucide-react";
+import { ArrowLeft, Layers, X, FileText, RefreshCw, Download, Save, Undo2 } from "lucide-react";
 import ExtractAdvancedPanel from "@/components/ExtractAdvancedPanel";
 
 interface ExtractField {
@@ -19,11 +19,15 @@ interface DocView {
   pageCount: number;
   exportFormat: string;
   updatedAt: string;
+  revertCount: number;
 }
 
 export default function AdvancedWorkspacesPage() {
   const [viewing, setViewing] = useState<DocView | null>(null);
   const [loadingView, setLoadingView] = useState(false);
+  const [draftRows, setDraftRows] = useState<Record<string, string>[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   const printableTitle = (id: string, fallback: string) =>
     (fallback || "extracted").toLowerCase().replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "extracted";
@@ -47,11 +51,76 @@ export default function AdvancedWorkspacesPage() {
         pageCount: d.pageCount || 0,
         exportFormat: d.exportFormat || "xlsx",
         updatedAt: d.updatedAt,
+        revertCount: d.revertCount || 0,
       });
+      setDraftRows((d.rows || []).map((r: Record<string, string>) => ({ ...r })));
+      setSavedMsg(null);
     } catch (e: any) {
       alert(e.message || "Could not open this document.");
     } finally {
       setLoadingView(false);
+    }
+  };
+
+  const updateCell = (rowIdx: number, field: string, value: string) => {
+    setDraftRows((prev) => {
+      if (!prev) return prev;
+      const next = prev.map((r, i) => (i === rowIdx ? { ...r, [field]: value } : r));
+      return next;
+    });
+    setSavedMsg(null);
+  };
+
+  const saveRows = async () => {
+    if (!viewing || !draftRows) return;
+    setSaving(true);
+    setSavedMsg(null);
+    try {
+      const res = await fetch(`/api/extract-info/${viewing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: draftRows }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error || "Could not save changes.");
+        return;
+      }
+      const d = json.document;
+      setViewing((prev) => (prev ? { ...prev, rows: d.rows || [], revertCount: d.revertCount || 0, updatedAt: d.updatedAt } : prev));
+      setDraftRows((d.rows || []).map((r: Record<string, string>) => ({ ...r })));
+      setSavedMsg("Changes saved.");
+    } catch (e: any) {
+      alert(e.message || "Could not save changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const revertLast = async () => {
+    if (!viewing) return;
+    if (!window.confirm("Revert will remove the data from the last batch of records added (or undo your last edit). Continue?")) return;
+    setSaving(true);
+    setSavedMsg(null);
+    try {
+      const res = await fetch(`/api/extract-info/${viewing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revert: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error || "Could not revert.");
+        return;
+      }
+      const d = json.document;
+      setViewing((prev) => (prev ? { ...prev, rows: d.rows || [], revertCount: d.revertCount || 0, updatedAt: d.updatedAt } : prev));
+      setDraftRows((d.rows || []).map((r: Record<string, string>) => ({ ...r })));
+      setSavedMsg("Reverted. The last batch of changes has been removed.");
+    } catch (e: any) {
+      alert(e.message || "Could not revert.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -184,6 +253,26 @@ export default function AdvancedWorkspacesPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {savedMsg && <span className="text-[11px] font-semibold text-emerald-600">{savedMsg}</span>}
+                <button
+                  type="button"
+                  onClick={revertLast}
+                  disabled={saving || (viewing.revertCount ?? 0) === 0}
+                  className="px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-300 hover:text-rose-600 disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:text-slate-500 text-slate-600 text-xs font-bold inline-flex items-center gap-1.5"
+                  title="Revert last changes"
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                  Revert last changes
+                </button>
+                <button
+                  type="button"
+                  onClick={saveRows}
+                  disabled={saving}
+                  className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                >
+                  {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Save changes
+                </button>
                 <button
                   type="button"
                   onClick={() => downloadDoc(viewing.id, viewing.exportFormat || "xlsx")}
@@ -213,15 +302,23 @@ export default function AdvancedWorkspacesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {viewing.rows.map((row, idx) => (
+                  {(draftRows ?? viewing.rows).map((row, idx) => (
                     <tr key={idx}>
                       <td className="px-3 py-2 font-bold text-slate-500">{idx + 1}</td>
                       {viewing.fieldDefinitions.map((f) => (
-                        <td key={f.name} className="px-3 py-2 text-slate-700">{row[f.name] || "—"}</td>
+                        <td key={f.name} className="px-2 py-1.5">
+                          <input
+                            type="text"
+                            value={row[f.name] || ""}
+                            onChange={(e) => updateCell(idx, f.name, e.target.value)}
+                            placeholder="—"
+                            className="w-full min-w-24 px-2 py-1.5 rounded-lg border border-transparent hover:border-slate-200 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 bg-transparent focus:bg-white text-slate-700 text-xs outline-none transition-colors"
+                          />
+                        </td>
                       ))}
                     </tr>
                   ))}
-                  {viewing.rows.length === 0 && (
+                  {(draftRows ?? viewing.rows).length === 0 && (
                     <tr>
                       <td colSpan={viewing.fieldDefinitions.length + 1} className="px-3 py-6 text-center text-slate-400">
                         No records in this file yet.

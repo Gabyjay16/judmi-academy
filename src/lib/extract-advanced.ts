@@ -294,6 +294,7 @@ export async function fileRowsIntoSet(
       .set({
         extractedRowsJson: JSON.stringify(newRows),
         sourceImagesJson: JSON.stringify([...prevImages, ...images]),
+        rowHistoryJson: JSON.stringify(pushHistory(doc, `Extracted ${entry.rows.length} record(s)`)),
         pageCount: prevImages.length + images.length,
         status: "ready",
         error: null,
@@ -346,6 +347,30 @@ export async function resolveShareTarget(identifier: string): Promise<User | nul
   const byEmail = await db.select().from(users).where(eq(users.email, clean)).limit(1);
   if (byEmail.length > 0) return byEmail[0];
   return null;
+}
+
+export interface RowHistoryEntry {
+  rows: Record<string, string>[];
+  at: string;
+  label?: string;
+}
+
+/**
+ * Append a snapshot of the document's current rows to its undo history, so the
+ * next batch of changes can be reverted with the "Revert last changes" action.
+ * Returns the updated history array.
+ */
+function pushHistory(doc: ExtractDocument, label?: string): RowHistoryEntry[] {
+  const history = (doc.rowHistoryJson ? JSON.parse(doc.rowHistoryJson) : []) as RowHistoryEntry[];
+  const prevRows = JSON.parse(doc.extractedRowsJson || "[]") as Record<string, string>[];
+  history.push({ rows: prevRows, at: new Date().toISOString(), label });
+  // Keep the last 50 snapshots to bound storage.
+  if (history.length > 50) history.splice(0, history.length - 50);
+  return history;
+}
+
+export function readRowHistory(doc: ExtractDocument): RowHistoryEntry[] {
+  return doc.rowHistoryJson ? JSON.parse(doc.rowHistoryJson) : [];
 }
 
 export function docToSummary(d: ExtractDocument) {

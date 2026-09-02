@@ -60,12 +60,15 @@ export async function POST(
 
     const prevRows = JSON.parse(doc.extractedRowsJson || "[]") as Record<string, string>[];
     const prevImages = doc.sourceImagesJson ? JSON.parse(doc.sourceImagesJson) : [];
+    const history = (doc.rowHistoryJson ? JSON.parse(doc.rowHistoryJson) : []) as any[];
+    history.push({ rows: prevRows, at: new Date().toISOString(), label: `Appended ${newRows.length} record(s)` });
 
     await db
       .update(extractDocuments)
       .set({
         extractedRowsJson: JSON.stringify([...prevRows, ...newRows]),
         sourceImagesJson: JSON.stringify([...prevImages, ...images]),
+        rowHistoryJson: JSON.stringify(history),
         pageCount: prevImages.length + images.length,
         status,
         error: null,

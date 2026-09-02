@@ -45,6 +45,7 @@ export async function GET(
         fieldDefinitions: JSON.parse(doc.fieldDefinitionsJson || "[]"),
         rows: JSON.parse(doc.extractedRowsJson || "[]"),
         sourceImages: doc.sourceImagesJson ? JSON.parse(doc.sourceImagesJson) : [],
+        revertCount: doc.rowHistoryJson ? (JSON.parse(doc.rowHistoryJson) as any[]).length : 0,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
       },
@@ -78,11 +79,30 @@ export async function PATCH(
 
     const body = await req.json();
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-    if (typeof body.title === "string") updates.title = body.title.trim() || doc.title;
-    if (body.rows && Array.isArray(body.rows)) updates.extractedRowsJson = JSON.stringify(body.rows);
-    if (body.fields && Array.isArray(body.fields)) updates.fieldDefinitionsJson = JSON.stringify(body.fields);
-    if (typeof body.exportFormat === "string" && ["xlsx", "docx", "csv", "pdf"].includes(body.exportFormat)) {
-      updates.exportFormat = body.exportFormat;
+
+    // Revert last change: restore the previous snapshot of rows from history.
+    if (body.revert === true) {
+      const history = (doc.rowHistoryJson ? JSON.parse(doc.rowHistoryJson) : []) as any[];
+      if (history.length === 0) {
+        return NextResponse.json({ error: "There is nothing to revert." }, { status: 400 });
+      }
+      const last = history[history.length - 1];
+      history.pop();
+      updates.extractedRowsJson = JSON.stringify(last.rows || []);
+      updates.rowHistoryJson = JSON.stringify(history);
+    } else {
+      if (typeof body.title === "string") updates.title = body.title.trim() || doc.title;
+      if (body.rows && Array.isArray(body.rows)) {
+        const history = (doc.rowHistoryJson ? JSON.parse(doc.rowHistoryJson) : []) as any[];
+        history.push({ rows: JSON.parse(doc.extractedRowsJson || "[]"), at: new Date().toISOString(), label: "Manual edit" });
+        if (history.length > 50) history.splice(0, history.length - 50);
+        updates.rowHistoryJson = JSON.stringify(history);
+        updates.extractedRowsJson = JSON.stringify(body.rows);
+      }
+      if (body.fields && Array.isArray(body.fields)) updates.fieldDefinitionsJson = JSON.stringify(body.fields);
+      if (typeof body.exportFormat === "string" && ["xlsx", "docx", "csv", "pdf"].includes(body.exportFormat)) {
+        updates.exportFormat = body.exportFormat;
+      }
     }
 
     await db.update(extractDocuments).set(updates).where(eq(extractDocuments.id, id));
@@ -100,6 +120,8 @@ export async function PATCH(
         pageCount: d.pageCount,
         fieldDefinitions: JSON.parse(d.fieldDefinitionsJson || "[]"),
         rows: JSON.parse(d.extractedRowsJson || "[]"),
+        sourceImages: d.sourceImagesJson ? JSON.parse(d.sourceImagesJson) : [],
+        revertCount: d.rowHistoryJson ? (JSON.parse(d.rowHistoryJson) as any[]).length : 0,
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
       },

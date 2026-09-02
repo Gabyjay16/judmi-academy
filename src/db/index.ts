@@ -205,6 +205,7 @@ export async function initDatabase() {
     try { await client.execute(`ALTER TABLE extract_documents ADD COLUMN advanced_set_id TEXT;`); } catch {}
     try { await client.execute(`ALTER TABLE extract_documents ADD COLUMN route_value TEXT;`); } catch {}
     try { await client.execute(`ALTER TABLE extract_documents ADD COLUMN route_label TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE extract_documents ADD COLUMN row_history_json TEXT;`); } catch {}
 
     // 9. System Settings table (Global Admin switches)
     await client.execute(`
