@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
-import { users, extractDocuments, extractAdvancedSets } from "@/db/schema";
+import { users, extractDocuments } from "@/db/schema";
 import { desc, eq, inArray } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { enforceServiceAccess } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
 import { extractFieldsFromImages, ExtractField } from "@/lib/openrouter";
-import { isUsernameShared } from "@/lib/extract-advanced";
 
 interface CreateBody {
   title?: string;
@@ -100,20 +99,14 @@ export async function GET(req: NextRequest) {
     const isOrgAdmin = currentUser.role === "org_admin" || currentUser.role === "admin";
     const orgId = (currentUser as any).orgId;
 
-    // Sets shared directly with this teacher (by username or email).
-    const allSets = await db.select().from(extractAdvancedSets);
-    const sharedSetIds = new Set(
-      allSets
-        .filter((s) => isUsernameShared(s, currentUser.username || "", currentUser.email))
-        .map((s) => s.id)
-    );
-
     const all = await db.select().from(extractDocuments).orderBy(desc(extractDocuments.createdAt));
+    // Workspace documents (advancedSetId) are managed in their own workspace and
+    // must not appear in the normal extract history.
     const docs = all.filter((d) => {
+      if (d.advancedSetId) return false;
       if (d.ownerUserId === currentUser.id) return true;
       if (currentUser.role === "admin") return true;
       if (isOrgAdmin && orgId && d.orgId === orgId) return true;
-      if (d.advancedSetId && sharedSetIds.has(d.advancedSetId)) return true;
       return false;
     });
 
