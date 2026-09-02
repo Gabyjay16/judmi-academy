@@ -14,6 +14,33 @@ export function normalizeRouteValue(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/**
+ * Return the existing route option that best matches a raw extracted value, or
+ * null if there is no good match. This makes filing tolerant of small typos,
+ * casing, trailing punctuation or "Option A"-style raw AI output while still
+ * mapping onto the user's documents.
+ */
+export function matchRouteOption(rawValue: string, options: string[]): string | null {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return null;
+
+  const normalized = normalizeRouteValue(raw);
+
+  // Exact match on the whole value.
+  const exact = options.find((o) => normalizeRouteValue(o) === normalized);
+  if (exact) return exact;
+
+  // Substring / alias match: e.g. "banking" inside "banking sector".
+  const contained = options.find((o) => {
+    const on = normalizeRouteValue(o);
+    if (!on) return false;
+    return on.length > 1 && (normalized.includes(on) || on.includes(normalized));
+  });
+  if (contained) return contained;
+
+  return null;
+}
+
 export interface ShareRecipient {
   username?: string | null;
   email?: string | null;
@@ -229,20 +256,18 @@ export async function fileRowsIntoSet(
     let doc = value ? byValue.get(value) : null;
 
     if (!doc && value) {
-      // New routing value: create a document for it and add it to the set.
-      const label = rawValue.trim() || value;
-      doc = await ensureSingleDoc(set, value, label);
-      byValue.set(value, doc);
-      byId.set(doc.id, doc);
-      await db
-        .update(extractAdvancedSets)
-        .set({ routeOptionsJson: JSON.stringify([...options, label]), updatedAt: new Date().toISOString() })
-        .where(eq(extractAdvancedSets.id, set.id));
-      options.push(label);
+      // Map onto an existing route option (tolerant of typos/casing/aliases).
+      const matched = matchRouteOption(rawValue, options);
+      if (matched) {
+        doc = byValue.get(normalizeRouteValue(matched)) || null;
+      }
     }
 
     if (!doc) {
-      // Empty routing value — file under an "Uncategorised" bucket.
+      // Either the routing value is empty, or it matches no document the user
+      // created in this workspace. Records are only ever filed into the user's
+      // own documents, so unmatched rows go to the "Uncategorised" bucket
+      // rather than silently creating a brand-new document.
       doc = byValue.get("uncategorised") || null;
       if (!doc) {
         doc = await ensureSingleDoc(set, "uncategorised", "Uncategorised");
@@ -252,7 +277,7 @@ export async function fileRowsIntoSet(
     }
 
     push(doc, row);
-    if (!value) unclassified += 1;
+    if (doc.routeValue === "uncategorised") unclassified += 1;
   }
 
   const now = new Date().toISOString();

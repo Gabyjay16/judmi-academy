@@ -4,7 +4,15 @@ import { extractAdvancedSets } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { extractFieldsFromImages, type ExtractField } from "@/lib/openrouter";
-import { resolveSetAccess, fieldsOf, fileRowsIntoSet } from "@/lib/extract-advanced";
+import {
+  resolveSetAccess,
+  fieldsOf,
+  routeOptionsOf,
+  ensureSetDocs,
+  fileRowsIntoSet,
+  matchRouteOption,
+  normalizeRouteValue,
+} from "@/lib/extract-advanced";
 
 export async function POST(
   req: NextRequest,
@@ -39,10 +47,25 @@ export async function POST(
     }
 
     // Auto-routing needs the routing field in the AI extraction request so each
-    // extracted row carries the value that decides where it is filed.
+    // extracted row carries the value that decides where it is filed. We also
+    // embed the workspace's route options into the field's instruction so the
+    // AI returns values already matching the user's documents wherever possible.
     if (mode === "auto" && set.routingField) {
-      if (!fields.some((f) => f.name === set.routingField)) {
-        fields = [...fields, { name: set.routingField!, type: "text" }];
+      const idx = fields.findIndex((f) => f.name === set.routingField);
+      const options = routeOptionsOf(set);
+      const hint =
+        options.length > 0
+          ? `use exactly one of these labels: ${options.join(", ")}`
+          : `use the short, consistent name of the category/section`;
+      if (idx >= 0) {
+        fields[idx] = {
+          ...fields[idx],
+          instruction: fields[idx].instruction && fields[idx].instruction.trim()
+            ? `${fields[idx].instruction}; ${hint}`
+            : hint,
+        };
+      } else {
+        fields = [...fields, { name: set.routingField!, type: "text", instruction: hint }];
       }
     }
 

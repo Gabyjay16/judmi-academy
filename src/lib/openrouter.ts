@@ -100,6 +100,7 @@ export function isOpenRouterKeyConfigured(): boolean {
 export interface ExtractField {
   name: string;
   type: string; // e.g. "text", "number", "email", "matricule", "date"
+  instruction?: string; // optional guidance to the AI, e.g. from "(...)" after the field name
 }
 
 /**
@@ -120,7 +121,10 @@ export async function extractFieldsFromImages(
   }
 
   const fieldLines = fields
-    .map((f, i) => `${i + 1}. "${f.name}" (${f.type || "text"})`)
+    .map((f, i) => {
+      const instruction = f.instruction?.trim() ? ` — ${f.instruction.trim()}` : "";
+      return `${i + 1}. "${f.name}" (${f.type || "text"})${instruction}`;
+    })
     .join("\n");
 
   const prompt = `You are a precise data extraction engine for academic documents.
