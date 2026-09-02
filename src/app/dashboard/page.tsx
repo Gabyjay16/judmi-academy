@@ -57,6 +57,7 @@ export default function DashboardPage() {
   });
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showExam, setShowExam] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -194,6 +195,49 @@ export default function DashboardPage() {
             </span>
           </span>
         </Link>
+      </section>
+
+      {/* EXAM SLIDE-DOWN CARD — Mark Scripts, Inverse Marking, Create Exam */}
+      <div className="w-full">
+        <button
+          type="button"
+          onClick={() => setShowExam(!showExam)}
+          className="w-full flex items-center justify-between gap-4 px-5 sm:px-8 py-5 sm:py-6 rounded-[20px] bg-white border border-slate-200 shadow-[0_1px_3px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:bg-slate-50/60 transition-all text-left"
+        >
+          <span className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <span className="w-11 h-11 shrink-0 rounded-xl bg-navy-900 text-gold-400 border border-navy-800 flex items-center justify-center">
+              <BookOpen className="w-5 h-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-base sm:text-lg font-bold text-navy-900 leading-tight">
+                Exam
+              </span>
+              <span className="block mt-1 text-[13px] sm:text-sm text-slate-500">
+                Mark Scripts • Inverse Marking • Create Exam
+              </span>
+            </span>
+          </span>
+          <ChevronDown className={`w-5 h-5 text-gold-500 shrink-0 transition-transform ${showExam ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+
+      {showExam && (
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 animate-fade-in">
+        {/* Mark Scripts */}
+        <Link
+          href="/dashboard/scan-scripts"
+          className="group flex items-center gap-3 rounded-[18px] bg-white px-4 py-4 sm:px-5 border border-slate-200 shadow-[0_1px_2px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_10px_24px_-14px_rgba(16,26,46,0.2)] transition-all"
+        >
+          <span className="w-10 h-10 shrink-0 rounded-xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <Camera className="w-5 h-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-base font-bold text-navy-900 leading-tight">Mark Scripts</span>
+            <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
+              Grade camera-scanned papers with AI.
+            </span>
+          </span>
+        </Link>
 
         {/* Inverse Marking */}
         <Link
@@ -207,22 +251,6 @@ export default function DashboardPage() {
             <span className="block text-base font-bold text-navy-900 leading-tight">Inverse Marking</span>
             <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
               Students mark your script — grade their accuracy.
-            </span>
-          </span>
-        </Link>
-
-        {/* Mark Scripts */}
-        <Link
-          href="/dashboard/scan-scripts"
-          className="group flex items-center gap-3 rounded-[18px] bg-white px-4 py-4 sm:px-5 border border-slate-200 shadow-[0_1px_2px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_10px_24px_-14px_rgba(16,26,46,0.2)] transition-all"
-        >
-          <span className="w-10 h-10 shrink-0 rounded-xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
-            <Camera className="w-5 h-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-base font-bold text-navy-900 leading-tight">Mark Scripts</span>
-            <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
-              Grade camera-scanned papers with AI.
             </span>
           </span>
         </Link>
@@ -244,7 +272,8 @@ export default function DashboardPage() {
           </span>
           <ArrowRight className="w-4 h-4 text-gold-400 shrink-0 transition-transform group-hover:translate-x-1" />
         </Link>
-      </section>
+        </section>
+      )}
 
       {/* REVEAL / HIDE STATISTICS TOGGLE - FULL WIDTH */}
       <div className="w-full">
