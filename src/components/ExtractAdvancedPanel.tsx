@@ -532,7 +532,7 @@ export default function ExtractAdvancedPanel({
               <Layers className="w-4.5 h-4.5" />
             </div>
             <div className="min-w-0">
-              <div className="font-bold text-slate-900 truncate">{s.name}</div>
+              <div className="font-bold text-slate-900 break-words">{s.name}</div>
               <div className="text-[11px] text-slate-400">
                 {s.documentCount} document{s.documentCount === 1 ? "" : "s"} • {s.recordCount} record{s.recordCount === 1 ? "" : "s"}
               </div>
@@ -859,9 +859,9 @@ export default function ExtractAdvancedPanel({
           <div className="bg-white rounded-3xl p-5 sm:p-7 max-w-4xl w-full shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto space-y-5">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900 truncate flex items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Layers className="w-5 h-5 text-emerald-600 shrink-0" />
-                  {detail.name}
+                  <span className="break-words">{detail.name}</span>
                 </h3>
                 <p className="text-xs text-slate-500">
                   {detail.docs.length} document{detail.docs.length === 1 ? "" : "s"} • routing field:{" "}
@@ -1083,7 +1083,7 @@ export default function ExtractAdvancedPanel({
                 <div className="mb-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">{createMsg}</div>
               )}
 
-              <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100">
+              <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100 max-h-72 overflow-y-auto">
                 {detail.docs.map((d) => (
                   <div key={d.id} className="px-3.5 sm:px-4 py-3 flex items-center justify-between gap-3">
                     <button
@@ -1096,8 +1096,8 @@ export default function ExtractAdvancedPanel({
                         <FileText className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-bold text-slate-900 text-xs truncate flex items-center gap-2">
-                          <span className="truncate">{d.title}</span>
+                        <div className="font-bold text-slate-900 text-xs flex items-center gap-2">
+                          <span className="break-words">{d.title}</span>
                           {d.isArchived && (
                             <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 shrink-0">removed from routing</span>
                           )}
