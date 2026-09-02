@@ -203,8 +203,11 @@ export async function POST(req: NextRequest) {
       const { name, password, role = "student", organizationName, studentId, schoolCode, departmentId, year } = body;
       const cleanEmail = (body.phone || body.email || "").trim().toLowerCase();
 
-      // Teacher accounts must be created by an admin — teachers cannot self-register.
-      if (role === "teacher") {
+      // Teacher accounts must be created by an admin — except when the account
+      // is created as part of the paid checkout flow (paywall=true). Such an
+      // account starts on the free plan and is upgraded only after Fapshi
+      // confirms payment SUCCESSFUL.
+      if (role === "teacher" && body.paywall !== true) {
         return NextResponse.json({
           error: "Teacher accounts are created by your school administrator only. Please contact them to get your login credentials."
         }, { status: 403 });

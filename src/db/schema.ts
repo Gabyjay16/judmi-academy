@@ -295,9 +295,27 @@ export const inverseMarkingSubmissions = sqliteTable("inverse_marking_submission
   submittedAt: text("submitted_at").notNull(),
 });
 
+// Payment transactions with Fapshi (MTN Mobile Money / Orange Money). A user
+// only receives their paid plan after a webhook/status confirms SUCCESSFUL.
+export const payments = sqliteTable("payments", {
+  id: text("id").primaryKey(), // internal payment id, also used as Fapshi externalId
+  transId: text("trans_id").unique(), // Fapshi transaction id
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  email: text("email").notNull(),
+  plan: text("plan").notNull(), // "individual" | "school_pro"
+  cycle: text("cycle").notNull(), // "monthly" | "yearly"
+  amount: integer("amount").notNull(), // XAF, must match PRICING
+  status: text("status").notNull().default("CREATED"), // CREATED | PENDING | SUCCESSFUL | FAILED | EXPIRED
+  metaJson: text("meta_json"), // JSON: { orgName, role, name }
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export type Meeting = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
 export type InverseMarking = typeof inverseMarkings.$inferSelect;
 export type NewInverseMarking = typeof inverseMarkings.$inferInsert;
 export type InverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferSelect;
 export type NewInverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferInsert;
+export type Payment = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;

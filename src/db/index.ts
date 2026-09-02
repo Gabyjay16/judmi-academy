@@ -365,6 +365,23 @@ export async function initDatabase() {
       );
     `);
 
+    // 15. Payments table (Fapshi subscriptions — plan granted only after SUCCESSFUL)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        trans_id TEXT UNIQUE,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        email TEXT NOT NULL,
+        plan TEXT NOT NULL,
+        cycle TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'CREATED',
+        meta_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);

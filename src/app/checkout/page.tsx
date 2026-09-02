@@ -15,6 +15,7 @@ import {
   Clock,
   Sparkles,
   Lock,
+  Loader2,
   Phone,
   User,
   CheckCheck,
@@ -45,6 +46,9 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  // Fapshi portal checkout states
+  const [confirming, setConfirming] = useState(false);
+  const [paymentRef, setPaymentRef] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -80,7 +84,95 @@ export default function CheckoutPage() {
     }
 
     fetchUserSession();
+
+    // Auto-resume a payment in progress: either we were redirected back from
+    // the Fapshi portal (?pay=...) or a pending payment is still in local
+    // storage (link not aged out). Immediately start confirming so the user's
+    // plan activates the moment the webhook confirms SUCCESSFUL.
+    const paramsAtLoad = new URLSearchParams(window.location.search);
+    const payParam = paramsAtLoad.get("pay");
+    if (payParam) {
+      localStorage.setItem("judmi_pending_payment", JSON.stringify({ paymentId: payParam, createdAt: Date.now() }));
+      setPaymentRef(payParam);
+      startPolling(payParam);
+    } else {
+      try {
+        const pendingRaw = localStorage.getItem("judmi_pending_payment");
+        if (pendingRaw) {
+          const pending = JSON.parse(pendingRaw);
+          if (pending?.paymentId && Date.now() - (pending.createdAt || 0) < 1000 * 60 * 120) {
+            setPaymentRef(pending.paymentId);
+            startPolling(pending.paymentId);
+          } else {
+            localStorage.removeItem("judmi_pending_payment");
+          }
+        }
+      } catch {}
+    }
   }, []);
+
+  const startPolling = (paymentId: string) => {
+    setConfirming(true);
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
+        const res = await fetch(`/api/payments/status?paymentId=${encodeURIComponent(paymentId)}`, {
+          headers: storedToken ? { "x-session-token": storedToken } : {},
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (data?.status === "SUCCESSFUL") {
+          localStorage.removeItem("judmi_pending_payment");
+          setConfirming(false);
+          await refreshUser();
+          setSuccess(true);
+          setTimeout(() => {
+            router.push(data.redirectTo || (plan === "school_pro" ? "/org/dashboard" : "/dashboard"));
+          }, 1800);
+          return;
+        }
+        if (data?.status === "FAILED" || data?.status === "EXPIRED") {
+          localStorage.removeItem("judmi_pending_payment");
+          setConfirming(false);
+          setPaymentRef(null);
+          setError(
+            data?.status === "EXPIRED"
+              ? "This payment link has expired. No money was taken — please start a new payment."
+              : "Payment failed. No money was taken — please try again."
+          );
+          return;
+        }
+      } catch {}
+      if (attempts < 72) {
+        setTimeout(poll, 10000);
+      } else {
+        setConfirming(false);
+        setError("We could not confirm your payment yet. If you already paid through Mobile Money, please refresh this page to re-check.");
+      }
+    };
+    setTimeout(poll, 3000);
+  };
+
+  const refreshUser = async () => {
+    try {
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
+      const res = await fetch("/api/auth", {
+        headers: storedToken ? { "x-session-token": storedToken } : {},
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data?.user) {
+        setIsLoggedIn(true);
+        setCurrentUser(data.user);
+        if (typeof window !== "undefined") {
+          if (data.token) localStorage.setItem("judmi_session", data.token);
+          localStorage.setItem("judmi_user", JSON.stringify(data.user));
+        }
+      }
+    } catch {}
+  };
 
   const fetchUserSession = async () => {
     try {
@@ -164,65 +256,76 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      // Simulate Mobile Money Prompt
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      let sessionToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
 
-      const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (storedToken) headers["x-session-token"] = storedToken;
-
-      const bodyPayload = isLoggedIn
-        ? {
-            action: "upgrade_plan",
-            plan,
-            organizationName: plan === "school_pro" ? organizationName : undefined,
-          }
-        : {
+      // Guest? Create the free account first (paywall accounts never receive a
+      // plan — access is granted only after Fapshi confirms payment).
+      if (!isLoggedIn) {
+        const signupRes = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
             action: "signup",
             name,
             phone,
             email: phone,
             password,
-            role: currentPlan.role,
-            organizationName: plan === "school_pro" ? organizationName : undefined,
-          };
+            role: "teacher",
+            paywall: true,
+          }),
+        });
+        const signupData = await signupRes.json();
+        if (!signupRes.ok || !signupData?.success) {
+          setError(signupData?.error || "Could not create your account. Please try again.");
+          setLoading(false);
+          return;
+        }
+        if (signupData.token) sessionToken = signupData.token;
+        if (typeof window !== "undefined") {
+          if (sessionToken) localStorage.setItem("judmi_session", sessionToken);
+          if (signupData.user) localStorage.setItem("judmi_user", JSON.stringify(signupData.user));
+        }
+        setIsLoggedIn(true);
+        setCurrentUser(signupData.user);
+      }
 
-      const res = await fetch("/api/auth", {
+      // Start a real Fapshi payment. No plan is granted here.
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (sessionToken) headers["x-session-token"] = sessionToken;
+
+      const initiateRes = await fetch("/api/payments/initiate", {
         method: "POST",
         headers,
         credentials: "include",
-        body: JSON.stringify(bodyPayload),
+        body: JSON.stringify({
+          plan,
+          cycle: billingCycle,
+          organizationName: plan === "school_pro" ? organizationName : undefined,
+        }),
       });
-
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch (parseErr) {
-        console.error("Response parse error:", parseErr);
-      }
-
-      if (!res.ok || !data?.success) {
-        setError(data?.error || "Mobile Money verification failed. Please try again.");
+      const initiateData = await initiateRes.json();
+      if (!initiateRes.ok || !initiateData?.success) {
+        setError(initiateData?.error || "Could not start the payment. Please try again.");
         setLoading(false);
         return;
       }
 
-      // Store token & updated user in localStorage
+      // Remember the pending payment so we can resume after the portal
+      // redirects back (or if the user returns later).
       if (typeof window !== "undefined") {
-        if (data.token) localStorage.setItem("judmi_session", data.token);
-        if (data.user) localStorage.setItem("judmi_user", JSON.stringify(data.user));
+        localStorage.setItem(
+          "judmi_pending_payment",
+          JSON.stringify({ paymentId: initiateData.paymentId, transId: initiateData.transId, createdAt: Date.now() })
+        );
       }
+      setPaymentRef(initiateData.paymentId);
+      setLoading(false);
 
-      setSuccess(true);
-      setTimeout(() => {
-        if (plan === "school_pro") {
-          router.push("/org/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
-      }, 1500);
+      // Send the user to Fapshi's secure checkout (MTN MoMo / Orange Money).
+      window.location.href = initiateData.link;
     } catch (err: any) {
-      setError(err.message || "Mobile Money payment processing failed.");
+      setError(err.message || "Payment setup failed. Please try again.");
       setLoading(false);
     }
   };
@@ -331,9 +434,19 @@ export default function CheckoutPage() {
               <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Mobile Money Payment Confirmed!</h3>
+              <h3 className="text-xl font-bold text-slate-900">Payment Confirmed!</h3>
               <p className="text-xs text-slate-500">
-                Your Judmi Academy account is fully upgraded to Pro. Redirecting to your dashboard...
+                Your Judmi Academy {plan === "school_pro" ? "School" : "Pro"} subscription is now active. Redirecting to your dashboard...
+              </p>
+            </div>
+          ) : confirming ? (
+            <div className="text-center py-12 space-y-3 animate-fade-in">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-inner">
+                <Loader2 className="w-8 h-8 animate-spin" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Confirming your payment...</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Your Mobile Money payment is being verified via Fapshi. This usually takes under a minute. Keep this page open — your plan activates automatically.
               </p>
             </div>
           ) : (
@@ -471,79 +584,23 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {/* Mobile Money Payment */}
+              {/* Secure Payment (Fapshi powered) */}
               <div className="space-y-3 pt-2">
                 <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
-                  <span>2. Mobile Money Details</span>
+                  <span>2. Secure Payment</span>
                   <span className="text-[11px] font-normal text-amber-700 font-semibold flex items-center gap-1">
-                    <Smartphone className="w-3.5 h-3.5" /> Direct Phone Prompt
+                    <Smartphone className="w-3.5 h-3.5" /> MTN MoMo & Orange Money
                   </span>
                 </h3>
 
-                {/* Operator Selector (MTN & Orange Only) */}
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setOperator("mtn")}
-                    className={`p-3 rounded-2xl border text-xs font-bold text-center transition-all flex items-center justify-center gap-2 ${
-                      operator === "mtn"
-                        ? "border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-400"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
-                    <span>MTN Mobile Money (MoMo)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setOperator("orange")}
-                    className={`p-3 rounded-2xl border text-xs font-bold text-center transition-all flex items-center justify-center gap-2 ${
-                      operator === "orange"
-                        ? "border-orange-500 bg-orange-50 text-orange-950 ring-2 ring-orange-400"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="w-3 h-3 rounded-full bg-orange-500 inline-block" />
-                    <span>Orange Money</span>
-                  </button>
-                </div>
-
-                {/* Mobile Money Inputs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      {operator === "mtn" ? "MTN MoMo Number" : "Orange Money Number"} <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="e.g. 670000000"
-                      value={momoPhone}
-                      onChange={(e) => setMomoPhone(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Account Owner Name (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Eleanor Vance"
-                      value={momoAccountName}
-                      onChange={(e) => setMomoAccountName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-2">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-2">
                   <Smartphone className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Mobile Money USSD Prompt: </span>
-                    <span>When you click Pay, an instant authorization prompt will be sent directly to your phone. Enter your Mobile Money PIN to activate your plan.</span>
+                    <span className="font-bold">Fapshi Secure Checkout: </span>
+                    <span>
+                      When you click Pay, you will be redirected to our secure Fapshi payment page, where you complete the payment
+                      with MTN Mobile Money or Orange Money. Your plan activates automatically the moment the payment is confirmed.
+                    </span>
                   </div>
                 </div>
               </div>
@@ -553,14 +610,13 @@ export default function CheckoutPage() {
                 <button
                   type="submit"
                   disabled={
-                    loading || 
-                    (!isLoggedIn && (!name || !phone || !password || !confirmPassword)) || 
-                    (plan === "school_pro" && !organizationName) || 
-                    !momoPhone
+                    loading ||
+                    (!isLoggedIn && (!name || !phone || !password || !confirmPassword)) ||
+                    (plan === "school_pro" && !organizationName)
                   }
                   className="w-full py-4 rounded-2xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2"
                 >
-                  <span>{loading ? "Sending Mobile Money Prompt..." : `Pay ${currentPlan.priceLocal} via Mobile Money`}</span>
+                  <span>{loading ? "Preparing Secure Checkout..." : `Pay ${currentPlan.priceLocal} — Continue to Fapshi Checkout`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -610,7 +666,7 @@ export default function CheckoutPage() {
 
           <div className="pt-4 border-t border-slate-800 flex items-center gap-2 text-[11px] text-slate-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Instant activation via MTN & Orange Mobile Money.</span>
+            <span>Secure activation via MTN & Orange Mobile Money — powered by Fapshi.</span>
           </div>
         </div>
 
