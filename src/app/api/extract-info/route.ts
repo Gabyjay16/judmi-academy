@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { users, extractDocuments, extractAdvancedSets } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { enforceServiceAccess } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
@@ -120,42 +120,50 @@ export async function GET(req: NextRequest) {
     if (q) {
       const needle = q.toLowerCase();
       const filtered = docs.filter((d) => d.title.toLowerCase().includes(needle));
-      return NextResponse.json({ documents: filtered.map((d) => toListItem(currentUser, d)) });
+      return NextResponse.json({ documents: await buildListItems(currentUser, filtered) });
     }
 
-    return NextResponse.json({ documents: docs.map((d) => toListItem(currentUser, d)) });
+    return NextResponse.json({ documents: await buildListItems(currentUser, docs) });
   } catch (error: any) {
     console.error("Extract-info list error:", error);
     return NextResponse.json({ error: error?.message || "Failed to load documents." }, { status: 500 });
   }
 }
 
-async function toListItem(currentUser: any, d: any) {
-  const item: Record<string, unknown> = {
-    id: d.id,
-    title: d.title,
-    status: d.status,
-    error: d.error,
-    exportFormat: d.exportFormat,
-    pageCount: d.pageCount,
-    fieldDefinitions: JSON.parse(d.fieldDefinitionsJson || "[]"),
-    rowCount: (JSON.parse(d.extractedRowsJson || "[]") as any[]).length,
-    createdAt: d.createdAt,
-    updatedAt: d.updatedAt,
-    advancedSetId: d.advancedSetId || null,
-  };
-  // For shared documents, surface the owner so recipients know where it came from.
-  if (d.ownerUserId !== currentUser.id) {
-    if (d.ownerUserId) {
-      const rows = await db.select().from(users).where(eq(users.id, d.ownerUserId)).limit(1);
-      if (rows.length > 0) {
-        item.ownerName = rows[0].name;
-        item.ownerUsername = rows[0].username;
+async function buildListItems(currentUser: any, docs: any[]) {
+  const sharedOwnerIds = [...new Set(docs
+    .filter((d) => d.ownerUserId !== currentUser.id && d.ownerUserId)
+    .map((d) => d.ownerUserId))];
+  const owners = sharedOwnerIds.length > 0
+    ? await db.select().from(users).where(inArray(users.id, sharedOwnerIds))
+    : [];
+  const ownerMap = new Map<string, any>();
+  for (const o of owners) ownerMap.set(o.id, o);
+
+  return docs.map((d) => {
+    const item: Record<string, unknown> = {
+      id: d.id,
+      title: d.title,
+      status: d.status,
+      error: d.error,
+      exportFormat: d.exportFormat,
+      pageCount: d.pageCount,
+      fieldDefinitions: JSON.parse(d.fieldDefinitionsJson || "[]"),
+      rowCount: (JSON.parse(d.extractedRowsJson || "[]") as any[]).length,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      advancedSetId: d.advancedSetId || null,
+    };
+    if (d.ownerUserId !== currentUser.id) {
+      const owner = d.ownerUserId ? ownerMap.get(d.ownerUserId) : null;
+      if (owner) {
+        item.ownerName = owner.name;
+        item.ownerUsername = owner.username;
       }
+      item.shared = true;
+    } else {
+      item.shared = false;
     }
-    item.shared = true;
-  } else {
-    item.shared = false;
-  }
-  return item;
+    return item;
+  });
 }

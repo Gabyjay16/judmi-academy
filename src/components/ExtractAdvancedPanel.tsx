@@ -87,7 +87,7 @@ interface SetDetail {
 
 const FIELD_TYPES = ["text", "number", "matricule", "email", "date"];
 
-const formInit = () => ({ name: "", fields: [{ name: "name", type: "text" }] as ExtractField[], routeText: "", routingField: "", templateId: "" });
+const formInit = () => ({ name: "", fields: [{ name: "name", type: "text" }] as ExtractField[], routeValues: [] as string[], routingField: "", templateId: "" });
 
 export default function ExtractAdvancedPanel({
   open,
@@ -112,6 +112,7 @@ export default function ExtractAdvancedPanel({
   const [form, setForm] = useState(formInit());
   const [newFieldName, setNewFieldName] = useState("");
   const [newFieldType, setNewFieldType] = useState("text");
+  const [newRouteValue, setNewRouteValue] = useState("");
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState<string | null>(null);
 
@@ -227,7 +228,7 @@ export default function ExtractAdvancedPanel({
       name: t.name,
       fields: t.fieldDefinitions.map((f) => ({ ...f })),
       routingField: t.routingField,
-      routeText: t.routeOptions.join(", "),
+      routeValues: t.routeOptions.filter(Boolean),
     });
   };
 
@@ -235,7 +236,7 @@ export default function ExtractAdvancedPanel({
     setCreating(true);
     setCreateMsg(null);
     try {
-      const routeOptions = form.routeText.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+      const routeOptions = form.routeValues.filter(Boolean);
       const res = await fetch("/api/extract-info/advanced", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,7 +276,7 @@ export default function ExtractAdvancedPanel({
         name: json.set.name || "",
         fields: (json.set.fieldDefinitions || []).map((f: ExtractField) => ({ ...f })),
         routingField: json.set.routingField || "",
-        routeText: (json.set.routeOptions || []).join(", "),
+        routeValues: (json.set.routeOptions || []).filter(Boolean),
       });
       setAddError(null);
       setAddResult(null);
@@ -313,7 +314,7 @@ export default function ExtractAdvancedPanel({
 
   const saveSettings = async () => {
     if (!detail) return;
-    const routeOptions = form.routeText.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+    const routeOptions = form.routeValues.filter(Boolean);
     setCreating(true);
     setCreateMsg(null);
     try {
@@ -596,18 +597,60 @@ export default function ExtractAdvancedPanel({
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">Route Values (one document each)</label>
-            <input
-              type="text"
-              value={form.routeText}
-              onChange={(e) => setForm((prev) => ({ ...prev, routeText: e.target.value }))}
-              placeholder={"e.g. banking, agriculture, fishery, health"}
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
+            <label className="block text-xs font-bold text-slate-700">Route Values (one document per value)</label>
+            {form.routeValues.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {form.routeValues.map((val, idx) => (
+                  <span key={`${val}-${idx}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-xs font-bold text-emerald-800">
+                    <FileText className="w-3 h-3 text-emerald-500" />
+                    {val}
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, routeValues: prev.routeValues.filter((_, i) => i !== idx) }))}
+                      className="text-rose-500 hover:text-rose-700 ml-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={newRouteValue}
+                onChange={(e) => setNewRouteValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    const v = newRouteValue.trim().replace(/,$/, "").toLowerCase();
+                    if (v && !form.routeValues.includes(v)) {
+                      setForm((prev) => ({ ...prev, routeValues: [...prev.routeValues, v] }));
+                    }
+                    setNewRouteValue("");
+                  }
+                }}
+                placeholder="e.g. banking, agriculture, fishery, health"
+                className="flex-1 min-w-40 px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = newRouteValue.trim().replace(/,$/, "").toLowerCase();
+                  if (v && !form.routeValues.includes(v)) {
+                    setForm((prev) => ({ ...prev, routeValues: [...prev.routeValues, v] }));
+                  }
+                  setNewRouteValue("");
+                }}
+                className="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 text-slate-700 text-xs font-bold flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add
+              </button>
+            </div>
             <p className="text-[11px] text-slate-500">
-              Records whose routing value matches one of these are filed into that document. New values found in uploaded
-              pages are filed into a matching document created automatically. Leave blank to start with one document and
-              grow it on the fly.
+              Each value becomes its own document. Type a value and press Enter or comma to add it. New values
+              found in uploaded pages are filed into a matching document created automatically.
             </p>
           </div>
 
@@ -1064,13 +1107,54 @@ export default function ExtractAdvancedPanel({
                   </div>
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700">Route Values</label>
-                    <input
-                      type="text"
-                      value={form.routeText}
-                      onChange={(e) => setForm((prev) => ({ ...prev, routeText: e.target.value }))}
-                      placeholder="comma separated, e.g. banking, agriculture"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    />
+                    {form.routeValues.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-1.5">
+                        {form.routeValues.map((val, idx) => (
+                          <span key={`${val}-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-700">
+                            {val}
+                            <button
+                              type="button"
+                              onClick={() => setForm((prev) => ({ ...prev, routeValues: prev.routeValues.filter((_, i) => i !== idx) }))}
+                              className="text-rose-400 hover:text-rose-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={newRouteValue}
+                        onChange={(e) => setNewRouteValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === ",") {
+                            e.preventDefault();
+                            const v = newRouteValue.trim().replace(/,$/, "").toLowerCase();
+                            if (v && !form.routeValues.includes(v)) {
+                              setForm((prev) => ({ ...prev, routeValues: [...prev.routeValues, v] }));
+                            }
+                            setNewRouteValue("");
+                          }
+                        }}
+                        placeholder="type a value and press Enter"
+                        className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = newRouteValue.trim().replace(/,$/, "").toLowerCase();
+                          if (v && !form.routeValues.includes(v)) {
+                            setForm((prev) => ({ ...prev, routeValues: [...prev.routeValues, v] }));
+                          }
+                          setNewRouteValue("");
+                        }}
+                        className="px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-400 text-slate-700 text-[11px] font-bold"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 {createMsg && <div className="text-xs font-semibold text-rose-700">{createMsg}</div>}
