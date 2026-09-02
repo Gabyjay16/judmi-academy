@@ -368,7 +368,7 @@ export default function ExtractAdvancedPanel({
     new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        const maxDimension = 1400;
+        const maxDimension = 1000;
         const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
         const canvas = document.createElement("canvas");
         canvas.width = Math.round(img.width * scale);
@@ -376,7 +376,7 @@ export default function ExtractAdvancedPanel({
         canvas.getContext("2d", { alpha: false })!.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(
           (blob) => {
-            if (blob) {
+            if (blob && blob.size > 0) {
               const reader = new FileReader();
               reader.onload = () => resolve(reader.result as string);
               reader.onerror = () => resolve(src);
@@ -386,7 +386,7 @@ export default function ExtractAdvancedPanel({
             }
           },
           "image/jpeg",
-          0.8
+          0.72
         );
       };
       img.onerror = () => resolve(src);
@@ -614,13 +614,32 @@ export default function ExtractAdvancedPanel({
     setAddError(null);
     setAddResult(null);
     try {
-      const res = await fetch(`/api/extract-info/advanced/${detail.id}/route`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: addPages, mode: addMode, targetId: addTarget || undefined, groupSize: photosPerRecord }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Extraction failed.");
+      // Guard against server body-size limits: catch oversized batches up front
+      // with a clear message instead of a cryptic JSON parse failure later.
+      const bodyStr = JSON.stringify({ images: addPages, mode: addMode, targetId: addTarget || undefined, groupSize: photosPerRecord });
+      if (bodyStr.length > 3200 * 1024) {
+        setIsExtracting(false);
+        const sizeMB = (bodyStr.length / (1024 * 1024)).toFixed(1);
+        setAddError(
+          `This batch is about ${sizeMB} MB, too large to send in one request. Please split it into smaller batches (fewer pages at a time) and extract each one.`
+        );
+        return;
+      }
+      let json: any;
+      try {
+        const res = await fetch(`/api/extract-info/advanced/${detail.id}/route`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: bodyStr,
+        });
+        json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Extraction failed.");
+      } catch (e: any) {
+        if (e && (e.name === "SyntaxError" || /unexpected token/i.test(e.message || ""))) {
+          throw new Error("The batch was too large to send. Please upload fewer pages at a time (try splitting into smaller batches), or use clearer/compressed photos.");
+        }
+        throw e;
+      }
       if (json.success === false) {
         setAddError(json.error || "AI could not read the document. Please retake clearer photos.");
         return;
