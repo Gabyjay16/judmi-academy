@@ -3,15 +3,14 @@ import { db, initDatabase } from "@/db";
 import { extractDocuments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { resolveSetDocAccess } from "@/lib/extract-advanced";
 
-function canAccess(currentUser: any, doc: any): boolean {
+function canDelete(currentUser: any, doc: any): boolean {
   if (!currentUser) return false;
   if (currentUser.role === "admin") return true;
-  const isOrgAdmin = currentUser.role === "org_admin";
-  if (isOrgAdmin && doc.orgId) {
-    return doc.orgId === (currentUser.orgId || null);
-  }
-  return doc.ownerUserId === currentUser.id;
+  if (doc.ownerUserId === currentUser.id) return true;
+  if (currentUser.role === "org_admin" && doc.orgId && (currentUser.orgId || null) === doc.orgId) return true;
+  return false;
 }
 
 export async function GET(
@@ -30,7 +29,8 @@ export async function GET(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     const doc = rows[0];
-    if (!canAccess(currentUser, doc)) {
+    const access = await resolveSetDocAccess(currentUser, doc);
+    if (!access.ok) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -71,7 +71,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     const doc = rows[0];
-    if (!canAccess(currentUser, doc)) {
+    const access = await resolveSetDocAccess(currentUser, doc);
+    if (!access.ok) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -124,7 +125,7 @@ export async function DELETE(
     if (rows.length === 0) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
-    if (!canAccess(currentUser, rows[0])) {
+    if (!canDelete(currentUser, rows[0])) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -201,6 +201,11 @@ export async function initDatabase() {
       );
     `);
 
+    // Safe column additions for extract_documents (Advanced workspaces)
+    try { await client.execute(`ALTER TABLE extract_documents ADD COLUMN advanced_set_id TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE extract_documents ADD COLUMN route_value TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE extract_documents ADD COLUMN route_label TEXT;`); } catch {}
+
     // 9. System Settings table (Global Admin switches)
     await client.execute(`
       CREATE TABLE IF NOT EXISTS system_settings (
@@ -377,6 +382,37 @@ export async function initDatabase() {
         amount INTEGER NOT NULL,
         status TEXT NOT NULL DEFAULT 'CREATED',
         meta_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // 16. Advanced extraction workspaces: reusable field templates + sets of
+    // documents that share one field setting and one routing field.
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS extract_templates (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        field_definitions_json TEXT NOT NULL,
+        routing_field TEXT,
+        route_options_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS extract_advanced_sets (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        template_id TEXT,
+        field_definitions_json TEXT NOT NULL,
+        routing_field TEXT,
+        route_options_json TEXT NOT NULL,
+        shared_with_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );

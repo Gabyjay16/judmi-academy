@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
-import { extractDocuments } from "@/db/schema";
-import { desc, or, like } from "drizzle-orm";
+import { users, extractDocuments, extractAdvancedSets } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { enforceServiceAccess } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
 import { extractFieldsFromImages, ExtractField } from "@/lib/openrouter";
+import { isUsernameShared } from "@/lib/extract-advanced";
 
 interface CreateBody {
   title?: string;
@@ -99,55 +100,62 @@ export async function GET(req: NextRequest) {
     const isOrgAdmin = currentUser.role === "org_admin" || currentUser.role === "admin";
     const orgId = (currentUser as any).orgId;
 
-    let docs;
-    if (isOrgAdmin && orgId) {
-      const all = await db
-        .select()
-        .from(extractDocuments)
-        .orderBy(desc(extractDocuments.createdAt));
-      docs = all.filter((d) => d.orgId === orgId);
-      if (q) {
-        docs = docs.filter((d) => d.title.toLowerCase().includes(q.toLowerCase()));
-      }
-      return NextResponse.json({
-        documents: docs.map((d) => ({
-          id: d.id,
-          title: d.title,
-          status: d.status,
-          error: d.error,
-          exportFormat: d.exportFormat,
-          pageCount: d.pageCount,
-          fieldDefinitions: JSON.parse(d.fieldDefinitionsJson || "[]"),
-          rowCount: (JSON.parse(d.extractedRowsJson || "[]") as any[]).length,
-          createdAt: d.createdAt,
-          updatedAt: d.updatedAt,
-        })),
-      });
-    }
+    // Sets shared directly with this teacher (by username or email).
+    const allSets = await db.select().from(extractAdvancedSets);
+    const sharedSetIds = new Set(
+      allSets
+        .filter((s) => isUsernameShared(s, currentUser.username || "", currentUser.email))
+        .map((s) => s.id)
+    );
 
-    const base = db.select().from(extractDocuments).orderBy(desc(extractDocuments.createdAt));
-    docs = await base;
-    docs = docs.filter((d) => d.ownerUserId === currentUser.id);
-    if (q) {
-      docs = docs.filter((d) => d.title.toLowerCase().includes(q.toLowerCase()));
-    }
-
-    return NextResponse.json({
-      documents: docs.map((d) => ({
-        id: d.id,
-        title: d.title,
-        status: d.status,
-        error: d.error,
-        exportFormat: d.exportFormat,
-        pageCount: d.pageCount,
-        fieldDefinitions: JSON.parse(d.fieldDefinitionsJson || "[]"),
-        rowCount: (JSON.parse(d.extractedRowsJson || "[]") as any[]).length,
-        createdAt: d.createdAt,
-        updatedAt: d.updatedAt,
-      })),
+    const all = await db.select().from(extractDocuments).orderBy(desc(extractDocuments.createdAt));
+    const docs = all.filter((d) => {
+      if (d.ownerUserId === currentUser.id) return true;
+      if (currentUser.role === "admin") return true;
+      if (isOrgAdmin && orgId && d.orgId === orgId) return true;
+      if (d.advancedSetId && sharedSetIds.has(d.advancedSetId)) return true;
+      return false;
     });
+
+    if (q) {
+      const needle = q.toLowerCase();
+      const filtered = docs.filter((d) => d.title.toLowerCase().includes(needle));
+      return NextResponse.json({ documents: filtered.map((d) => toListItem(currentUser, d)) });
+    }
+
+    return NextResponse.json({ documents: docs.map((d) => toListItem(currentUser, d)) });
   } catch (error: any) {
     console.error("Extract-info list error:", error);
     return NextResponse.json({ error: error?.message || "Failed to load documents." }, { status: 500 });
   }
+}
+
+async function toListItem(currentUser: any, d: any) {
+  const item: Record<string, unknown> = {
+    id: d.id,
+    title: d.title,
+    status: d.status,
+    error: d.error,
+    exportFormat: d.exportFormat,
+    pageCount: d.pageCount,
+    fieldDefinitions: JSON.parse(d.fieldDefinitionsJson || "[]"),
+    rowCount: (JSON.parse(d.extractedRowsJson || "[]") as any[]).length,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+    advancedSetId: d.advancedSetId || null,
+  };
+  // For shared documents, surface the owner so recipients know where it came from.
+  if (d.ownerUserId !== currentUser.id) {
+    if (d.ownerUserId) {
+      const rows = await db.select().from(users).where(eq(users.id, d.ownerUserId)).limit(1);
+      if (rows.length > 0) {
+        item.ownerName = rows[0].name;
+        item.ownerUsername = rows[0].username;
+      }
+    }
+    item.shared = true;
+  } else {
+    item.shared = false;
+  }
+  return item;
 }

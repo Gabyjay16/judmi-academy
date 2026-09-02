@@ -185,6 +185,42 @@ export const extractDocuments = sqliteTable("extract_documents", {
   exportFormat: text("export_format").notNull().default("xlsx"), // "xlsx" | "docx" | "csv" | "pdf"
   status: text("status").notNull().default("ready"), // "processing" | "ready" | "error"
   error: text("error"),
+  // Advanced extraction workspaces: this document belongs to an advanced set
+  // and holds the records whose routing-field value equals routeValue.
+  advancedSetId: text("advanced_set_id").references(() => extractAdvancedSets.id, { onDelete: "set null" }),
+  routeValue: text("route_value"), // the routing value this document collects (lowercase, trimmed)
+  routeLabel: text("route_label"), // display label for the routing value (e.g. "Banking")
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Reusable field settings for Advanced extraction workspaces. Saved until the
+// user deletes the template, and used to initialise new advanced sets.
+export const extractTemplates = sqliteTable("extract_templates", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  fieldDefinitionsJson: text("field_definitions_json").notNull(), // JSON: [{ name, type }]
+  routingField: text("routing_field"), // field whose value decides which document a record is filed into
+  routeOptionsJson: text("route_options_json"), // JSON: string[] of expected routing values
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// A group of Excel documents that share one field setting and one routing
+// field. Each routing value gets its own extract_documents row in the set.
+// Sets can be shared (by username/email) with other teachers.
+export const extractAdvancedSets = sqliteTable("extract_advanced_sets", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  templateId: text("template_id"),
+  fieldDefinitionsJson: text("field_definitions_json").notNull(), // JSON: [{ name, type }]
+  routingField: text("routing_field"), // field whose value decides the target document
+  routeOptionsJson: text("route_options_json").notNull(), // JSON: string[] of routing values
+  sharedWithJson: text("shared_with_json").notNull(), // JSON: [{ username, email, name, sharedAt }]
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -319,3 +355,7 @@ export type InverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferSe
 export type NewInverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferInsert;
 export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
+export type ExtractTemplate = typeof extractTemplates.$inferSelect;
+export type NewExtractTemplate = typeof extractTemplates.$inferInsert;
+export type ExtractAdvancedSet = typeof extractAdvancedSets.$inferSelect;
+export type NewExtractAdvancedSet = typeof extractAdvancedSets.$inferInsert;

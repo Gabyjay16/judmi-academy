@@ -4,16 +4,7 @@ import { extractDocuments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { extractFieldsFromImages, ExtractField } from "@/lib/openrouter";
-
-function canAccess(currentUser: any, doc: any): boolean {
-  if (!currentUser) return false;
-  if (currentUser.role === "admin") return true;
-  const isOrgAdmin = currentUser.role === "org_admin";
-  if (isOrgAdmin && doc.orgId) {
-    return doc.orgId === (currentUser.orgId || null);
-  }
-  return doc.ownerUserId === currentUser.id;
-}
+import { resolveSetDocAccess } from "@/lib/extract-advanced";
 
 export async function POST(
   req: NextRequest,
@@ -31,7 +22,8 @@ export async function POST(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     const doc = rows[0];
-    if (!canAccess(currentUser, doc)) {
+    const access = await resolveSetDocAccess(currentUser, doc);
+    if (!access.ok) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
