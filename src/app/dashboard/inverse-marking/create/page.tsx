@@ -44,7 +44,7 @@ const baseQuestion = (): DraftQuestion => ({
 
 export default function CreateInverseMarking() {
   const router = useRouter();
-  const [mode, setMode] = useState<"manual" | "ai">("manual");
+  const [mode, setMode] = useState<"manual" | "ai" | "generate">("manual");
   const [title, setTitle] = useState("");
   const [instruction, setInstruction] = useState("");
   const [questions, setQuestions] = useState<DraftQuestion[]>([baseQuestion()]);
@@ -58,7 +58,9 @@ export default function CreateInverseMarking() {
   const [questionImages, setQuestionImages] = useState<{ name: string; dataUrl: string }[]>([]);
   const [answerImages, setAnswerImages] = useState<{ name: string; dataUrl: string }[]>([]);
   const [parsing, setParsing] = useState(false);
-  const [parseNote, setParseNote] = useState<string | null>(null);
+  const [answerStyle, setAnswerStyle] = useState<"professional" | "medium" | "poor" | "mix">("professional");
+  const [generating, setGenerating] = useState(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
   const questionsRef = useRef<HTMLDivElement>(null);
   const paperFileRef = useRef<HTMLInputElement>(null);
   const answerFileRef = useRef<HTMLInputElement>(null);
@@ -102,7 +104,7 @@ export default function CreateInverseMarking() {
 
   const runParse = async () => {
     setError(null);
-    setParseNote(null);
+    setAiNote(null);
     if (questionImages.length === 0 || answerImages.length === 0) {
       setError("Upload both the question paper and the answered script first.");
       return;
@@ -135,7 +137,7 @@ export default function CreateInverseMarking() {
         }))
       );
       setMode("manual");
-      setParseNote(`AI read ${json.questionCount || parsed.length} question${parsed.length === 1 ? "" : "s"} from your documents. Review and correct anything below, then create the exercise.`);
+      setAiNote(`AI read ${json.questionCount || parsed.length} question${parsed.length === 1 ? "" : "s"} from your documents. Review and correct anything below, then create the exercise.`);
       setTimeout(() => {
         questionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 60);
@@ -143,6 +145,64 @@ export default function CreateInverseMarking() {
       setError(err?.message || "Failed to read those documents. Please try again.");
     } finally {
       setParsing(false);
+    }
+  };
+
+  const runGenerate = async () => {
+    setError(null);
+    setAiNote(null);
+    for (const q of questions) {
+      if (!q.prompt.trim()) {
+        setError("Every question needs a prompt so the AI can answer it.");
+        return;
+      }
+      const max = Math.round(Number(q.maxMarks));
+      if (Number.isNaN(max) || max < 1 || max > 100) {
+        setError("Every question needs a max marks value between 1 and 100.");
+        return;
+      }
+    }
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/inverse-marking/generate-answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          style: answerStyle,
+          questions: questions.map((q) => ({
+            prompt: q.prompt.trim(),
+            maxMarks: Math.round(Number(q.maxMarks)),
+            markScheme: q.markScheme.trim(),
+          })),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "The AI could not draft the answers.");
+        return;
+      }
+      const results: any[] = json.questions || [];
+      setQuestions((prev) =>
+        prev.map((q, i) => {
+          const r = results[i];
+          if (!r) return q;
+          return {
+            ...q,
+            answer: r.answer || q.answer,
+            controlMark: r.controlMark !== undefined ? String(r.controlMark) : q.controlMark,
+            markScheme: r.markScheme || q.markScheme,
+          };
+        })
+      );
+      const styleLabel = { professional: "professional", medium: "medium", poor: "poor", mix: "mixed" }[answerStyle];
+      setAiNote(`AI wrote the teacher's answers at ${styleLabel} quality and honestly scored them as control marks. Review every answer and control mark below — adjust anything — then create the exercise.`);
+      setTimeout(() => {
+        questionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 60);
+    } catch (err: any) {
+      setError(err?.message || "Failed to draft the answers. Please try again.");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -290,6 +350,7 @@ export default function CreateInverseMarking() {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-navy-900">Create an Inverse Marking exercise</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
             Write the question(s), complete the script yourself, and mark your own script — the control mark. Students then mark your script; you grade their marking accuracy.
+            You can type the questions manually, upload a paper with your handwritten answers, or just set questions and let the AI write the answer script for you.
           </p>
         </div>
       </div>
@@ -318,6 +379,13 @@ export default function CreateInverseMarking() {
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold transition-colors ${mode === "ai" ? "bg-white text-navy-900 shadow-sm" : "text-slate-500 hover:text-navy-900"}`}
             >
               <FileUp className="w-3.5 h-3.5" /> Upload paper + answered script (AI reads it)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("generate")}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold transition-colors ${mode === "generate" ? "bg-white text-navy-900 shadow-sm" : "text-slate-500 hover:text-navy-900"}`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> AI answers your questions
             </button>
           </div>
         </div>
@@ -433,6 +501,65 @@ export default function CreateInverseMarking() {
           </div>
         )}
 
+        {mode === "generate" && (
+          <div className="rounded-2xl border-2 border-dashed border-fuchsia-200 bg-fuchsia-50/40 p-4 sm:p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-extrabold text-navy-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-fuchsia-600" /> AI writes the teacher&apos;s answer script
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Fill in the questions in the section below, choose how strong the answer script should be, then let the AI
+                complete the script exactly as a student of that level would — and score its own answer honestly as your
+                <em> control mark</em>. Students will mark whatever the AI wrote, and you grade how close they come.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">How good should the teacher&apos;s answer script be?</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {(
+                  [
+                    { key: "professional", label: "Professional", hint: "near-full marks", cls: "border-emerald-200 bg-emerald-50 text-emerald-800" },
+                    { key: "medium", label: "Medium", hint: "average, some gaps", cls: "border-amber-200 bg-amber-50 text-amber-800" },
+                    { key: "poor", label: "Poor", hint: "weak, clear mistakes", cls: "border-rose-200 bg-rose-50 text-rose-800" },
+                    { key: "mix", label: "Mixed", hint: "varied per question", cls: "border-indigo-200 bg-indigo-50 text-indigo-800" },
+                  ] as const
+                ).map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setAnswerStyle(s.key)}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition-all ${answerStyle === s.key ? "ring-2 ring-fuchsia-500 border-transparent " + s.cls : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
+                  >
+                    <span className="block text-[11px] font-extrabold">{s.label}</span>
+                    <span className="block text-[10px] opacity-70 mt-0.5">{s.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={runGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-40 text-white text-xs font-bold shadow-md shadow-fuchsia-500/20 transition-all"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> AI is writing the answers…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" /> Generate the answers with AI
+                </>
+              )}
+            </button>
+            <p className="text-[10px] text-slate-400">
+              Answers and control marks are filled into the questions below — you can edit every word and every mark before creating. Regenerate any time to re-draft.
+            </p>
+          </div>
+        )}
+
         {/* Basic info */}
         <div className="grid grid-cols-1 gap-4">
           <div>
@@ -459,10 +586,10 @@ export default function CreateInverseMarking() {
 
         {/* Questions */}
         <div ref={questionsRef} className="space-y-4">
-          {parseNote && (
+          {aiNote && (
             <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-semibold flex items-start gap-2">
               <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600" />
-              {parseNote}
+              {aiNote}
             </div>
           )}
           <div className="flex items-center justify-between">
