@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Layers, X, FileText, RefreshCw, Download, Save, Undo2 } from "lucide-react";
+import { ArrowLeft, Layers, X, FileText, RefreshCw, Download, Save, Undo2, Trash2 } from "lucide-react";
 import ExtractAdvancedPanel from "@/components/ExtractAdvancedPanel";
 
 interface ExtractField {
@@ -68,6 +68,12 @@ export default function AdvancedWorkspacesPage() {
       const next = prev.map((r, i) => (i === rowIdx ? { ...r, [field]: value } : r));
       return next;
     });
+    setSavedMsg(null);
+  };
+
+  const deleteRecord = (rowIdx: number) => {
+    if (!window.confirm("Delete this record? The row will be removed when you save changes.")) return;
+    setDraftRows((prev) => (prev ? prev.filter((_, i) => i !== rowIdx) : prev));
     setSavedMsg(null);
   };
 
@@ -299,6 +305,7 @@ export default function AdvancedWorkspacesPage() {
                     {viewing.fieldDefinitions.map((f) => (
                       <th key={f.name} className="px-3 py-2">{f.name}</th>
                     ))}
+                    <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -316,11 +323,21 @@ export default function AdvancedWorkspacesPage() {
                           />
                         </td>
                       ))}
+                      <td className="px-2 py-1.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => deleteRecord(idx)}
+                          title="Delete this record"
+                          className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {(draftRows ?? viewing.rows).length === 0 && (
                     <tr>
-                      <td colSpan={viewing.fieldDefinitions.length + 1} className="px-3 py-6 text-center text-slate-400">
+                      <td colSpan={viewing.fieldDefinitions.length + 2} className="px-3 py-6 text-center text-slate-400">
                         No records in this file yet.
                       </td>
                     </tr>
