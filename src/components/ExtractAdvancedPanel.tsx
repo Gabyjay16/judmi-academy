@@ -33,6 +33,7 @@ interface SetDoc {
   pageCount: number;
   fieldDefinitions: ExtractField[];
   exportFormat: string;
+  routeValue?: string | null;
   isArchived?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -132,6 +133,10 @@ export default function ExtractAdvancedPanel({
   const [shareText, setShareText] = useState("");
   const [sharing, setSharing] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+
+  const [showAddDoc, setShowAddDoc] = useState(false);
+  const [addDocValue, setAddDocValue] = useState("");
+  const [addingDoc, setAddingDoc] = useState(false);
 
   const addGalleryRef = useRef<HTMLInputElement>(null);
 
@@ -331,6 +336,61 @@ export default function ExtractAdvancedPanel({
       setCreateMsg(e.message || "Failed to save settings.");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const addDocument = async () => {
+    if (!detail) return;
+    const v = addDocValue.trim().replace(/,$/, "").toLowerCase();
+    if (!v) return;
+    if (form.routeValues.includes(v)) {
+      setCreateMsg("That route value already exists.");
+      return;
+    }
+    setAddingDoc(true);
+    setCreateMsg(null);
+    try {
+      const newValues = [...form.routeValues, v];
+      const res = await fetch(`/api/extract-info/advanced/${detail.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ routeOptions: newValues }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to add document.");
+      setForm((prev) => ({ ...prev, routeValues: newValues }));
+      setAddDocValue("");
+      setShowAddDoc(false);
+      await openDetail(detail.id);
+    } catch (e: any) {
+      setCreateMsg(e.message || "Failed to add document.");
+    } finally {
+      setAddingDoc(false);
+    }
+  };
+
+  const deleteDocument = async (docId: string, routeValue: string) => {
+    if (!detail) return;
+    if (!confirm(`Delete the "${routeValue}" document and all its records? This cannot be undone.`)) return;
+    setCreateMsg(null);
+    try {
+      const delRes = await fetch(`/api/extract-info/${docId}`, { method: "DELETE" });
+      if (!delRes.ok) {
+        const j = await delRes.json().catch(() => ({}));
+        alert(j.error || "Failed to delete document.");
+        return;
+      }
+      const newValues = form.routeValues.filter((r) => r !== routeValue);
+      await fetch(`/api/extract-info/advanced/${detail.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ routeOptions: newValues }),
+      });
+      setForm((prev) => ({ ...prev, routeValues: newValues }));
+      await openDetail(detail.id);
+      refreshSets();
+    } catch (e: any) {
+      alert(e.message || "Failed to delete document.");
     }
   };
 
@@ -967,7 +1027,62 @@ export default function ExtractAdvancedPanel({
 
             {/* Docs */}
             <div>
-              <div className="text-xs font-bold text-slate-800 mb-2">Documents in this Workspace</div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="text-xs font-bold text-slate-800">Documents in this Workspace</div>
+                {!detail.isShared && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddDoc((v) => !v); setAddDocValue(""); setCreateMsg(null); }}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold hover:bg-emerald-100 inline-flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Document
+                  </button>
+                )}
+              </div>
+
+              {showAddDoc && (
+                <div className="mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-700">
+                    New document name (route value)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={addDocValue}
+                      onChange={(e) => setAddDocValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDocument(); } }}
+                      placeholder="e.g. banking, agriculture, fishery"
+                      className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      disabled={addingDoc || !addDocValue.trim()}
+                      onClick={addDocument}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold inline-flex items-center gap-1"
+                    >
+                      {addingDoc ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddDoc(false); setAddDocValue(""); }}
+                      className="p-2 rounded-lg text-slate-400 hover:bg-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-emerald-800/70">
+                    This creates an empty document ready to receive records during the next extraction.
+                  </p>
+                </div>
+              )}
+
+              {createMsg && !showCreate && (
+                <div className="mb-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">{createMsg}</div>
+              )}
+
               <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100">
                 {detail.docs.map((d) => (
                   <div key={d.id} className="px-3.5 sm:px-4 py-3 flex items-center justify-between gap-3">
@@ -1023,12 +1138,22 @@ export default function ExtractAdvancedPanel({
                       >
                         <Download className="w-4 h-4" />
                       </button>
+                      {!detail.isShared && (
+                        <button
+                          type="button"
+                          onClick={() => deleteDocument(d.id, d.routeValue || d.title)}
+                          className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-50 hover:text-rose-600"
+                          title="Delete this document"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
                 {detail.docs.length === 0 && (
                   <div className="px-4 py-8 text-center text-xs text-slate-400">
-                    No documents yet. Extract some pages and they will be filed here automatically.
+                    No documents yet. Add one above or extract some pages to create documents automatically.
                   </div>
                 )}
               </div>
