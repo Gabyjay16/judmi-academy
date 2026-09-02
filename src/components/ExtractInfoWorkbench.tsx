@@ -19,10 +19,9 @@ import {
   Eye,
   UploadCloud,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
 } from "lucide-react";
 import CameraStudio from "@/components/CameraStudio";
-import ExtractAdvancedPanel from "@/components/ExtractAdvancedPanel";
 import { isPdfFile, pdfFileToImages } from "@/lib/pdf-images";
 
 interface ExtractField {
@@ -87,9 +86,6 @@ export default function ExtractInfoWorkbench() {
   // Camera studio state
   const [showCamera, setShowCamera] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<"create" | "update">("create");
-
-  // Advanced workspace state
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const updateGalleryInputRef = useRef<HTMLInputElement>(null);
@@ -457,32 +453,15 @@ export default function ExtractInfoWorkbench() {
             Snap a document with your camera, define the fields you need (e.g. matricule, name), and let AI extract the data into a downloadable PDF, Word, or Excel file.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((v) => !v)}
-          className={`px-4 py-2.5 rounded-2xl text-xs font-bold inline-flex items-center gap-1.5 border-2 transition-all shrink-0 ${
-            showAdvanced
-              ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-500/20"
-              : "bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-50"
-          }`}
+        <Link
+          href="/dashboard/extract-info/advanced"
+          className="px-4 py-2.5 rounded-2xl text-xs font-bold inline-flex items-center gap-1.5 border-2 transition-all shrink-0 bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-50"
         >
           <Layers className="w-4 h-4" />
           Advanced Workspaces
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
-
-      {/* ====== Advanced Workspaces ====== */}
-      {showAdvanced && (
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50/40 p-4 sm:p-5">
-          <ExtractAdvancedPanel
-            open={showAdvanced}
-            onOpenDoc={(id) => openView(id)}
-            onEditDoc={(id) => openEditor(id)}
-            onDownloadDoc={(id, format) => downloadDoc(id, format)}
-          />
-        </div>
-      )}
 
       {/* ====== Capture + Extract Card ====== */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-7 space-y-6">
