@@ -8,6 +8,8 @@ import {
   resolveSetAccess,
   fieldsOf,
   routeOptionsOf,
+  routingModeOf,
+  routingMarkerOf,
   ensureSetDocs,
   fileRowsIntoSet,
   matchRouteOption,
@@ -53,22 +55,37 @@ export async function POST(
     // extracted row carries the value that decides where it is filed. We also
     // embed the workspace's route options into the field's instruction so the
     // AI returns values already matching the user's documents wherever possible.
-    if (mode === "auto" && set.routingField) {
-      const idx = fields.findIndex((f) => f.name === set.routingField);
-      const options = routeOptionsOf(set);
-      const hint =
-        options.length > 0
-          ? `use exactly one of these labels: ${options.join(", ")}`
-          : `use the short, consistent name of the category/section`;
-      if (idx >= 0) {
-        fields[idx] = {
-          ...fields[idx],
-          instruction: fields[idx].instruction && fields[idx].instruction.trim()
-            ? `${fields[idx].instruction}; ${hint}`
-            : hint,
-        };
-      } else {
-        fields = [...fields, { name: set.routingField!, type: "text", instruction: hint }];
+    if (mode === "auto") {
+      const routingMode = routingModeOf(set);
+      if (routingMode === "marker") {
+        // Marker (e.g. first-choice) mode: each field is a department and the
+        // student writes a rank (1/2/3) in the one they pick. Tell the AI to
+        // record that rank in EVERY department field so routing works.
+        const marker = routingMarkerOf(set);
+        fields = fields.slice(0, 50).map((f) => ({
+          ...f,
+          instruction:
+            [f.instruction, `record the student's choice number (like "${marker}") written next to this department, or leave empty if not chosen`]
+              .filter(Boolean)
+              .join("; "),
+        }));
+      } else if (set.routingField) {
+        const idx = fields.findIndex((f) => f.name === set.routingField);
+        const options = routeOptionsOf(set);
+        const hint =
+          options.length > 0
+            ? `use exactly one of these labels: ${options.join(", ")}`
+            : `use the short, consistent name of the category/section`;
+        if (idx >= 0) {
+          fields[idx] = {
+            ...fields[idx],
+            instruction: fields[idx].instruction && fields[idx].instruction.trim()
+              ? `${fields[idx].instruction}; ${hint}`
+              : hint,
+          };
+        } else {
+          fields = [...fields, { name: set.routingField!, type: "text", instruction: hint }];
+        }
       }
     }
 

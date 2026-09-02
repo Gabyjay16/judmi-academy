@@ -220,6 +220,8 @@ export const extractAdvancedSets = sqliteTable("extract_advanced_sets", {
   templateId: text("template_id"),
   fieldDefinitionsJson: text("field_definitions_json").notNull(), // JSON: [{ name, type }]
   routingField: text("routing_field"), // field whose value decides the target document
+  routingMode: text("routing_mode").notNull().default("value"), // "value" (routing field holds the route label) | "marker" (route by which field equals routingMarker)
+  routingMarker: text("routing_marker").notNull().default("1"), // marker value used in "marker" routing mode (e.g. "1" = first choice)
   routeOptionsJson: text("route_options_json").notNull(), // JSON: string[] of routing values
   sharedWithJson: text("shared_with_json").notNull(), // JSON: [{ username, email, name, sharedAt }]
   createdAt: text("created_at").notNull(),

@@ -102,6 +102,8 @@ export async function POST(req: NextRequest) {
 
     let fields: ExtractField[] = Array.isArray(body.fields) ? body.fields : [];
     let routingField = body.routingField ? String(body.routingField).trim() : "";
+    let routingMode: "value" | "marker" = body.routingMode === "marker" ? "marker" : "value";
+    let routingMarker = String(body.routingMarker ?? "1").trim() || "1";
     let routeOptions: string[] = Array.isArray(body.routeOptions)
       ? body.routeOptions.map(String).map((s: string) => s.trim()).filter(Boolean)
       : [];
@@ -124,11 +126,13 @@ export async function POST(req: NextRequest) {
     if (fields.length === 0) {
       return NextResponse.json({ error: "Please define at least one data field." }, { status: 400 });
     }
-    if (routingField && !fields.some((f) => f.name === routingField)) {
-      return NextResponse.json({ error: "The routing field must be one of the data fields." }, { status: 400 });
-    }
-    if (!routingField) {
-      return NextResponse.json({ error: "Choose which field decides where each record is saved (e.g. option / department)." }, { status: 400 });
+    if (routingMode === "value") {
+      if (routingField && !fields.some((f) => f.name === routingField)) {
+        return NextResponse.json({ error: "The routing field must be one of the data fields." }, { status: 400 });
+      }
+      if (!routingField) {
+        return NextResponse.json({ error: "Choose which field decides where each record is saved (e.g. option / department)." }, { status: 400 });
+      }
     }
 
     const now = new Date().toISOString();
@@ -141,6 +145,8 @@ export async function POST(req: NextRequest) {
       templateId: body.templateId || null,
       fieldDefinitionsJson: JSON.stringify(fields),
       routingField,
+      routingMode,
+      routingMarker,
       routeOptionsJson: JSON.stringify(routeOptions),
       sharedWithJson: "[]",
       createdAt: now,

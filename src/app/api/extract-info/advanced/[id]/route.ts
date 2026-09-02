@@ -53,6 +53,8 @@ export async function GET(
         name: set.name,
         fieldDefinitions: fieldsOf(set),
         routingField: set.routingField || "",
+        routingMode: set.routingMode === "marker" ? "marker" : "value",
+        routingMarker: String(set.routingMarker || "1"),
         routeOptions: options,
         isShared: access.shared || false,
         owner: ownerInfo,
@@ -93,6 +95,8 @@ export async function PATCH(
 
     let fields = fieldsOf(set);
     let routingField = set.routingField || "";
+    let routingMode: "value" | "marker" = set.routingMode === "marker" ? "marker" : "value";
+    let routingMarker = String(set.routingMarker || "1").trim() || "1";
     let routeOptions = routeOptionsOf(set);
 
     if (Array.isArray(body.fields)) {
@@ -102,12 +106,20 @@ export async function PATCH(
         updates.fieldDefinitionsJson = JSON.stringify(f);
       }
     }
+    if (typeof body.routingMode === "string") {
+      routingMode = body.routingMode === "marker" ? "marker" : "value";
+      updates.routingMode = routingMode;
+    }
+    if (typeof body.routingMarker === "string" && body.routingMarker.trim()) {
+      routingMarker = body.routingMarker.trim();
+      updates.routingMarker = routingMarker;
+    }
     if (typeof body.routingField === "string") {
-      if (body.routingField.trim() && !fields.some((x) => x.name === body.routingField.trim())) {
-        return NextResponse.json({ error: "The routing field must be one of the data fields." }, { status: 400 });
-      }
       routingField = body.routingField.trim();
       updates.routingField = routingField;
+    }
+    if (routingMode === "value" && routingField && !fields.some((x) => x.name === routingField)) {
+      return NextResponse.json({ error: "The routing field must be one of the data fields." }, { status: 400 });
     }
     if (Array.isArray(body.routeOptions)) {
       routeOptions = body.routeOptions.map(String).map((s: string) => s.trim()).filter(Boolean);

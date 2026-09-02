@@ -80,6 +80,8 @@ interface SetDetail {
   name: string;
   fieldDefinitions: ExtractField[];
   routingField: string;
+  routingMode: "value" | "marker";
+  routingMarker: string;
   routeOptions: string[];
   isShared: boolean;
   owner?: { name?: string | null; email?: string | null; username?: string | null } | null;
@@ -269,7 +271,7 @@ function FieldEditor({
   );
 }
 
-const formInit = () => ({ name: "", fields: [{ name: "name", type: "text" }] as ExtractField[], routeValues: [] as string[], routingField: "", templateId: "" });
+const formInit = () => ({ name: "", fields: [{ name: "name", type: "text" }] as ExtractField[], routeValues: [] as string[], routingField: "", routingMode: "value" as "value" | "marker", routingMarker: "1", templateId: "" });
 
 export default function ExtractAdvancedPanel({
   open,
@@ -431,6 +433,8 @@ export default function ExtractAdvancedPanel({
       name: t.name,
       fields: t.fieldDefinitions.map((f) => ({ ...f })),
       routingField: t.routingField,
+      routingMode: "value",
+      routingMarker: "1",
       routeValues: t.routeOptions.filter(Boolean),
     });
   };
@@ -447,6 +451,8 @@ export default function ExtractAdvancedPanel({
           name: form.name,
           fields: form.fields,
           routingField: form.routingField,
+          routingMode: form.routingMode,
+          routingMarker: form.routingMarker,
           routeOptions,
           templateId: form.templateId || undefined,
         }),
@@ -479,6 +485,8 @@ export default function ExtractAdvancedPanel({
         name: json.set.name || "",
         fields: (json.set.fieldDefinitions || []).map((f: ExtractField) => ({ ...f })),
         routingField: json.set.routingField || "",
+        routingMode: json.set.routingMode === "marker" ? "marker" : "value",
+        routingMarker: String(json.set.routingMarker || "1") || "1",
         routeValues: (json.set.routeOptions || []).filter(Boolean),
       });
       setAddError(null);
@@ -528,7 +536,7 @@ export default function ExtractAdvancedPanel({
       const res = await fetch(`/api/extract-info/advanced/${detail.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, fields: form.fields, routingField: form.routingField, routeOptions }),
+        body: JSON.stringify({ name: form.name, fields: form.fields, routingField: form.routingField, routingMode: form.routingMode, routingMarker: form.routingMarker, routeOptions }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to save settings.");
@@ -863,6 +871,20 @@ export default function ExtractAdvancedPanel({
               />
             </div>
             <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">How records are routed</label>
+              <select
+                value={form.routingMode}
+                onChange={(e) => setForm((prev) => ({ ...prev, routingMode: e.target.value as "value" | "marker" }))}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="value">By a field's value (e.g. a "department" column)</option>
+                <option value="marker">By which field is marked with a choice number (1st/2nd/3rd)</option>
+              </select>
+            </div>
+          </div>
+
+          {form.routingMode === "value" ? (
+            <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700">Routing Field</label>
               <select
                 value={form.routingField}
@@ -874,8 +896,27 @@ export default function ExtractAdvancedPanel({
                   <option key={f.name} value={f.name}>{f.name}</option>
                 ))}
               </select>
+              <p className="text-[11px] text-slate-500">
+                Records are filed by this field's value (e.g. banking / accounting).
+              </p>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">Route by choice number</label>
+              <input
+                type="text"
+                value={form.routingMarker}
+                onChange={(e) => setForm((prev) => ({ ...prev, routingMarker: e.target.value }))}
+                placeholder="1"
+                className="w-full sm:w-56 px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <p className="text-[11px] text-slate-500">
+                Each department/option should be a data field. The AI fills the field the student chose (e.g. &quot;1&quot;
+                for first choice); records then go into the document for that department. Leave it empty rows go to
+                Uncategorised.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-700">Route Values (one document per value)</label>
@@ -1055,8 +1096,12 @@ export default function ExtractAdvancedPanel({
                   <span className="break-words">{detail.name}</span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {detail.docs.length} document{detail.docs.length === 1 ? "" : "s"} • routing field:{" "}
-                  <strong className="text-slate-700">{detail.routingField || "—"}</strong>
+                  {detail.docs.length} document{detail.docs.length === 1 ? "" : "s"} • routing:{" "}
+                  <strong className="text-slate-700">
+                    {detail.routingMode === "marker"
+                      ? `by field marked "${detail.routingMarker || "1"}"`
+                      : (detail.routingField || "—")}
+                  </strong>
                   {detail.isShared && detail.owner && (
                     <span className="ml-2 text-sky-600 font-bold">shared with you by {detail.owner.name || detail.owner.username || "a teacher"}</span>
                   )}
@@ -1126,7 +1171,9 @@ export default function ExtractAdvancedPanel({
                       }`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      Auto-File by {detail.routingField || "Routing Field"}
+                      {detail.routingMode === "marker"
+                        ? `Auto-File by choice number "${detail.routingMarker || "1"}"`
+                        : `Auto-File by ${detail.routingField || "Routing Field"}`}
                     </button>
                     <button
                       type="button"
@@ -1143,7 +1190,9 @@ export default function ExtractAdvancedPanel({
                   </div>
                 </div>
                 <p className="text-[11px] text-emerald-900/80">
-                  Auto-file reads each page and saves every record into the document that matches its routing value.
+                  {detail.routingMode === "marker"
+                    ? `Auto-file saves each student into the document whose field is marked "${detail.routingMarker || "1"}" (their ${detail.routingMarker === "2" ? "second" : detail.routingMarker === "3" ? "third" : "first"} choice); students with no match go to Uncategorised.`
+                    : "Auto-file reads each page and saves every record into the document that matches its routing value."}{" "}
                   Add-all sends every extracted record to one chosen document.
                 </p>
 
@@ -1450,7 +1499,7 @@ export default function ExtractAdvancedPanel({
             {!detail.isShared && (
               <div className="space-y-2.5 border-t border-slate-100 pt-4">
                 <div className="text-xs font-bold text-slate-800">Workspace Settings</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700">Name</label>
                     <input
@@ -1460,6 +1509,20 @@ export default function ExtractAdvancedPanel({
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">How records are routed</label>
+                    <select
+                      value={form.routingMode}
+                      onChange={(e) => setForm((prev) => ({ ...prev, routingMode: e.target.value as "value" | "marker" }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                      <option value="value">By a field's value</option>
+                      <option value="marker">By which field is marked with a choice number</option>
+                    </select>
+                  </div>
+                </div>
+
+                {form.routingMode === "value" ? (
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700">Routing Field</label>
                     <select
@@ -1473,6 +1536,22 @@ export default function ExtractAdvancedPanel({
                       ))}
                     </select>
                   </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">Route by choice number</label>
+                    <input
+                      type="text"
+                      value={form.routingMarker}
+                      onChange={(e) => setForm((prev) => ({ ...prev, routingMarker: e.target.value }))}
+                      placeholder="1"
+                      className="w-full sm:w-56 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      Each department/option should be a data field. Records go into the document whose field is
+                      marked with this number (e.g. &quot;1&quot; = first choice).
+                    </p>
+                  </div>
+                )}
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700">Route Values</label>
                     {form.routeValues.length > 0 && (
@@ -1524,7 +1603,6 @@ export default function ExtractAdvancedPanel({
                       </button>
                     </div>
                   </div>
-                </div>
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-700">Data Fields</label>
                   <FieldEditor

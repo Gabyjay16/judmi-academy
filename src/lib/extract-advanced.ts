@@ -14,6 +14,11 @@ export function normalizeRouteValue(value: string): string {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+/** Compact a value to bare digits/letters only, for comparing choice markers like "1", "1." or " 1)". */
+export function markerKey(value: string): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 /**
  * Return the existing route option that best matches a raw extracted value, or
  * null if there is no good match. This makes filing tolerant of small typos,
@@ -69,6 +74,16 @@ export function routeOptionsOf(set: ExtractAdvancedSet): string[] {
 
 export function routeFieldOf(set: ExtractAdvancedSet): string {
   return set.routingField || "";
+}
+
+/** Routing strategy: "value" = the routing field holds the route label; "marker" = route by whichever field equals routingMarker. */
+export function routingModeOf(set: ExtractAdvancedSet): "value" | "marker" {
+  return set.routingMode === "marker" ? "marker" : "value";
+}
+
+/** Marker value used when routingMode is "marker" (e.g. "1" = first choice). */
+export function routingMarkerOf(set: ExtractAdvancedSet): string {
+  return String(set.routingMarker || "1").trim() || "1";
 }
 
 export function fieldsOf(set: ExtractAdvancedSet): ExtractField[] {
@@ -242,6 +257,8 @@ export async function fileRowsIntoSet(
 
   let unclassified = 0;
   const routingField = routeFieldOf(set);
+  const routingMode = routingModeOf(set);
+  const marker = routingMarkerOf(set);
 
   for (const row of rows) {
     if (opts.mode === "pick") {
@@ -251,7 +268,22 @@ export async function fileRowsIntoSet(
       continue;
     }
 
-    const rawValue = row[routingField] || "";
+    let rawValue = "";
+    if (routingMode === "marker") {
+      // "marker" mode: the student ranks departments by writing the marker
+      // (e.g. "1" for first choice) next to the chosen one. Find the FIELD whose
+      // value equals the marker and use that field's NAME as the route value.
+      const markerKeyValue = markerKey(marker);
+      for (const col of Object.keys(row)) {
+        if (markerKey(row[col]) === markerKeyValue) {
+          rawValue = col;
+          break;
+        }
+      }
+    } else {
+      rawValue = row[routingField] || "";
+    }
+
     const value = normalizeRouteValue(rawValue);
     let doc = value ? byValue.get(value) : null;
 

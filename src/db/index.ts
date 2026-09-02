@@ -412,12 +412,18 @@ export async function initDatabase() {
         template_id TEXT,
         field_definitions_json TEXT NOT NULL,
         routing_field TEXT,
+        routing_mode TEXT NOT NULL DEFAULT 'value',
+        routing_marker TEXT NOT NULL DEFAULT '1',
         route_options_json TEXT NOT NULL,
         shared_with_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
     `);
+
+    // Safe column additions for extract_advanced_sets (routing modes)
+    try { await client.execute(`ALTER TABLE extract_advanced_sets ADD COLUMN routing_mode TEXT NOT NULL DEFAULT 'value';`); } catch {}
+    try { await client.execute(`ALTER TABLE extract_advanced_sets ADD COLUMN routing_marker TEXT NOT NULL DEFAULT '1';`); } catch {}
 
     isInitialized = true;
   } catch (error) {
