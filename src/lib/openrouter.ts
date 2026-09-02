@@ -111,7 +111,8 @@ export interface ExtractField {
 export async function extractFieldsFromImages(
   images: string[],
   fields: ExtractField[],
-  title: string
+  title: string,
+  singleRecord = false
 ): Promise<Record<string, string>[]> {
   if (!isOpenRouterKeyConfigured()) {
     throw new Error("AI API key is not configured. Set OPENROUTER_API_KEY.");
@@ -127,19 +128,29 @@ export async function extractFieldsFromImages(
     })
     .join("\n");
 
+  const overview = singleRecord
+    ? `These ${images.length} photographed page(s) of a document (${title || "the document"}) together represent EXACTLY ONE record (ONE row).`
+    : `I am providing ${images.length} photographed page(s) of a document (${title || "the document"}). These pages collectively form ONE document that may contain MULTIPLE records (e.g. multiple students, multiple people, multiple entries).`;
+
+  const extractInstruction = singleRecord
+    ? `Extract the requested fields for this single record and return an array containing EXACTLY ONE object. Do not invent extra records.`
+    : `Extract the requested fields for EVERY record found in the document pages.`;
+
   const prompt = `You are a precise data extraction engine for academic documents.
 
-I am providing ${images.length} photographed page(s) of a document (${title || "the document"}). These pages collectively form ONE document that may contain MULTIPLE records (e.g. multiple students, multiple people, multiple entries).
+${overview}
 
-Extract the requested fields for EVERY record found in the document pages.
+${extractInstruction}
 
 Requested fields (extract exactly these):
 ${fieldLines}
 
 Rules:
 - Read all text carefully, including handwritten and printed content.
-- Each distinct record should become one object with keys matching the EXACT field names listed above.
-- If a field is not present/readable for a record, set it to an empty string "".
+${singleRecord
+  ? "- Combine the information across all the pages you are given into ONE record."
+  : "- Each distinct record should become one object with keys matching the EXACT field names listed above."}
+- If a field is not present/readable, set it to an empty string "".
 - Detect and preserve the natural grouping (e.g. a matricule belongs to the same row as its name).
 - Normalize number fields to their numeric string form.
 - Do NOT invent or guess data that is not in the document.
@@ -161,7 +172,8 @@ Respond with ONLY a valid JSON array, no markdown code fences, no extra text:
     throw new Error("AI did not return a valid list of extracted records.");
   }
 
-  const normalized = parsed.map((row) => {
+  const slice = singleRecord ? parsed.slice(0, 1) : parsed;
+  const normalized = slice.map((row) => {
     const out: Record<string, string> = {};
     for (const f of fields) {
       const val = row ? row[f.name] : undefined;

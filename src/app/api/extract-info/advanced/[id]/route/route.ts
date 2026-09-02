@@ -71,7 +71,20 @@ export async function POST(
 
     let rows: Record<string, string>[] = [];
     try {
-      rows = await extractFieldsFromImages(images, fields.slice(0, 50), set.name);
+      const groupSize = Math.max(1, Math.trunc(Number(body.groupSize) || 1));
+      if (groupSize <= 1) {
+        // Default: treat all pages as one document, extract whatever records appear.
+        rows = await extractFieldsFromImages(images, fields.slice(0, 50), set.name);
+      } else {
+        // Group the photos by the "photos per record" setting, in upload order,
+        // and extract exactly ONE record from each group. A leftover partial
+        // group at the end is processed as its own record too.
+        for (let i = 0; i < images.length; i += groupSize) {
+          const group = images.slice(i, i + groupSize);
+          const groupRows = await extractFieldsFromImages(group, fields.slice(0, 50), `${set.name} (part ${i / groupSize + 1})`, true);
+          if (groupRows.length > 0) rows.push(...groupRows);
+        }
+      }
     } catch (e: any) {
       console.error("Extract advanced AI error:", e);
       return NextResponse.json({

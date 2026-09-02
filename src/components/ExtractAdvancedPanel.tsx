@@ -301,6 +301,7 @@ export default function ExtractAdvancedPanel({
 
   const [addMode, setAddMode] = useState<"auto" | "pick">("auto");
   const [addTarget, setAddTarget] = useState("");
+  const [photosPerRecord, setPhotosPerRecord] = useState(1);
   const [addPages, setAddPages] = useState<string[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -449,6 +450,7 @@ export default function ExtractAdvancedPanel({
       setAddResult(null);
       setAddPages([]);
       setAddMode("auto");
+      setPhotosPerRecord(1);
       setAddTarget((json.set.docs || []).length > 0 ? json.set.docs[0].id : "");
       setShareMsg(null);
       setShareText("");
@@ -579,7 +581,7 @@ export default function ExtractAdvancedPanel({
       const res = await fetch(`/api/extract-info/advanced/${detail.id}/route`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: addPages, mode: addMode, targetId: addTarget || undefined }),
+        body: JSON.stringify({ images: addPages, mode: addMode, targetId: addTarget || undefined, groupSize: photosPerRecord }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Extraction failed.");
@@ -1103,6 +1105,33 @@ export default function ExtractAdvancedPanel({
                       ))}
                     </select>
                   </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-xs font-bold text-slate-700 shrink-0">Photos per record:</label>
+                  <select
+                    value={photosPerRecord}
+                    onChange={(e) => setPhotosPerRecord(Math.max(1, Math.trunc(Number(e.target.value) || 1)))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value={1}>1 (auto-detect)</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={4}>4</option>
+                    <option value={5}>5</option>
+                    <option value={6}>6</option>
+                  </select>
+                  {photosPerRecord > 1 && (
+                    <span className="text-[11px] text-emerald-700 font-semibold">
+                      {addPages.length} photo(s) = {Math.ceil(addPages.length / photosPerRecord)} record{Math.ceil(addPages.length / photosPerRecord) === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
+                {photosPerRecord > 1 && (
+                  <p className="text-[11px] text-slate-500">
+                    Each group of {photosPerRecord} photos, in the order they were added, is treated as one record. The
+                    first photo of a group is the one you added first.
+                  </p>
                 )}
 
                 <div>
