@@ -14,6 +14,9 @@ import {
   normalizeRouteValue,
 } from "@/lib/extract-advanced";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -79,9 +82,16 @@ export async function POST(
         // Group the photos by the "photos per record" setting, in upload order,
         // and extract exactly ONE record from each group. A leftover partial
         // group at the end is processed as its own record too.
+        const groups: { i: number; images: string[] }[] = [];
         for (let i = 0; i < images.length; i += groupSize) {
-          const group = images.slice(i, i + groupSize);
-          const groupRows = await extractFieldsFromImages(group, fields.slice(0, 50), `${set.name} (part ${i / groupSize + 1})`, true);
+          groups.push({ i, images: images.slice(i, i + groupSize) });
+        }
+        const results = await Promise.all(
+          groups.map((g) =>
+            extractFieldsFromImages(g.images, fields.slice(0, 50), `${set.name} (part ${g.i / groupSize + 1})`, true).catch(() => [])
+          )
+        );
+        for (const groupRows of results) {
           if (groupRows.length > 0) rows.push(...groupRows);
         }
       }

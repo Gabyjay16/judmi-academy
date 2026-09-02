@@ -359,14 +359,46 @@ export default function ExtractAdvancedPanel({
       reader.onerror = reject;
     });
 
+  // Downscale and re-encode an image (data URL) to a compact JPEG so large
+  // batches stay well under server/body size limits and don't time out.
+  const compressImage = (src: string): Promise<string> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDimension = 1400;
+        const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d", { alpha: false })!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = () => resolve(src);
+              reader.readAsDataURL(blob);
+            } else {
+              resolve(src);
+            }
+          },
+          "image/jpeg",
+          0.8
+        );
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    });
+
   const addPagesFromFiles = async (files: File[]) => {
     try {
       const b64: string[] = [];
       for (const f of files) {
         if (isPdfFile(f)) {
-          b64.push(...(await pdfFileToImages(f, 10)));
+          const pdfImages = await pdfFileToImages(f, 10);
+          for (const p of pdfImages) b64.push(await compressImage(p));
         } else {
-          b64.push(await fileToBase64(f));
+          b64.push(await compressImage(await fileToBase64(f)));
         }
       }
       setAddPages((prev) => [...prev, ...b64]);
