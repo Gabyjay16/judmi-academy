@@ -21,7 +21,8 @@ import {
   ChevronRight,
   ChevronDown,
   ShieldCheck,
-  BarChart3
+  BarChart3,
+  Scale
 } from "lucide-react";
 import { UpgradeModal } from "@/components/UpgradeModal";
 
@@ -190,6 +191,22 @@ export default function DashboardPage() {
             <span className="block text-base font-bold text-navy-900 leading-tight">Verify Plagiarism Code</span>
             <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
               Check a student&apos;s authenticity result.
+            </span>
+          </span>
+        </Link>
+
+        {/* Inverse Marking */}
+        <Link
+          href="/dashboard/inverse-marking"
+          className="group flex items-center gap-3 rounded-[18px] bg-white px-4 py-4 sm:px-5 border border-slate-200 shadow-[0_1px_2px_rgba(16,26,46,0.05)] hover:border-navy-200 hover:shadow-[0_10px_24px_-14px_rgba(16,26,46,0.2)] transition-all"
+        >
+          <span className="w-10 h-10 shrink-0 rounded-xl border border-gold-200 bg-gold-50 text-gold-600 flex items-center justify-center group-hover:bg-gold-100 transition-colors">
+            <Scale className="w-5 h-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-base font-bold text-navy-900 leading-tight">Inverse Marking</span>
+            <span className="block mt-0.5 text-[13px] leading-snug text-slate-600">
+              Students mark your script — grade their accuracy.
             </span>
           </span>
         </Link>

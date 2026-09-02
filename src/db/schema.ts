@@ -259,5 +259,44 @@ export type SystemSetting = typeof systemSettings.$inferSelect;
 export type NewSystemSetting = typeof systemSettings.$inferInsert;
 export type ExtractDocument = typeof extractDocuments.$inferSelect;
 export type NewExtractDocument = typeof extractDocuments.$inferInsert;
+// Teacher-built "inverse marking" exercises: students mark the TEACHER's own
+// script against the per-question marks, and are graded on how closely their
+// marks match the teacher's control marks.
+export const inverseMarkings = sqliteTable("inverse_markings", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  instruction: text("instruction"), // Note shown to students before they mark
+  questionsJson: text("questions_json").notNull(), // JSON: [{ id, prompt, maxMarks, markScheme, answer, controlMark, isTrap }]
+  tolerance: integer("tolerance").notNull().default(1), // agreement band (marks)
+  passThreshold: integer("pass_threshold").notNull().default(80), // accuracy % required to pass
+  showResultsToStudents: integer("show_results_to_students").notNull().default(1), // reveal comparison to students after submit
+  status: text("status").notNull().default("active"), // "active" | "ended"
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const inverseMarkingSubmissions = sqliteTable("inverse_marking_submissions", {
+  id: text("id").primaryKey(),
+  exerciseId: text("exercise_id").notNull().references(() => inverseMarkings.id, { onDelete: "cascade" }),
+  studentName: text("student_name").notNull(),
+  studentEmail: text("student_email"),
+  marksJson: text("marks_json").notNull(), // JSON: [{ qId, marks, justification }]
+  totalTeacherMarks: integer("total_teacher_marks").notNull().default(0), // marks the student awarded
+  totalControlMarks: integer("total_control_marks").notNull().default(0), // teacher's own marks
+  totalMaxMarks: integer("total_max_marks").notNull().default(0),
+  deviationTotal: integer("deviation_total").notNull().default(0),
+  accuracyScore: integer("accuracy_score").notNull().default(0), // 0-100
+  passed: integer("passed").notNull().default(0), // 1 = true
+  leniency: integer("leniency").notNull().default(0), // signed avg deviation (+) over-marking
+  submittedAt: text("submitted_at").notNull(),
+});
+
 export type Meeting = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
+export type InverseMarking = typeof inverseMarkings.$inferSelect;
+export type NewInverseMarking = typeof inverseMarkings.$inferInsert;
+export type InverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferSelect;
+export type NewInverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferInsert;

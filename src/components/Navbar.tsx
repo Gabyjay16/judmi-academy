@@ -22,7 +22,8 @@ import {
   Zap,
   Crown,
   ScanLine,
-  Music4
+  Music4,
+  Scale
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
 
@@ -186,6 +187,7 @@ export default function Navbar() {
     // Student Links
     navLinks = [
       { href: "/student/dashboard", label: "Student Hub", icon: GraduationCap },
+      { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
   } else if (currentUser?.role === "org_admin" || pathname.startsWith("/org")) {
@@ -197,6 +199,7 @@ export default function Navbar() {
       { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 },
       { href: "/dashboard", label: "Teacher Studio", icon: LayoutDashboard },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
+      { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     // Super Administrator
@@ -207,6 +210,7 @@ export default function Navbar() {
       { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 },
       { href: "/org/dashboard", label: "School Hub", icon: Building2 },
       { href: "/dashboard", label: "Exam Studio", icon: LayoutDashboard },
+      { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
   } else {
     // Authenticated Teacher
@@ -215,6 +219,7 @@ export default function Navbar() {
       { href: "/dashboard/scan-scripts", label: "Mark Scripts", icon: Camera },
       { href: "/dashboard/extract-info", label: "Extract Info", icon: ScanLine },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
+      { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
     // Institution teachers only
     if (currentUser?.orgId) {

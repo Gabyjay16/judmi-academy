@@ -326,6 +326,42 @@ export async function initDatabase() {
       );
     `);
 
+    // 14. Inverse Marking exercises + submissions (students mark the teacher's own script)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS inverse_markings (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        instruction TEXT,
+        questions_json TEXT NOT NULL,
+        tolerance INTEGER NOT NULL DEFAULT 1,
+        pass_threshold INTEGER NOT NULL DEFAULT 80,
+        show_results_to_students INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS inverse_marking_submissions (
+        id TEXT PRIMARY KEY,
+        exercise_id TEXT NOT NULL REFERENCES inverse_markings(id) ON DELETE CASCADE,
+        student_name TEXT NOT NULL,
+        student_email TEXT,
+        marks_json TEXT NOT NULL,
+        total_teacher_marks INTEGER NOT NULL DEFAULT 0,
+        total_control_marks INTEGER NOT NULL DEFAULT 0,
+        total_max_marks INTEGER NOT NULL DEFAULT 0,
+        deviation_total INTEGER NOT NULL DEFAULT 0,
+        accuracy_score INTEGER NOT NULL DEFAULT 0,
+        passed INTEGER NOT NULL DEFAULT 0,
+        leniency INTEGER NOT NULL DEFAULT 0,
+        submitted_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);
