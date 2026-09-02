@@ -17,6 +17,7 @@ import {
   FileText,
   Loader2,
   BookOpenCheck,
+  Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -27,6 +28,7 @@ interface ExerciseListItem {
   status: "active" | "ended";
   tolerance: number;
   passThreshold: number;
+  durationMinutes?: number;
   questionCount: number;
   totalMarks: number;
   submissionCount: number;
@@ -207,6 +209,11 @@ export default function InverseMarkingHub() {
                       <div className="mt-1 text-[11px] text-slate-500 space-x-3">
                         <span>{ex.questionCount} question{ex.questionCount === 1 ? "" : "s"}</span>
                         <span>• {ex.totalMarks} total marks</span>
+                        {(ex.durationMinutes || 0) > 0 && (
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400" /> {ex.durationMinutes} min
+                          </span>
+                        )}
                         <span>• {ex.submissionCount} submission{ex.submissionCount === 1 ? "" : "s"}</span>
                         <span>• {shortDate}</span>
                       </div>

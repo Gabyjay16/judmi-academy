@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     const questions = Array.isArray(body?.questions) ? body.questions : [];
     const tolerance = Math.max(0, Math.min(10, parseInt(body?.tolerance, 10) || 1));
     const passThreshold = Math.max(50, Math.min(100, parseInt(body?.passThreshold, 10) || 80));
+    const durationMinutes = Math.max(0, Math.min(300, Math.round(parseInt(body?.durationMinutes, 10) || 0)));
 
     if (!title) {
       return NextResponse.json({ error: "Please give this exercise a title." }, { status: 400 });
@@ -48,8 +49,8 @@ export async function POST(req: NextRequest) {
       if (!prompt) {
         return NextResponse.json({ error: "Every question needs a prompt." }, { status: 400 });
       }
-      if (answer.length < 10) {
-        return NextResponse.json({ error: "Every question needs the teacher's reference answer (at least 10 characters) for students to mark." }, { status: 400 });
+      if (answer.length < 3) {
+        return NextResponse.json({ error: "Every question needs the teacher's reference answer for students to mark." }, { status: 400 });
       }
 
       cleanQuestions.push({
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest) {
       questionsJson: JSON.stringify(cleanQuestions),
       tolerance,
       passThreshold,
+      durationMinutes,
       showResultsToStudents: 1,
       status: "active",
       createdAt: now,
@@ -98,6 +100,7 @@ export async function POST(req: NextRequest) {
         id,
         code,
         title,
+        durationMinutes,
         createdAt: now,
       },
     });
@@ -148,6 +151,7 @@ export async function GET(req: NextRequest) {
         status: row.status,
         tolerance: row.tolerance,
         passThreshold: row.passThreshold,
+        durationMinutes: row.durationMinutes,
         questionCount,
         totalMarks,
         submissionCount: subRows.length,

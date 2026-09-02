@@ -272,6 +272,7 @@ export const inverseMarkings = sqliteTable("inverse_markings", {
   questionsJson: text("questions_json").notNull(), // JSON: [{ id, prompt, maxMarks, markScheme, answer, controlMark, isTrap }]
   tolerance: integer("tolerance").notNull().default(1), // agreement band (marks)
   passThreshold: integer("pass_threshold").notNull().default(80), // accuracy % required to pass
+  durationMinutes: integer("duration_minutes").notNull().default(0), // 0 = no time limit
   showResultsToStudents: integer("show_results_to_students").notNull().default(1), // reveal comparison to students after submit
   status: text("status").notNull().default("active"), // "active" | "ended"
   createdAt: text("created_at").notNull(),

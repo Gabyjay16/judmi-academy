@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   User,
   Lock,
+  Clock,
   BookOpenCheck,
 } from "lucide-react";
 import InverseMarkingResult, { InverseMarkingResultData } from "@/components/InverseMarkingResult";
@@ -34,6 +35,7 @@ interface Exercise {
   questions: ExerciseQuestion[];
   tolerance: number;
   passThreshold: number;
+  durationMinutes?: number;
   status: string;
   showResultsToStudents?: boolean;
   createdAt: string;
@@ -51,6 +53,21 @@ export default function StudentInverseMarkingPage() {
   const [marks, setMarks] = useState<Record<string, { marks: string; justification: string }>>({});
   const [result, setResult] = useState<InverseMarkingResultData | null>(null);
   const [revealAnswer, setRevealAnswer] = useState<Record<string, boolean>>({});
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeUp, setTimeUp] = useState(false);
+
+  useEffect(() => {
+    if (status !== "marking" || !deadline) return;
+    const tick = () => {
+      const remain = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+      setTimeLeft(remain);
+      if (remain <= 0) setTimeUp(true);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [status, deadline]);
 
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("code");
@@ -79,6 +96,17 @@ export default function StudentInverseMarkingPage() {
       });
       setMarks(initial);
       setStatus("marking");
+      const dur = Number(json.exercise.durationMinutes) || 0;
+      if (dur > 0 && json.exercise.status === "active") {
+        const dl = Date.now() + dur * 60 * 1000;
+        setDeadline(dl);
+        setTimeLeft(dur * 60);
+        setTimeUp(false);
+      } else {
+        setDeadline(null);
+        setTimeLeft(0);
+        setTimeUp(false);
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
       setError(err?.message || "Could not load that exercise.");
@@ -146,6 +174,9 @@ export default function StudentInverseMarkingPage() {
     setMarks({});
     setRevealAnswer({});
     setCodeInput("");
+    setDeadline(null);
+    setTimeLeft(0);
+    setTimeUp(false);
     setStatus("idle");
   };
 
@@ -170,7 +201,7 @@ export default function StudentInverseMarkingPage() {
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => { setExercise(null); setResult(null); setStatus("idle"); setCodeInput(""); }}
+            onClick={() => { setExercise(null); setResult(null); setStatus("idle"); setCodeInput(""); setDeadline(null); setTimeLeft(0); setTimeUp(false); }}
             className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
           >
             Mark another exercise
@@ -200,6 +231,20 @@ export default function StudentInverseMarkingPage() {
               {teacherName ? `Set by ${teacherName}` : "Set by your teacher"}
               {exercise.passThreshold ? ` • Pass at ${exercise.passThreshold}% accuracy` : ""} • Code{" "}
               <span className="font-mono font-bold tracking-widest text-slate-700">{exercise.code}</span>
+              {(exercise.durationMinutes || 0) > 0 && (
+                <span
+                  className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border align-middle ${
+                    timeUp
+                      ? "bg-rose-100 text-rose-700 border-rose-200"
+                      : timeLeft <= 60
+                      ? "bg-amber-100 text-amber-800 border-amber-200"
+                      : "bg-indigo-100 text-indigo-700 border-indigo-200"
+                  }`}
+                >
+                  <Clock className="w-3 h-3" />
+                  {timeUp ? "Time is up" : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")} left`}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -215,6 +260,13 @@ export default function StudentInverseMarkingPage() {
           <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             {error}
+          </div>
+        )}
+
+        {timeUp && (
+          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold flex items-start gap-2">
+            <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+            Time is up — your marks are now locked. Press “Submit my marks” to see how you compared with the teacher&apos;s control marks.
           </div>
         )}
 
@@ -312,12 +364,13 @@ export default function StudentInverseMarkingPage() {
                       max={q.maxMarks}
                       step={1}
                       value={entry.marks}
+                      disabled={timeUp}
                       onChange={(e) => {
                         const v = e.target.value;
                         setMarks((prev) => ({ ...prev, [q.id]: { ...prev[q.id], marks: v } }));
                       }}
                       placeholder="0"
-                      className="w-20 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-20 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:bg-slate-100"
                     />
                     <span className="text-[11px] text-slate-400">
                       Marks awarded must total how fully the answer meets the question.
@@ -329,13 +382,14 @@ export default function StudentInverseMarkingPage() {
                     </label>
                     <textarea
                       value={entry.justification}
+                      disabled={timeUp}
                       onChange={(e) => {
                         const v = e.target.value;
                         setMarks((prev) => ({ ...prev, [q.id]: { ...prev[q.id], justification: v } }));
                       }}
                       rows={2}
                       placeholder="e.g. The paragraph covers the definition fully but misses the example, so I deducted 2 marks."
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y disabled:opacity-50 disabled:bg-slate-100"
                     />
                   </div>
                 </div>

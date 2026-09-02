@@ -18,6 +18,7 @@ import {
   BarChart3,
   CheckCircle2,
   XCircle,
+  Clock,
 } from "lucide-react";
 
 interface Question {
@@ -53,6 +54,7 @@ interface ExerciseData {
   questions: Question[];
   tolerance: number;
   passThreshold: number;
+  durationMinutes?: number;
   status: "active" | "ended";
   showResultsToStudents: boolean;
   createdAt: string;
@@ -187,6 +189,7 @@ export default function InverseMarkingResults({ params }: { params: Promise<{ co
             </div>
             <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
               {exercise.questions.length} question{exercise.questions.length === 1 ? "" : "s"} • control marks visible to you • pass at {exercise.passThreshold}% accuracy (allowing ±{exercise.tolerance} mark)
+              {(exercise.durationMinutes || 0) > 0 ? ` • ${exercise.durationMinutes} min time limit` : ""}
               {exercise.instruction ? <> • <span className="italic">“{exercise.instruction}”</span></> : null}
             </p>
             <div className="flex items-center gap-2 mt-3 flex-wrap">

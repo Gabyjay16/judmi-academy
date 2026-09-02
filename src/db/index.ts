@@ -338,12 +338,15 @@ export async function initDatabase() {
         questions_json TEXT NOT NULL,
         tolerance INTEGER NOT NULL DEFAULT 1,
         pass_threshold INTEGER NOT NULL DEFAULT 80,
+        duration_minutes INTEGER NOT NULL DEFAULT 0,
         show_results_to_students INTEGER NOT NULL DEFAULT 1,
         status TEXT NOT NULL DEFAULT 'active',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
     `);
+    // Safe column additions for inverse_markings (time-limited marking)
+    try { await client.execute(`ALTER TABLE inverse_markings ADD COLUMN duration_minutes INTEGER DEFAULT 0;`); } catch {}
     await client.execute(`
       CREATE TABLE IF NOT EXISTS inverse_marking_submissions (
         id TEXT PRIMARY KEY,
