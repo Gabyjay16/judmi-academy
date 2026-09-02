@@ -236,6 +236,28 @@ function FieldEditor({
           </button>
         )}
       </div>
+
+      {fields.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value=""
+            onChange={(e) => {
+              const idx = Number(e.target.value);
+              if (Number.isInteger(idx) && idx >= 0) startEdit(idx);
+            }}
+            className={`px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:outline-none ${selectBg} max-w-full`}
+          >
+            <option value="">Select a field to edit...</option>
+            {fields.map((f, idx) => (
+              <option key={`${f.name}-${idx}`} value={idx}>
+                {f.name}{f.instruction ? ` (${f.instruction})` : ""}
+              </option>
+            ))}
+          </select>
+          <span className="text-[11px] text-slate-400">pick an existing field from the dropdown to edit it</span>
+        </div>
+      )}
+
       <p className="text-[11px] text-slate-500">
         Name a field, then add an instruction in brackets to guide the AI, e.g.{" "}
         <code className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">name (student's full name)</code> or{" "}
