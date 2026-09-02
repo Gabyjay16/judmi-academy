@@ -17,6 +17,8 @@ import {
   UploadCloud,
   FolderOpen,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import CameraStudio from "@/components/CameraStudio";
 import { isPdfFile, pdfFileToImages } from "@/lib/pdf-images";
@@ -307,6 +309,7 @@ export default function ExtractAdvancedPanel({
   const [addError, setAddError] = useState<string | null>(null);
   const [addResult, setAddResult] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [showPages, setShowPages] = useState(false);
 
   const [shareText, setShareText] = useState("");
   const [sharing, setSharing] = useState(false);
@@ -481,6 +484,7 @@ export default function ExtractAdvancedPanel({
       setAddError(null);
       setAddResult(null);
       setAddPages([]);
+      setShowPages(false);
       setAddMode("auto");
       setPhotosPerRecord(1);
       setAddTarget((json.set.docs || []).length > 0 ? json.set.docs[0].id : "");
@@ -1166,55 +1170,67 @@ export default function ExtractAdvancedPanel({
                   </p>
                 )}
 
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-slate-700">
-                      Pages ({addPages.length}{addPages.length > 0 ? ` • ${addMode === "auto" ? "auto-filing" : `to ${detail.docs.find((d) => d.id === addTarget)?.title || ""}`}` : ""}):
+                      {addPages.length} page{addPages.length === 1 ? "" : "s"} added{addPages.length > 0 ? ` • ${addMode === "auto" ? "auto-filing" : `to ${detail.docs.find((d) => d.id === addTarget)?.title || ""}`}` : ""}
                     </span>
-                  </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {addPages.map((p, i) => (
+                    {addPages.length > 0 && (
                       <button
-                        key={i}
                         type="button"
-                        onClick={() => setAddPages((prev) => prev.filter((_, x) => x !== i))}
-                        className="relative rounded-xl overflow-hidden border border-slate-200 aspect-[3/4] group"
-                        title="Remove page"
+                        onClick={() => setShowPages((v) => !v)}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-300 text-slate-600 text-[11px] font-bold inline-flex items-center gap-1"
                       >
-                        <img src={p} alt={`Page ${i + 1}`} className="w-full h-full object-cover" />
-                        <span className="absolute inset-0 bg-rose-600/0 group-hover:bg-rose-600/40" />
-                        <span className="absolute top-0.5 right-0.5 p-1 rounded-full bg-rose-600 text-white opacity-0 group-hover:opacity-100">
-                          <Trash2 className="w-3 h-3" />
-                        </span>
+                        {showPages ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        {showPages ? "Hide pages" : "View pages"}
                       </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setShowCamera(true)}
-                      className="rounded-xl border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-100 aspect-[3/4] flex flex-col items-center justify-center gap-1 text-center p-2"
-                    >
-                      <Camera className="w-5 h-5 text-emerald-600" />
-                      <span className="text-[9px] font-extrabold text-emerald-900">Snap Page</span>
-                      <span className="text-[8px] text-emerald-600">camera</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addGalleryRef.current?.click()}
-                      className="rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 aspect-[3/4] flex flex-col items-center justify-center gap-1 text-center p-2"
-                    >
-                      <UploadCloud className="w-5 h-5 text-slate-500" />
-                      <span className="text-[9px] font-extrabold text-slate-700">Batch Upload</span>
-                      <span className="text-[8px] text-slate-500">gallery / PDF</span>
-                    </button>
+                    )}
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowCamera(true)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold inline-flex items-center gap-1"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        Snap Page
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => addGalleryRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-[11px] font-bold inline-flex items-center gap-1"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        Batch Upload
+                      </button>
+                      <input
+                        ref={addGalleryRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        onChange={handleAddGallery}
+                        className="hidden"
+                      />
+                    </div>
                   </div>
-                  <input
-                    ref={addGalleryRef}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    multiple
-                    onChange={handleAddGallery}
-                    className="hidden"
-                  />
+                  {addPages.length > 0 && showPages && (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 mt-2">
+                      {addPages.map((p, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setAddPages((prev) => prev.filter((_, x) => x !== i))}
+                          className="relative rounded-xl overflow-hidden border border-slate-200 aspect-[3/4] group"
+                          title="Remove page"
+                        >
+                          <img src={p} alt={`Page ${i + 1}`} className="w-full h-full object-cover" />
+                          <span className="absolute inset-0 bg-rose-600/0 group-hover:bg-rose-600/40" />
+                          <span className="absolute top-0.5 right-0.5 p-1 rounded-full bg-rose-600 text-white opacity-0 group-hover:opacity-100">
+                            <Trash2 className="w-3 h-3" />
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {addError && <div className="text-xs font-semibold text-rose-700">{addError}</div>}
