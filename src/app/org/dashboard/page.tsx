@@ -360,7 +360,7 @@ export default function OrgDashboardPage() {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-20 text-center text-slate-500 space-y-3">
-        <div className="w-10 h-10 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="w-10 h-10 border-2 border-navy-700 border-t-transparent rounded-full animate-spin mx-auto" />
         <p className="text-sm font-semibold">Loading organization sub-accounts & school hub...</p>
       </div>
     );
@@ -381,13 +381,32 @@ export default function OrgDashboardPage() {
   const unitPrice = extraSeats >= 10 ? 1500 : 2000;
   const totalCost = extraSeats * unitPrice;
 
+  const tabs = [
+    { id: "teachers", label: `Faculty Teachers (${teachers.length})`, icon: BookOpen },
+    { id: "students", label: `Enrolled Students (${students.length})`, icon: GraduationCap },
+    { id: "departments", label: `Departments (${departments.length})`, icon: Network },
+    { id: "complaints", label: `Complaints Inbox (${complaintStats.total})`, icon: MessageSquare },
+    { id: "tests", label: `School Tests (${tests.length})`, icon: BarChart3 },
+    { id: "extract", label: "Extract Info", icon: ScanLine },
+    { id: "branding", label: "Link & Branding", icon: Palette },
+  ] as const;
+
+  const statusBadge = (status: string) => {
+    if (status === "pending") return <span className="badge badge-warning">Pending</span>;
+    if (status === "under_review") return <span className="badge badge-primary">Under Review</span>;
+    if (status === "resolved") return <span className="badge badge-success">Resolved</span>;
+    if (status === "rejected") return <span className="badge badge-danger">Rejected</span>;
+    return <span className="badge badge-neutral">{status}</span>;
+  };
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 sm:space-y-8 animate-fade-in">
       
       {/* School Org Header */}
-      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: organization.brandColor || "#a5b4fc" }}>
+      <div className="surface-elevated p-6 sm:p-8 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #101a2e 0%, #1a2c47 55%, #243b5e 100%)" }}>
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+        <div className="space-y-1.5 relative z-10">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200">
             <Building2 className="w-4 h-4" />
             <span>School / Institutional Organization</span>
           </div>
@@ -407,14 +426,13 @@ export default function OrgDashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto relative z-10">
           {enrolmentLink ? (
-            <div className="bg-white/10 p-3 rounded-2xl border border-white/15 backdrop-blur-xs w-full sm:w-auto space-y-2">
-              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <div className="bg-white/10 p-3 rounded-2xl border border-white/15 backdrop-blur-sm w-full sm:w-auto space-y-2">
+              <span className="text-[10px] text-amber-200 font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5" />
                 {displayTitle} Student Enrolment Link
               </span>
-              {/* Mobile-friendly: full link wraps onto multiple lines */}
               <div className="flex items-center gap-2">
                 <span
                   className="font-mono font-bold text-white tracking-wide text-[10px] sm:text-xs leading-relaxed break-all flex-1 min-w-0"
@@ -432,31 +450,31 @@ export default function OrgDashboardPage() {
                   }}
                   className="px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition-colors shrink-0"
                 >
-                  {copiedCode ? "✓ Copied!" : "Copy"}
+                  {copiedCode ? "Copied" : "Copy"}
                 </button>
               </div>
             </div>
           ) : (
             <button
               onClick={() => setActiveTab("branding")}
-              className="px-3.5 py-2.5 rounded-2xl bg-white/10 border border-white/15 text-white text-[11px] font-bold hover:bg-white/20 transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white text-[11px] font-bold hover:bg-white/20 transition-colors flex items-center gap-1.5"
             >
-              <Link2 className="w-3.5 h-3.5 text-indigo-300" />
+              <Link2 className="w-3.5 h-3.5 text-amber-300" />
               Set up your Student Enrolment Link
             </button>
           )}
 
           <button
             onClick={() => setShowFormBuilderModal(true)}
-            className="px-3.5 py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shrink-0"
+            className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shrink-0"
           >
-            <Settings2 className="w-4 h-4 text-indigo-300" />
+            <Settings2 className="w-4 h-4 text-amber-300" />
             <span>Form Settings</span>
           </button>
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-500/30 transition-all flex items-center gap-1.5 shrink-0"
+            className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shrink-0"
           >
             <UserPlus className="w-4 h-4" />
             <span>+ Add Member</span>
@@ -465,20 +483,20 @@ export default function OrgDashboardPage() {
       </div>
 
       {/* Seat Utilization Bar */}
-      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+      <div className="surface-elevated p-5 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div>
             <span className="font-bold text-slate-900 text-sm">Organization Member Capacity: </span>
-            <span className="text-indigo-700 font-bold">{seats.used}</span> of <span className="font-bold text-slate-700">{seats.total}</span> sub-accounts active
+            <span className="text-navy-800 font-bold">{seats.used}</span> of <span className="font-bold text-slate-700">{seats.total}</span> sub-accounts active
           </div>
           
           <div className="flex items-center gap-3">
             <span className="text-slate-400 font-medium">{seats.available} seats available</span>
             <button
               onClick={() => setShowExpandModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-colors flex items-center gap-1"
+              className="btn-accent px-3 py-1.5 text-xs"
             >
-              <Zap className="w-3.5 h-3.5 fill-slate-950" />
+              <Zap className="w-3.5 h-3.5 fill-white" />
               <span>+ Increase Sub-Members</span>
             </button>
           </div>
@@ -486,93 +504,37 @@ export default function OrgDashboardPage() {
 
         <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
           <div 
-            className="bg-gradient-to-r from-indigo-600 to-indigo-500 h-full rounded-full transition-all duration-500" 
+            className="bg-gradient-to-r from-amber-600 to-amber-500 h-full rounded-full transition-all duration-500" 
             style={{ width: `${Math.min(100, Math.round((seats.used / (seats.total || 1)) * 100))}%` }} 
           />
         </div>
       </div>
 
-      {/* Main Hub Tabs */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
+      {/* Main Hub */}
+      <div className="surface-elevated overflow-hidden">
         
-        {/* Navigation Tab Buttons */}
+        {/* Tabs */}
         <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl overflow-x-auto text-xs">
-            <button
-              onClick={() => setActiveTab("teachers")}
-              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-                activeTab === "teachers" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Faculty Teachers ({teachers.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("students")}
-              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-                activeTab === "students" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Enrolled Students ({students.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("departments")}
-              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-                activeTab === "departments" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" />
-              <span>Departments ({departments.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("complaints")}
-              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-                activeTab === "complaints" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Complaints Inbox ({complaintStats.total})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("tests")}
-              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-                activeTab === "tests" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>School Tests ({tests.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("extract")}
-              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-                activeTab === "extract" ? "bg-white text-teal-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <ScanLine className="w-3.5 h-3.5" />
-              <span>Extract Info</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("branding")}
-              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-                activeTab === "branding" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span>Link &amp; Branding</span>
-            </button>
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === tab.id ? "bg-navy-900 text-white shadow-sm font-bold" : "text-slate-600 hover:text-slate-900 hover:bg-white"
+                }`}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {activeTab === "departments" ? (
               <button
                 onClick={() => setShowAddDeptModal(true)}
-                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1"
+                className="btn-primary px-3.5 py-2 text-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Add Department</span>
@@ -580,7 +542,7 @@ export default function OrgDashboardPage() {
             ) : (
               <button
                 onClick={() => setShowAddModal(true)}
-                className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-navy-800 hover:underline flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Create Teacher</span>
@@ -589,52 +551,51 @@ export default function OrgDashboardPage() {
           </div>
         </div>
 
-        {/* 1. TEACHERS TAB (With Complaint Access Delegation) */}
+        {/* 1. TEACHERS TAB */}
         {activeTab === "teachers" && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto animate-fade-in">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50/75 text-slate-500 font-semibold border-b border-slate-100">
+              <thead>
                 <tr>
-                  <th className="px-5 py-3.5">Teacher Name</th>
-                  <th className="px-4 py-3.5">Phone / Email</th>
-                  <th className="px-4 py-3.5">Complaint Permissions</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5">Added Date</th>
+                  <th className="table-header">Teacher Name</th>
+                  <th className="table-header">Phone / Email</th>
+                  <th className="table-header">Complaint Permissions</th>
+                  <th className="table-header">Status</th>
+                  <th className="table-header">Added Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {teachers.map((t: any) => (
-                  <tr key={t.id} className="hover:bg-slate-50/50">
-                    <td className="px-5 py-4 font-bold text-slate-900 flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center">
-                        {t.name[0]}
+                  <tr key={t.id} className="table-row">
+                    <td className="table-cell font-bold text-slate-900">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-navy-50 text-navy-800 border border-navy-100 font-bold text-xs flex items-center justify-center shrink-0">
+                          {t.name[0]}
+                        </div>
+                        <span>{t.name}</span>
                       </div>
-                      <span>{t.name}</span>
                     </td>
-                    <td className="px-4 py-4 font-mono text-slate-600 text-xs">{t.email}</td>
+                    <td className="table-cell font-mono text-slate-600 text-xs">{t.email}</td>
                     
-                    {/* Delegation of Complaint Access */}
-                    <td className="px-4 py-4">
+                    <td className="table-cell">
                       <button
                         onClick={() => handleToggleComplaintPermission(t.id, t.canManageComplaints || 0)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all ${
                           t.canManageComplaints === 1
                             ? "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
-                            : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-700"
+                            : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-navy-50 hover:text-navy-800"
                         }`}
                         title="Click to grant or revoke complaint review permissions"
                       >
                         <ShieldCheck className={`w-3.5 h-3.5 ${t.canManageComplaints === 1 ? "text-emerald-600" : "text-slate-400"}`} />
-                        <span>{t.canManageComplaints === 1 ? "✓ Complaint Reviewer" : "Grant Complaint Access"}</span>
+                        <span>{t.canManageComplaints === 1 ? "Complaint Reviewer" : "Grant Complaint Access"}</span>
                       </button>
                     </td>
 
-                    <td className="px-4 py-4">
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                        Active Teacher
-                      </span>
+                    <td className="table-cell">
+                      <span className="badge badge-success">Active Teacher</span>
                     </td>
-                    <td className="px-4 py-4 text-slate-400 text-xs">
+                    <td className="table-cell text-slate-400 text-xs">
                       {new Date(t.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -646,22 +607,22 @@ export default function OrgDashboardPage() {
 
         {/* 2. STUDENTS TAB */}
         {activeTab === "students" && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto animate-fade-in">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50/75 text-slate-500 font-semibold border-b border-slate-100">
+              <thead>
                 <tr>
-                  <th className="px-5 py-3.5">Student Name</th>
-                  <th className="px-4 py-3.5">Matricule</th>
-                  <th className="px-4 py-3.5">Phone / Email</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5">Enrolled Date</th>
+                  <th className="table-header">Student Name</th>
+                  <th className="table-header">Matricule</th>
+                  <th className="table-header">Phone / Email</th>
+                  <th className="table-header">Status</th>
+                  <th className="table-header">Enrolled Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {students.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-5 py-12 text-center">
-                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 mb-2">
+                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-navy-50 text-navy-700 border border-navy-100 mb-2">
                         <Link2 className="w-5 h-5" />
                       </div>
                       <p className="text-sm font-bold text-slate-700">No enrolled students yet.</p>
@@ -671,7 +632,7 @@ export default function OrgDashboardPage() {
                       </p>
                       <button
                         onClick={() => { setActiveTab("branding"); }}
-                        className="mt-3 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
+                        className="btn-primary mt-3 text-xs"
                       >
                         Get My Enrolment Link
                       </button>
@@ -679,21 +640,21 @@ export default function OrgDashboardPage() {
                   </tr>
                 )}
                 {students.map((s: any) => (
-                  <tr key={s.id} className="hover:bg-slate-50/50">
-                    <td className="px-5 py-4 font-bold text-slate-900 flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-purple-50 text-purple-700 font-bold text-xs flex items-center justify-center">
-                        {s.name[0]}
+                  <tr key={s.id} className="table-row">
+                    <td className="table-cell font-bold text-slate-900">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold text-xs flex items-center justify-center shrink-0">
+                          {s.name[0]}
+                        </div>
+                        <span>{s.name}</span>
                       </div>
-                      <span>{s.name}</span>
                     </td>
-                    <td className="px-4 py-4 font-mono text-slate-600 font-bold">{s.studentId || "—"}</td>
-                    <td className="px-4 py-4 font-mono text-slate-600 text-xs">{s.email}</td>
-                    <td className="px-4 py-4">
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                        Enrolled
-                      </span>
+                    <td className="table-cell font-mono text-slate-600 font-bold">{s.studentId || "—"}</td>
+                    <td className="table-cell font-mono text-slate-600 text-xs">{s.email}</td>
+                    <td className="table-cell">
+                      <span className="badge badge-success">Enrolled</span>
                     </td>
-                    <td className="px-4 py-4 text-slate-400 text-xs">
+                    <td className="table-cell text-slate-400 text-xs">
                       {new Date(s.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -705,15 +666,15 @@ export default function OrgDashboardPage() {
 
         {/* 3. DEPARTMENTS TAB */}
         {activeTab === "departments" && (
-          <div className="p-4 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="p-4 sm:p-6 space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">School Departments & Faculties</h3>
                 <p className="text-xs text-slate-500">Students select their department upon registration to submit course-specific complaints.</p>
               </div>
               <button
                 onClick={() => setShowAddDeptModal(true)}
-                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5"
+                className="btn-primary px-3.5 py-2 text-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Add Department</span>
@@ -721,7 +682,7 @@ export default function OrgDashboardPage() {
             </div>
 
             {departments.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs space-y-2 border-2 border-dashed border-slate-200 rounded-3xl p-6">
+              <div className="text-center py-12 text-slate-400 text-xs space-y-2 border-2 border-dashed border-slate-200 rounded-2xl p-6">
                 <Network className="w-8 h-8 mx-auto text-slate-300" />
                 <p className="font-bold text-slate-700">No departments created yet.</p>
                 <p>Add departments (e.g. Computer Science, Law, Accounting) so students can select them.</p>
@@ -729,18 +690,18 @@ export default function OrgDashboardPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {departments.map((d: any) => (
-                  <div key={d.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 flex items-center justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <div className="font-bold text-slate-900 text-xs sm:text-sm">{d.name}</div>
+                  <div key={d.id} className="card card-hover p-4 flex items-center justify-between gap-3">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="font-bold text-slate-900 text-xs sm:text-sm truncate">{d.name}</div>
                       {d.code && (
-                        <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                        <span className="font-mono text-[10px] font-bold text-navy-800 bg-navy-50 px-2 py-0.5 rounded border border-navy-100">
                           {d.code}
                         </span>
                       )}
                     </div>
                     <button
                       onClick={() => handleDeleteDepartment(d.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors shrink-0"
                       title="Delete Department"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -752,39 +713,38 @@ export default function OrgDashboardPage() {
           </div>
         )}
 
-        {/* 4. COMPLAINTS INBOX TAB (With Comprehensive Sorting & Filtering) */}
+        {/* 4. COMPLAINTS INBOX TAB */}
         {activeTab === "complaints" && (
-          <div className="p-4 sm:p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
             
-            {/* Header & Stats Banner */}
+            {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-                <span className="text-[11px] text-slate-500 font-medium">Total Complaints</span>
-                <div className="text-xl font-extrabold text-slate-900 mt-0.5">{complaintStats.total}</div>
+              <div className="surface card-hover p-3.5 sm:p-4">
+                <span className="metric-label">Total Complaints</span>
+                <div className="metric-value mt-0.5">{complaintStats.total}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200">
-                <span className="text-[11px] text-amber-700 font-medium">Pending Review</span>
-                <div className="text-xl font-extrabold text-amber-900 mt-0.5">{complaintStats.pending}</div>
+              <div className="surface card-hover p-3.5 sm:p-4">
+                <span className="metric-label !text-amber-700">Pending Review</span>
+                <div className="metric-value mt-0.5 text-amber-700">{complaintStats.pending}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200">
-                <span className="text-[11px] text-indigo-700 font-medium">Under Review</span>
-                <div className="text-xl font-extrabold text-indigo-900 mt-0.5">{complaintStats.underReview}</div>
+              <div className="surface card-hover p-3.5 sm:p-4">
+                <span className="metric-label !text-navy-700">Under Review</span>
+                <div className="metric-value mt-0.5 text-navy-800">{complaintStats.underReview}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200">
-                <span className="text-[11px] text-emerald-700 font-medium">Resolved</span>
-                <div className="text-xl font-extrabold text-emerald-900 mt-0.5">{complaintStats.resolved}</div>
+              <div className="surface card-hover p-3.5 sm:p-4">
+                <span className="metric-label !text-emerald-700">Resolved</span>
+                <div className="metric-value mt-0.5 text-emerald-700">{complaintStats.resolved}</div>
               </div>
             </div>
 
-            {/* Comprehensive Sorting & Filtering Bar */}
+            {/* Filters */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                <Filter className="w-3.5 h-3.5 text-indigo-600" />
+                <Filter className="w-3.5 h-3.5 text-navy-700" />
                 <span>Filter & Sort Complaints Per Field</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
-                {/* Filter per Department */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                     Department
@@ -792,7 +752,7 @@ export default function OrgDashboardPage() {
                   <select
                     value={filterDepartment}
                     onChange={(e) => setFilterDepartment(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                    className="input-field py-2 text-xs font-semibold"
                   >
                     <option value="all">All Departments</option>
                     {departments.map((d) => (
@@ -801,7 +761,6 @@ export default function OrgDashboardPage() {
                   </select>
                 </div>
 
-                {/* Filter per Nature */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                     Nature / Category
@@ -809,7 +768,7 @@ export default function OrgDashboardPage() {
                   <select
                     value={filterNature}
                     onChange={(e) => setFilterNature(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                    className="input-field py-2 text-xs font-semibold"
                   >
                     <option value="all">All Natures</option>
                     {formCategories.map((c) => (
@@ -818,7 +777,6 @@ export default function OrgDashboardPage() {
                   </select>
                 </div>
 
-                {/* Filter per Student Level */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                     Student Level / Year
@@ -826,7 +784,7 @@ export default function OrgDashboardPage() {
                   <select
                     value={filterLevel}
                     onChange={(e) => setFilterLevel(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                    className="input-field py-2 text-xs font-semibold"
                   >
                     <option value="all">All Levels</option>
                     {formLevels.map((l) => (
@@ -835,7 +793,6 @@ export default function OrgDashboardPage() {
                   </select>
                 </div>
 
-                {/* Filter per Status */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                     Status
@@ -843,7 +800,7 @@ export default function OrgDashboardPage() {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                    className="input-field py-2 text-xs font-semibold"
                   >
                     <option value="all">All Statuses</option>
                     <option value="pending">Pending</option>
@@ -854,7 +811,6 @@ export default function OrgDashboardPage() {
                 </div>
               </div>
 
-              {/* Search Bar & Course Code Filter */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -863,7 +819,7 @@ export default function OrgDashboardPage() {
                     placeholder="Search by student name, matricule, or subject..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="input-field pl-8 py-2 text-xs"
                   />
                 </div>
 
@@ -873,32 +829,32 @@ export default function OrgDashboardPage() {
                     placeholder="Filter by Course Code (e.g. CSC401)..."
                     value={filterCourse === "all" ? "" : filterCourse}
                     onChange={(e) => setFilterCourse(e.target.value ? e.target.value.toUpperCase() : "all")}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="input-field py-2 text-xs font-mono font-bold"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Complaints List Cards */}
+            {/* Complaints List */}
             {complaints.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs space-y-2 border border-slate-100 rounded-3xl p-6">
+              <div className="text-center py-12 text-slate-400 text-xs space-y-2 border border-slate-100 rounded-2xl p-6">
                 <MessageSquare className="w-8 h-8 mx-auto text-slate-300" />
                 <p className="font-bold text-slate-700">No complaints matching filter criteria.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {complaints.map((comp: any) => (
-                  <div key={comp.id} className="p-5 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-3">
+                  <div key={comp.id} className="card card-hover p-5 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-extrabold text-slate-900">{comp.subject}</span>
                           {comp.courseCode && (
-                            <span className="font-mono text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                            <span className="font-mono text-[10px] font-extrabold text-navy-800 bg-navy-50 px-2 py-0.5 rounded border border-navy-100">
                               {comp.courseCode}
                             </span>
                           )}
-                          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                          <span className="badge badge-neutral">
                             {comp.nature}
                           </span>
                         </div>
@@ -908,26 +864,7 @@ export default function OrgDashboardPage() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {comp.status === "pending" && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
-                            ⏳ Pending
-                          </span>
-                        )}
-                        {comp.status === "under_review" && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold">
-                            🔍 Under Review
-                          </span>
-                        )}
-                        {comp.status === "resolved" && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold">
-                            ✓ Resolved
-                          </span>
-                        )}
-                        {comp.status === "rejected" && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 text-[11px] font-bold">
-                            ✕ Rejected
-                          </span>
-                        )}
+                        {statusBadge(comp.status)}
 
                         <button
                           onClick={() => {
@@ -935,7 +872,7 @@ export default function OrgDashboardPage() {
                             setResolutionStatus(comp.status || "resolved");
                             setResolutionNote(comp.resolutionNote || "");
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors"
+                          className="btn-primary px-3 py-1.5 text-xs"
                         >
                           Review & Resolve
                         </button>
@@ -948,13 +885,13 @@ export default function OrgDashboardPage() {
 
                     {comp.documentUrl && (
                       <div className="flex items-center gap-2 text-xs">
-                        <FileText className="w-4 h-4 text-indigo-600" />
+                        <FileText className="w-4 h-4 text-navy-700" />
                         <span className="text-slate-500 font-semibold">Student Attachment:</span>
                         <a
                           href={comp.documentUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-indigo-600 font-bold hover:underline truncate max-w-xs flex items-center gap-1"
+                          className="text-navy-800 font-bold hover:underline truncate max-w-xs flex items-center gap-1"
                         >
                           <span>{comp.documentName || "View Evidence Document"}</span>
                           <ExternalLink className="w-3 h-3" />
@@ -980,7 +917,7 @@ export default function OrgDashboardPage() {
 
         {/* 5. TESTS TAB */}
         {activeTab === "tests" && (
-          <div className="p-4 sm:p-6 space-y-3">
+          <div className="p-4 sm:p-6 space-y-3 animate-fade-in">
             {tests.length === 0 ? (
               <div className="text-center py-10 text-slate-400 text-xs">
                 No active exams created by school faculty teachers yet.
@@ -988,9 +925,9 @@ export default function OrgDashboardPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {tests.map((test: any) => (
-                  <div key={test.id} className="p-4 rounded-2xl border border-slate-200 hover:border-indigo-300 transition-colors space-y-2">
+                  <div key={test.id} className="card card-hover p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-navy-50 text-navy-800 border border-navy-100">
                         Code: {test.code}
                       </span>
                       <span className="text-[11px] text-slate-400">
@@ -1022,8 +959,8 @@ export default function OrgDashboardPage() {
 
       {/* MODAL 1: ADD TEACHER SUB-ACCOUNT */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border border-slate-200">
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-slate-900">Add Teacher Account</h3>
               <p className="text-xs text-slate-500">
@@ -1038,14 +975,14 @@ export default function OrgDashboardPage() {
               </div>
             )}
 
-            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-800 leading-relaxed flex items-start gap-2">
-              <Link2 className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+            <div className="p-3 rounded-xl bg-navy-50 border border-navy-100 text-[11px] text-navy-900 leading-relaxed flex items-start gap-2">
+              <Link2 className="w-3.5 h-3.5 text-navy-600 shrink-0 mt-0.5" />
               <span>
                 <strong>Students join by themselves.</strong> Copy your <strong>Student Enrolment Link</strong> from the{" "}
                 <button
                   type="button"
                   onClick={() => { setShowAddModal(false); setActiveTab("branding"); }}
-                  className="font-bold underline text-indigo-700 hover:text-indigo-900"
+                  className="font-bold underline text-navy-800 hover:text-navy-950"
                 >
                   Link &amp; Branding
                 </button>{" "}
@@ -1062,7 +999,7 @@ export default function OrgDashboardPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. John Smith"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="input-field py-2 text-sm"
                 />
               </div>
 
@@ -1074,7 +1011,7 @@ export default function OrgDashboardPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="e.g. 670000000 or john@school.edu"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="input-field py-2 text-sm"
                 />
               </div>
 
@@ -1084,7 +1021,7 @@ export default function OrgDashboardPage() {
                   <select
                     value={memberDeptId}
                     onChange={(e) => setMemberDeptId(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="input-field py-2 text-sm"
                   >
                     <option value="">Select department...</option>
                     {departments.map((d) => (
@@ -1102,7 +1039,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
+                  className="btn-outline text-xs"
                 >
                   Cancel
                 </button>
@@ -1110,7 +1047,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="submit"
                   disabled={submitting || !name || !email}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                  className="btn-primary text-xs disabled:opacity-50"
                 >
                   {submitting ? "Creating..." : "Create Teacher Account"}
                 </button>
@@ -1122,8 +1059,8 @@ export default function OrgDashboardPage() {
 
       {/* MODAL 2: ADD DEPARTMENT */}
       {showAddDeptModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border border-slate-200">
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-slate-900">Add School Department</h3>
               <p className="text-xs text-slate-500">
@@ -1142,7 +1079,7 @@ export default function OrgDashboardPage() {
                   value={deptName}
                   onChange={(e) => setDeptName(e.target.value)}
                   placeholder="e.g. Department of Computer Science"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  className="input-field py-2.5 text-sm font-medium"
                 />
               </div>
 
@@ -1155,7 +1092,7 @@ export default function OrgDashboardPage() {
                   value={deptCode}
                   onChange={(e) => setDeptCode(e.target.value.toUpperCase())}
                   placeholder="e.g. CSC, LAW, ACC"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono font-bold uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="input-field py-2.5 text-sm font-mono font-bold uppercase"
                 />
               </div>
 
@@ -1163,7 +1100,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddDeptModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
+                  className="btn-outline text-xs"
                 >
                   Cancel
                 </button>
@@ -1171,7 +1108,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="submit"
                   disabled={deptSubmitting || !deptName.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                  className="btn-primary text-xs disabled:opacity-50"
                 >
                   {deptSubmitting ? "Creating..." : "Save Department"}
                 </button>
@@ -1183,8 +1120,8 @@ export default function OrgDashboardPage() {
 
       {/* MODAL 3: COMPLAINT FORM BUILDER & SETTINGS */}
       {showFormBuilderModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-slate-900">Complaint Form Builder</h3>
               <p className="text-xs text-slate-500">
@@ -1199,7 +1136,7 @@ export default function OrgDashboardPage() {
                 <div>
                   <span className="font-bold text-slate-900 text-xs block">Student Complaint Portal</span>
                   <span className="text-[11px] text-slate-500">
-                    {formStatus === "active" ? "✓ Enabled & visible to students" : "✕ Disabled for students"}
+                    {formStatus === "active" ? "Enabled & visible to students" : "Disabled for students"}
                   </span>
                 </div>
                 <button
@@ -1223,7 +1160,7 @@ export default function OrgDashboardPage() {
                   type="button"
                   onClick={() => setAllowDocUpload(!allowDocUpload)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                    allowDocUpload ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-700"
+                    allowDocUpload ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-700"
                   }`}
                 >
                   {allowDocUpload ? "Allowed" : "Off"}
@@ -1235,12 +1172,12 @@ export default function OrgDashboardPage() {
                 <label className="block text-xs font-bold text-slate-700">Complaint Categories (Natures)</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {formCategories.map((cat, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 text-[11px] font-semibold border border-indigo-100">
+                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-navy-50 text-navy-900 text-[11px] font-semibold border border-navy-100">
                       <span>{cat}</span>
                       <button
                         type="button"
                         onClick={() => setFormCategories(formCategories.filter((_, i) => i !== idx))}
-                        className="text-indigo-400 hover:text-rose-600"
+                        className="text-navy-300 hover:text-rose-600"
                       >
                         ✕
                       </button>
@@ -1253,7 +1190,7 @@ export default function OrgDashboardPage() {
                     value={newCategoryInput}
                     onChange={(e) => setNewCategoryInput(e.target.value)}
                     placeholder="Add category (e.g. Missing CA Mark)..."
-                    className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="input-field flex-1 py-1.5 text-xs"
                   />
                   <button
                     type="button"
@@ -1263,7 +1200,7 @@ export default function OrgDashboardPage() {
                         setNewCategoryInput("");
                       }
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+                    className="btn-primary px-3 py-1.5 text-xs shrink-0"
                   >
                     + Add
                   </button>
@@ -1293,7 +1230,7 @@ export default function OrgDashboardPage() {
                     value={newLevelInput}
                     onChange={(e) => setNewLevelInput(e.target.value)}
                     placeholder="Add academic year (e.g. Year 1)..."
-                    className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="input-field flex-1 py-1.5 text-xs"
                   />
                   <button
                     type="button"
@@ -1303,7 +1240,7 @@ export default function OrgDashboardPage() {
                         setNewLevelInput("");
                       }
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+                    className="btn-primary px-3 py-1.5 text-xs shrink-0"
                   >
                     + Add
                   </button>
@@ -1317,7 +1254,7 @@ export default function OrgDashboardPage() {
                   rows={2}
                   value={formInstructions}
                   onChange={(e) => setFormInstructions(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="input-field py-2 text-xs"
                 />
               </div>
 
@@ -1325,7 +1262,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowFormBuilderModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
+                  className="btn-outline text-xs"
                 >
                   Cancel
                 </button>
@@ -1333,7 +1270,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="submit"
                   disabled={savingFormConfig}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20"
+                  className="btn-primary text-xs disabled:opacity-50"
                 >
                   {savingFormConfig ? "Saving..." : "Save Configuration"}
                 </button>
@@ -1345,10 +1282,10 @@ export default function OrgDashboardPage() {
 
       {/* MODAL 4: REVIEW & RESOLVE COMPLAINT */}
       {selectedComplaint && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="space-y-1 border-b border-slate-100 pb-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Review Petition</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-navy-700">Review Petition</span>
               <h3 className="text-base font-extrabold text-slate-900">{selectedComplaint.subject}</h3>
               <p className="text-xs text-slate-500">
                 Student: <strong>{selectedComplaint.studentName}</strong> (Matricule: {selectedComplaint.studentMatricule}) • {selectedComplaint.courseCode || "General Course"}
@@ -1361,14 +1298,14 @@ export default function OrgDashboardPage() {
             </div>
 
             {selectedComplaint.documentUrl && (
-              <div className="flex items-center gap-2 text-xs p-2.5 rounded-xl bg-indigo-50 border border-indigo-100">
-                <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+              <div className="flex items-center gap-2 text-xs p-2.5 rounded-xl bg-navy-50 border border-navy-100">
+                <FileText className="w-4 h-4 text-navy-700 shrink-0" />
                 <span className="text-slate-600 font-semibold">Evidence:</span>
                 <a
                   href={selectedComplaint.documentUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-indigo-700 font-bold hover:underline truncate max-w-xs"
+                  className="text-navy-800 font-bold hover:underline truncate max-w-xs"
                 >
                   {selectedComplaint.documentName || "Open Evidence Document"}
                 </a>
@@ -1386,10 +1323,10 @@ export default function OrgDashboardPage() {
                       onClick={() => setResolutionStatus(st)}
                       className={`py-2 rounded-xl text-xs font-bold capitalize border transition-all ${
                         resolutionStatus === st
-                          ? st === "resolved" ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                          : st === "rejected" ? "bg-rose-600 text-white border-rose-600 shadow-xs"
-                          : st === "under_review" ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                          : "bg-amber-500 text-white border-amber-500 shadow-xs"
+                          ? st === "resolved" ? "bg-emerald-600 text-white border-emerald-600"
+                          : st === "rejected" ? "bg-rose-600 text-white border-rose-600"
+                          : st === "under_review" ? "bg-navy-900 text-white border-navy-900"
+                          : "bg-amber-500 text-white border-amber-500"
                           : "border-slate-200 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -1409,7 +1346,7 @@ export default function OrgDashboardPage() {
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
                   placeholder="e.g. Verified with Department Chair. Continuous assessment grade updated to 18/20 on the official portal."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed"
+                  className="input-field text-xs leading-relaxed"
                 />
               </div>
 
@@ -1417,7 +1354,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedComplaint(null)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
+                  className="btn-outline text-xs"
                 >
                   Cancel
                 </button>
@@ -1425,7 +1362,7 @@ export default function OrgDashboardPage() {
                 <button
                   type="submit"
                   disabled={resolving || !resolutionNote.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                  className="btn-primary text-xs disabled:opacity-50"
                 >
                   {resolving ? "Saving..." : "Save Resolution"}
                 </button>
@@ -1437,8 +1374,8 @@ export default function OrgDashboardPage() {
 
       {/* MODAL 5: EXPAND MEMBER SEATS */}
       {showExpandModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border border-slate-200">
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="space-y-1 text-center">
               <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
                 <Zap className="w-6 h-6 fill-amber-500" />
@@ -1458,7 +1395,7 @@ export default function OrgDashboardPage() {
 
             {expandSuccess ? (
               <div className="text-center py-6 space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <h4 className="font-bold text-slate-900 text-base">{expandSuccess}</h4>
@@ -1494,7 +1431,7 @@ export default function OrgDashboardPage() {
                     required
                     value={extraSeats}
                     onChange={(e) => setExtraSeats(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="input-field py-2 text-sm font-bold"
                   />
                 </div>
 
@@ -1559,7 +1496,7 @@ export default function OrgDashboardPage() {
                     value={expandPhone}
                     onChange={(e) => setExpandPhone(e.target.value)}
                     placeholder="e.g. 670000000"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                    className="input-field py-2 text-sm font-mono"
                   />
                 </div>
 
@@ -1567,7 +1504,7 @@ export default function OrgDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setShowExpandModal(false)}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
+                    className="btn-outline text-xs"
                   >
                     Cancel
                   </button>
@@ -1575,7 +1512,7 @@ export default function OrgDashboardPage() {
                   <button
                     type="submit"
                     disabled={expanding || !expandPhone || extraSeats < 1}
-                    className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-amber-600/20"
+                    className="btn-accent text-xs disabled:opacity-50"
                   >
                     {expanding ? "Sending Prompt..." : `Pay ${totalCost.toLocaleString()} FCFA`}
                   </button>
