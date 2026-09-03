@@ -23,7 +23,6 @@ import {
   ScanLine,
   Music4,
   Scale,
-  MessageSquare,
   ChevronDown
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
@@ -177,7 +176,6 @@ export default function Navbar() {
   } else if (currentUser?.role === "student" || pathname.startsWith("/student")) {
     navLinks = [
       { href: "/student/dashboard", label: "Student Hub", icon: GraduationCap },
-      { href: "/student/forum", label: "Chat Forum", icon: MessageSquare },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];

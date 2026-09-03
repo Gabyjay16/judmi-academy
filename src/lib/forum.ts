@@ -1,6 +1,6 @@
 import { db, initDatabase } from "@/db";
 import { chatChannels, departments, organizations } from "@/db/schema";
-import { eq, and, asc, or } from "drizzle-orm";
+import { eq, and, asc, or, isNull } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import type { User } from "@/db/schema";
 
@@ -59,13 +59,13 @@ export async function ensureUserChannels(orgId: string, departmentId: string | n
 
   const ensure = async (type: string, depId: string | null, name: string) => {
     const existing = await db
-      .select()
+      .select({ id: chatChannels.id })
       .from(chatChannels)
       .where(
         and(
           eq(chatChannels.orgId, orgId),
           eq(chatChannels.type, type),
-          depId ? eq(chatChannels.departmentId, depId) : eq(chatChannels.departmentId, "")
+          depId ? eq(chatChannels.departmentId, depId) : isNull(chatChannels.departmentId)
         )
       )
       .limit(1);
@@ -111,6 +111,7 @@ export async function listUserChannels(user: User): Promise<ForumChannelView[]> 
       departmentId: chatChannels.departmentId,
       departmentName: departments.name,
       orgName: organizations.name,
+      createdAt: chatChannels.createdAt,
     })
     .from(chatChannels)
     .leftJoin(departments, eq(departments.id, chatChannels.departmentId))
@@ -123,9 +124,18 @@ export async function listUserChannels(user: User): Promise<ForumChannelView[]> 
           : eq(chatChannels.type, GENERAL)
       )
     )
-    .orderBy(asc(chatChannels.type));
+    .orderBy(asc(chatChannels.type), asc(chatChannels.createdAt));
 
-  const views: ForumChannelView[] = channels.map((c) => ({
+  // The forum switcher always shows exactly two forums: the General forum and
+  // (for students with a department) their own Department forum. If duplicate
+  // channels exist (e.g. from earlier creation bugs), keep only the newest
+  // General and the newest Department channel.
+  const byType = new Map<string, typeof channels[number]>();
+  for (const c of channels) {
+    byType.set(c.type, c);
+  }
+
+  const views: ForumChannelView[] = Array.from(byType.values()).map((c) => ({
     id: c.id,
     type: c.type,
     name: c.type === GENERAL ? `${c.name} · ${c.orgName || ""}`.trim() : c.name,

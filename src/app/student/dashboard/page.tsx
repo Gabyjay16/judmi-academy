@@ -172,6 +172,16 @@ export default function StudentDashboardPage() {
 
   const quickActions = [
     {
+      href: "/student/forum",
+      icon: MessageSquare,
+      title: "Chat Forum",
+      desc: "Talk with your classmates and teachers in the General and Department forums",
+      color: "indigo",
+      bg: "bg-indigo-50",
+      border: "border-indigo-200",
+      iconColor: "text-indigo-600",
+    },
+    {
       href: "/student/plagiarism",
       icon: ShieldCheck,
       title: "Plagiarism Checker",

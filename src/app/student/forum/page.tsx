@@ -97,6 +97,7 @@ export default function StudentForumPage() {
   const [profileModal, setProfileModal] = useState<Member | null>(null);
   const [notifBellOpen, setNotifBellOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [revealedDeleteId, setRevealedDeleteId] = useState<string | null>(null);
 
   // Image attachment
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +199,7 @@ export default function StudentForumPage() {
   useEffect(() => {
     setMessages([]);
     setReplyTo(null);
+    setRevealedDeleteId(null);
   }, [activeChannelId]);
 
   useEffect(() => {
@@ -438,28 +440,31 @@ export default function StudentForumPage() {
   };
   const fmtDuration = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 
-  // Handle touch to slide a message and reply to it.
+  // Handle touch to slide a message and reply to it. Holding a message for
+  // 3 seconds reveals the delete button (for the message owner).
   const onSwipeStart = (e: React.TouchEvent, msg: Message) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
     longPressed.current = false;
     longPressTimer.current = setTimeout(() => {
+      // Only reveal delete for the message owner.
+      if (String(msg.authorUserId) === String(user?.id)) {
+        setRevealedDeleteId(msg.id);
+      }
       longPressed.current = true;
-    }, 600);
+    }, 3000);
   };
   const onSwipeEnd = (e: React.TouchEvent, msg: Message) => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    if (longPressed.current) {
-      // Long-press → open reply composer for this message.
-      setReplyTo(msg);
-      setShowTagPicker(false);
+    if (touchStartX.current == null || touchStartY.current == null) {
+      // A long hold that didn't slide keeps delete revealed; no reply.
       return;
     }
-    if (touchStartX.current == null || touchStartY.current == null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-    // Horizontal slide (ignore vertical scroll) → slide to reply.
+    // Horizontal slide (ignore vertical scroll) → slide to reply/tag.
     if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)) {
+      setRevealedDeleteId(null);
       setReplyTo(msg);
       setShowTagPicker(false);
     }
@@ -651,7 +656,7 @@ export default function StudentForumPage() {
             </div>
           ) : (
             messages.map((msg) => {
-              const mine = msg.authorUserId === user?.id;
+              const mine = String(msg.authorUserId) === String(user?.id);
               const isPlaying = playingId === msg.id;
               const avatarMember = { name: msg.authorName, avatarUrl: msg.authorAvatarUrl };
               return (
@@ -704,13 +709,14 @@ export default function StudentForumPage() {
                       {mine && <CheckCheck className="w-3 h-3 text-navy-400" />}
                     </div>
 
-                    {/* Actions: reply + delete (own) — visible on touch, on hover for desktop */}
-                    <div className={`mt-0.5 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ${mine ? "justify-end" : ""}`}>
-                      <button type="button" onClick={() => { setReplyTo(msg); setShowTagPicker(false); }} className="text-[10px] font-bold text-navy-600 hover:underline flex items-center gap-0.5">
+                    {/* Actions: reply is always shown; delete only appears for
+                        the owner after holding the message for 3 seconds. */}
+                    <div className={`mt-0.5 flex items-center gap-2 ${mine ? "justify-end" : ""}`}>
+                      <button type="button" onClick={() => { setRevealedDeleteId(null); setReplyTo(msg); setShowTagPicker(false); }} className="text-[10px] font-bold text-navy-600 hover:underline flex items-center gap-0.5">
                         <Reply className="w-3 h-3" /> Reply
                       </button>
-                      {mine && (
-                        <button type="button" onClick={() => deleteMessage(msg)} className="text-[10px] font-bold text-rose-500 hover:underline flex items-center gap-0.5">
+                      {mine && revealedDeleteId === msg.id && (
+                        <button type="button" onClick={() => deleteMessage(msg)} className="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-2 py-1 rounded-lg hover:bg-rose-100 flex items-center gap-0.5">
                           <Trash2 className="w-3 h-3" /> Delete
                         </button>
                       )}

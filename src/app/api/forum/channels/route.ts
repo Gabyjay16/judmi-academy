@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { chatChannels, organizations } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import {
   ensureUserChannels,
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     const isMonitor = canMonitor(user);
 
-    // Super admin: see every forum across all schools.
+    // Super admin: see every forum across all schools (one General per org).
     if (user.role === "admin") {
       const all = await db
         .select({
@@ -28,11 +28,21 @@ export async function GET(req: NextRequest) {
           type: chatChannels.type,
           name: chatChannels.name,
           departmentId: chatChannels.departmentId,
+          orgId: chatChannels.orgId,
           orgName: organizations.name,
+          createdAt: chatChannels.createdAt,
         })
         .from(chatChannels)
-        .innerJoin(organizations, eq(organizations.id, chatChannels.orgId));
-      const channels = all.map((c) => ({
+        .innerJoin(organizations, eq(organizations.id, chatChannels.orgId))
+        .orderBy(asc(chatChannels.createdAt));
+      const seen = new Set<string>();
+      const deduped = all.filter((c) => {
+        const key = c.type === "general" ? `general-${c.orgId}` : `dept-${c.departmentId || c.id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      const channels = deduped.map((c) => ({
         id: c.id,
         type: c.type,
         name: c.type === "general" ? `${c.name} · ${c.orgName}` : `${c.name} · ${c.orgName}`,
@@ -51,10 +61,18 @@ export async function GET(req: NextRequest) {
 
     if (isMonitor) {
       const all = await db
-        .select({ id: chatChannels.id, type: chatChannels.type, name: chatChannels.name, departmentId: chatChannels.departmentId })
+        .select({ id: chatChannels.id, type: chatChannels.type, name: chatChannels.name, departmentId: chatChannels.departmentId, createdAt: chatChannels.createdAt })
         .from(chatChannels)
-        .where(eq(chatChannels.orgId, orgId));
-      return NextResponse.json({ channels: all, isMonitor, role: user.role, orgId });
+        .where(eq(chatChannels.orgId, orgId))
+        .orderBy(asc(chatChannels.createdAt));
+      const seen = new Set<string>();
+      const deduped = all.filter((c) => {
+        const key = c.type === "general" ? "general" : `dept-${c.departmentId || c.id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return NextResponse.json({ channels: deduped, isMonitor, role: user.role, orgId });
     }
 
     const channels = await listUserChannels(user);
