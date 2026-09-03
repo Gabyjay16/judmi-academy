@@ -43,6 +43,8 @@ export const users = sqliteTable("users", {
   scriptScansUsed: integer("script_scans_used").notNull().default(0),
   essayGradingsUsed: integer("essay_gradings_used").notNull().default(0),
   canManageComplaints: integer("can_manage_complaints").notNull().default(0), // 1 = delegated review access
+  // Manual-payment-gated feature access (granted by admin after screenshot verification)
+  plagiarismAccess: integer("plagiarism_access").notNull().default(0), // 1 = plagiarism feature unlocked
   // Per-service access control (set by super admin). NULL = full access (all services allowed).
   allowedServices: text("allowed_services"), // JSON: string[]
   status: text("status").notNull().default("active"), // "active" | "suspended" | "pending"
@@ -350,6 +352,27 @@ export const payments = sqliteTable("payments", {
   updatedAt: text("updated_at").notNull(),
 });
 
+// Manual payment requests submitted by users who paid via Mobile Money and
+// uploaded a payment screenshot. Access is granted only when an admin verifies
+// the screenshot and approves the request.
+export const manualPayments = sqliteTable("manual_payments", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  feature: text("feature").notNull(), // e.g. "plagiarism"
+  amount: integer("amount").notNull(), // XAF paid
+  phone: text("phone"), // Mobile Money number used, if provided
+  operator: text("operator").notNull(), // e.g. "MTN Mobile Money"
+  screenshotUrl: text("screenshot_url").notNull(), // data URL (base64) of the payment screenshot
+  screenshotName: text("screenshot_name"),
+  note: text("note"),
+  status: text("status").notNull().default("pending"), // "pending" | "approved" | "rejected"
+  createdAt: text("created_at").notNull(),
+  reviewedAt: text("reviewed_at"),
+  reviewedByAdminId: text("reviewed_by_admin_id"),
+});
+
 export type Meeting = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
 export type InverseMarking = typeof inverseMarkings.$inferSelect;
@@ -358,6 +381,8 @@ export type InverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferSe
 export type NewInverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferInsert;
 export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
+export type ManualPayment = typeof manualPayments.$inferSelect;
+export type NewManualPayment = typeof manualPayments.$inferInsert;
 export type ExtractTemplate = typeof extractTemplates.$inferSelect;
 export type NewExtractTemplate = typeof extractTemplates.$inferInsert;
 export type ExtractAdvancedSet = typeof extractAdvancedSets.$inferSelect;

@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
         examGenerationsUsed: user.examGenerationsUsed || 0,
         scriptScansUsed: user.scriptScansUsed || 0,
         essayGradingsUsed: user.essayGradingsUsed || 0,
+        plagiarismAccess: user.plagiarismAccess === 1,
         status: user.status,
       },
       token,

@@ -71,6 +71,8 @@ export async function initDatabase() {
     try { await client.execute(`ALTER TABLE users ADD COLUMN allowed_services TEXT;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN year TEXT;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN username TEXT;`); } catch {}
+    // Manual-payment-gated plagiarism access (1 = admin approved the student's payment)
+    try { await client.execute(`ALTER TABLE users ADD COLUMN plagiarism_access INTEGER DEFAULT 0;`); } catch {}
 
     // 3. Password Reset Requests table
     await client.execute(`
@@ -424,6 +426,27 @@ export async function initDatabase() {
     // Safe column additions for extract_advanced_sets (routing modes)
     try { await client.execute(`ALTER TABLE extract_advanced_sets ADD COLUMN routing_mode TEXT NOT NULL DEFAULT 'value';`); } catch {}
     try { await client.execute(`ALTER TABLE extract_advanced_sets ADD COLUMN routing_marker TEXT NOT NULL DEFAULT '1';`); } catch {}
+
+    // 17. Manual payment requests (Mobile Money screenshot verified by admin)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS manual_payments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        feature TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        phone TEXT,
+        operator TEXT NOT NULL,
+        screenshot_url TEXT NOT NULL,
+        screenshot_name TEXT,
+        note TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL,
+        reviewed_at TEXT,
+        reviewed_by_admin_id TEXT
+      );
+    `);
 
     isInitialized = true;
   } catch (error) {

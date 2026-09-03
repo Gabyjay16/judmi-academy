@@ -23,7 +23,9 @@ import {
   RotateCcw,
   Search,
   Crown,
-  Smartphone
+  Smartphone,
+  ImageIcon,
+  XCircle
 } from "lucide-react";
 
 export default function AdminPanelPage() {
@@ -32,6 +34,8 @@ export default function AdminPanelPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [allOrgs, setAllOrgs] = useState<any[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
+  const [viewingPayment, setViewingPayment] = useState<any | null>(null);
   const [systemSettings, setSystemSettings] = useState<{ freeAllTeachers: boolean; freeAllOrganizations: boolean }>({
     freeAllTeachers: false,
     freeAllOrganizations: false,
@@ -39,7 +43,7 @@ export default function AdminPanelPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"resets" | "subscriptions" | "organizations" | "settings">("subscriptions");
+  const [activeTab, setActiveTab] = useState<"resets" | "subscriptions" | "organizations" | "settings" | "payments">("subscriptions");
   const [adminInfo, setAdminInfo] = useState<any>(null);
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -98,6 +102,17 @@ export default function AdminPanelPage() {
       if (subData.users) setAllUsers(subData.users);
       if (subData.organizations) setAllOrgs(subData.organizations);
       if (subData.systemSettings) setSystemSettings(subData.systemSettings);
+
+      // 3. Fetch manual payment requests (Mobile Money screenshot approvals)
+      try {
+        const payRes = await fetch("/api/manual-payments");
+        const payData = await payRes.json();
+        if (payData.requests) {
+          setPaymentRequests(
+            payData.requests.sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt))
+          );
+        }
+      } catch {}
     } catch (e) {
       console.error("Failed to load admin data:", e);
     } finally {
@@ -312,6 +327,30 @@ export default function AdminPanelPage() {
     }
   };
 
+  const handleReviewPayment = async (requestId: string, status: "approved" | "rejected") => {
+    if (status === "rejected" && !confirm("Reject this payment request? The user will not get access.")) return;
+    try {
+      setActionLoading(`${requestId}:${status}`);
+      const res = await fetch(`/api/manual-payments/${requestId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (viewingPayment?.id === requestId) setViewingPayment(null);
+        fetchAdminData();
+      } else {
+        alert(data.error || "Failed to review the payment request.");
+      }
+    } catch (e) {
+      console.error("Review payment error:", e);
+      alert("Failed to review the payment request.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwMsg(null);
@@ -429,6 +468,16 @@ export default function AdminPanelPage() {
           >
             <KeyRound className="w-3.5 h-3.5" />
             <span>Admin Settings</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("payments")}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === "payments" ? "bg-white text-emerald-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Payment Requests ({paymentRequests.filter((r) => r.status === "pending").length})</span>
           </button>
         </div>
       </div>
@@ -1111,6 +1160,196 @@ export default function AdminPanelPage() {
                 <span>{pwLoading ? "Updating..." : "Update Admin Password"}</span>
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: Manual Payment Approvals */}
+      {activeTab === "payments" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Smartphone className="w-5 h-5 text-emerald-600" />
+                  <span>Manual Payment Approvals</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Students pay via Mobile Money and upload a screenshot as proof. Review the screenshot, then click
+                  &quot;Grant Permission&quot; to unlock the feature — or reject the request.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
+                  <span className="text-[10px] text-slate-500 block">Pending</span>
+                  <span className="text-base font-extrabold text-emerald-700">{paymentRequests.filter((r) => r.status === "pending").length}</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] text-slate-500 block">Total</span>
+                  <span className="text-base font-extrabold text-slate-900">{paymentRequests.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {paymentRequests.length === 0 ? (
+              <div className="p-12 text-center text-xs text-slate-500">
+                No manual payment requests submitted yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-slate-50/75 text-slate-500 font-semibold border-b border-slate-100">
+                    <tr>
+                      <th className="px-5 py-3.5">Student</th>
+                      <th className="px-4 py-3.5">Feature / Amount</th>
+                      <th className="px-4 py-3.5">Payment</th>
+                      <th className="px-4 py-3.5">Screenshot</th>
+                      <th className="px-4 py-3.5">Date</th>
+                      <th className="px-4 py-3.5">Status</th>
+                      <th className="px-5 py-3.5 text-right">Admin Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paymentRequests.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="font-bold text-slate-900">{req.name}</div>
+                          <div className="text-xs text-slate-500 font-mono">{req.email}</div>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <div className="font-bold text-slate-900">{req.label}</div>
+                          <div className="text-xs text-slate-500">{req.amount.toLocaleString()} FCFA</div>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <div className="font-semibold text-slate-800">{req.operator}</div>
+                          {req.phone ? <div className="text-xs text-slate-500 font-mono">{req.phone}</div> : <div className="text-xs text-slate-400">—</div>}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setViewingPayment(req)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            View Proof
+                          </button>
+                        </td>
+
+                        <td className="px-4 py-4 text-xs text-slate-400">
+                          {new Date(req.createdAt).toLocaleDateString()}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {req.status === "pending" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold">
+                              <Clock className="w-3 text-amber-500" /> Pending
+                            </span>
+                          ) : req.status === "approved" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                              <CheckCircle2 className="w-3 text-emerald-500" /> Approved
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
+                              <XCircle className="w-3 text-rose-500" /> Rejected
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+                          {req.status === "pending" ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                disabled={actionLoading === `${req.id}:approved`}
+                                onClick={() => handleReviewPayment(req.id, "approved")}
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Grant Permission
+                              </button>
+                              <button
+                                type="button"
+                                disabled={actionLoading === `${req.id}:rejected`}
+                                onClick={() => handleReviewPayment(req.id, "rejected")}
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 font-semibold text-xs transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">{req.status === "approved" ? "Access granted" : "Declined"}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Payment screenshot viewer modal */}
+      {viewingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" onClick={() => setViewingPayment(null)}>
+          <div
+            className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">Payment Screenshot</h3>
+                <p className="text-xs text-slate-500">
+                  {viewingPayment.name} • {viewingPayment.label} • {viewingPayment.amount.toLocaleString()} FCFA
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingPayment(null)}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={viewingPayment.screenshotUrl}
+                alt="Payment screenshot"
+                className="w-full rounded-2xl border border-slate-200"
+              />
+              <p className="text-[11px] text-slate-400 mt-2">
+                {viewingPayment.screenshotName} — submitted {new Date(viewingPayment.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            {viewingPayment.status === "pending" && (
+              <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={actionLoading === `${viewingPayment.id}:rejected`}
+                  onClick={() => handleReviewPayment(viewingPayment.id, "rejected")}
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 font-semibold text-xs transition-colors"
+                >
+                  Reject
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading === `${viewingPayment.id}:approved`}
+                  onClick={() => handleReviewPayment(viewingPayment.id, "approved")}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Grant Permission
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

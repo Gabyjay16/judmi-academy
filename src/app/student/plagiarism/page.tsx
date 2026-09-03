@@ -16,14 +16,59 @@ import {
   AlertTriangle,
   KeyRound,
   Upload,
+  Smartphone,
+  ImageIcon,
+  Clock,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import PlagiarismResult, { CheckDisplay } from "@/components/PlagiarismResult";
 import { extractTextFromFile } from "@/lib/pdf-parser";
+
+const PRICE = 5000;
+const METHOD = {
+  operator: "MTN Mobile Money",
+  phone: "681597837",
+  accountName: "Brandon Judmi",
+};
+
+// Downscale & compress an image to a small JPEG data URL for safe storage.
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Could not process image"));
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.6));
+      };
+      img.onerror = () => reject(new Error("Could not read that image"));
+      img.src = String(reader.result);
+    };
+    reader.onerror = () => reject(new Error("Could not read that image"));
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function StudentPlagiarismPage() {
   const router = useRouter();
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [plagiarismAccess, setPlagiarismAccess] = useState(false);
+  const [paymentRequest, setPaymentRequest] = useState<any | null>(null);
+
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +76,11 @@ export default function StudentPlagiarismPage() {
   const [result, setResult] = useState<CheckDisplay | null>(null);
   const [history, setHistory] = useState<CheckDisplay[]>([]);
   const [lastCopied, setLastCopied] = useState<string | null>(null);
+
+  // Payment gate state
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [phone, setPhone] = useState("");
+  const [submittingPayment, setSubmittingPayment] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -41,17 +91,72 @@ export default function StudentPlagiarismPage() {
     } catch {}
   }, []);
 
+  const loadPaymentStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/manual-payments");
+      if (!res.ok) return;
+      const json = await res.json();
+      const my = (json.requests || []).filter((r: any) => r.feature === "plagiarism");
+      const latest = my.sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt))[0] || null;
+      setPaymentRequest(latest);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch("/api/auth");
         const data = await res.json();
         setUser(data.user || null);
+        setPlagiarismAccess(data.user?.plagiarismAccess === true);
       } catch {}
       setLoading(false);
       fetchHistory();
+      loadPaymentStatus();
     })();
-  }, [fetchHistory]);
+  }, [fetchHistory, loadPaymentStatus]);
+
+  const submitPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!screenshotFile) {
+      setError("Please upload a screenshot of your payment confirmation.");
+      return;
+    }
+    if (!screenshotFile.type.startsWith("image/")) {
+      setError("The payment proof must be an image (PNG/JPG) screenshot.");
+      return;
+    }
+    setSubmittingPayment(true);
+    try {
+      const screenshotUrl = await compressImage(screenshotFile);
+      const res = await fetch("/api/manual-payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feature: "plagiarism",
+          amount: PRICE,
+          phone: phone.trim(),
+          operator: METHOD.operator,
+          screenshotUrl,
+          screenshotName: screenshotFile.name,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Failed to submit your payment request.");
+        return;
+      }
+      setScreenshotFile(null);
+      setPhone("");
+      loadPaymentStatus();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err: any) {
+      setError(err?.message || "Failed to submit your payment request.");
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
 
   const runCheck = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +182,9 @@ export default function StudentPlagiarismPage() {
       });
       const json = await res.json();
       if (!res.ok) {
+        if (json.paymentRequired) {
+          setPlagiarismAccess(false);
+        }
         setError(json.error || "The check failed. Please try again.");
         return;
       }
@@ -99,7 +207,33 @@ export default function StudentPlagiarismPage() {
     } catch {}
   };
 
-  if (!loading && user && !user.orgId) {
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center text-slate-500 space-y-3">
+        <div className="w-10 h-10 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm font-semibold">Loading Plagiarism & Authenticity Checker...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-4">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+          <Building2 className="w-7 h-7 text-slate-400" />
+        </div>
+        <h1 className="text-2xl font-extrabold text-slate-900">Plagiarism & Authenticity Checker</h1>
+        <p className="text-sm text-slate-500 max-w-md mx-auto">
+          Please sign in to run an authenticity check on your work.
+        </p>
+        <Link href="/login" className="inline-block mt-2 text-sm font-bold text-indigo-600 hover:underline">
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+
+  if (!user.orgId) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-4">
         <div className="mx-auto w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
@@ -116,6 +250,203 @@ export default function StudentPlagiarismPage() {
     );
   }
 
+  // --- PAYMENT GATE: no plagiarism access yet ---
+  if (!plagiarismAccess) {
+    const hasPending = paymentRequest?.status === "pending";
+    const wasRejected = paymentRequest?.status === "rejected";
+
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-7">
+        <Link
+          href="/student/dashboard"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
+        </Link>
+
+        <div className="flex items-start gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Plagiarism & Authenticity Checker</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
+              Activate access to check your thesis or assignment for copied, recycled, or likely AI-generated writing.
+            </p>
+          </div>
+        </div>
+
+        {/* Pending approval banner */}
+        {hasPending && (
+          <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1.5">
+            <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+              <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>Payment submitted — awaiting admin approval</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              We received your payment request for {METHOD.operator} ({PRICE.toLocaleString()} FCFA). An administrator
+              is verifying your screenshot. As soon as it is confirmed, your access will be unlocked automatically.
+            </p>
+          </div>
+        )}
+
+        {wasRejected && (
+          <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 space-y-1.5">
+            <div className="flex items-center gap-2 font-bold text-sm text-rose-900">
+              <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>Your previous payment request was declined</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              The screenshot could not be verified. Please make the payment again and re-submit your proof below.
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            {error}
+          </div>
+        )}
+
+        {/* Payment instructions + form */}
+        <form onSubmit={submitPayment} className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-emerald-600" />
+            <h2 className="text-sm font-extrabold text-slate-800">Activate the Plagiarism Checker</h2>
+          </div>
+
+          {/* Payment method card */}
+          <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-4 sm:p-5 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold text-slate-900">{METHOD.operator}</p>
+                <p className="text-[11px] text-slate-500">Pay exactly and send your proof below</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</p>
+                <p className="text-base font-extrabold text-slate-900">{PRICE.toLocaleString()} FCFA</p>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Number</p>
+                <p className="text-base font-extrabold text-slate-900 font-mono">{METHOD.phone}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Name</p>
+                <p className="text-sm font-extrabold text-slate-900">{METHOD.accountName}</p>
+              </div>
+            </div>
+          </div>
+
+          <ol className="text-xs text-slate-600 space-y-1.5 list-decimal list-inside">
+            <li>Dial *126# and transfer <strong className="text-slate-900">{PRICE.toLocaleString()} FCFA</strong> to <strong className="font-mono">{METHOD.phone}</strong> ({METHOD.accountName}).</li>
+            <li>Take a screenshot of the MTN confirmation message.</li>
+            <li>Upload the screenshot below and submit.</li>
+            <li>An administrator verifies your payment — access is unlocked once approved.</li>
+          </ol>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Mobile Money phone number (optional)</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. 681597837"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+              Payment screenshot (proof)
+            </label>
+            <label
+              className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-all cursor-pointer p-8 text-center ${
+                screenshotFile
+                  ? "border-emerald-400 bg-emerald-50/60"
+                  : "border-slate-300 bg-slate-50/50 hover:border-emerald-400 hover:bg-emerald-50/30"
+              }`}
+            >
+              {screenshotFile ? (
+                <>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-800">{screenshotFile.name}</span>
+                  <span className="text-xs text-slate-500">
+                    {(screenshotFile.size / 1024 / 1024).toFixed(1)} MB • {screenshotFile.type}
+                  </span>
+                  <span className="text-[11px] font-semibold text-emerald-600">Tap to choose a different screenshot</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-800">Upload your payment screenshot</span>
+                  <span className="text-xs text-slate-500 max-w-sm">
+                    Use a clear screenshot of the MTN Mobile Money confirmation message.
+                  </span>
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const chosen = e.target.files?.[0] || null;
+                  if (chosen && !chosen.type.startsWith("image/")) {
+                    setScreenshotFile(null);
+                    setError("Payment proof must be an image (PNG/JPG) screenshot.");
+                    return;
+                  }
+                  setError(null);
+                  setScreenshotFile(chosen);
+                }}
+              />
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={submittingPayment || !screenshotFile || hasPending}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5"
+          >
+            {submittingPayment ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Submitting payment request…
+              </>
+            ) : hasPending ? (
+              <>
+                <Clock className="w-4 h-4" />
+                Pending Approval
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                Submit Payment Proof
+              </>
+            )}
+          </button>
+
+          <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
+            <KeyRound className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            Your access is activated only after an administrator verifies your payment and grants permission.
+          </p>
+        </form>
+      </div>
+    );
+  }
+
+  // --- ACCESS GRANTED: normal checker ---
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-7">
       <Link
@@ -135,6 +466,12 @@ export default function StudentPlagiarismPage() {
             Upload your thesis or assignment (PDF or Word) and we'll check it for copied, recycled, or likely AI-generated writing. When the check finishes, a unique verification code lets your teacher confirm the exact result under your school.
           </p>
         </div>
+      </div>
+
+      {/* Activated badge */}
+      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        Access activated
       </div>
 
       {error && (
