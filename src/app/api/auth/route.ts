@@ -45,6 +45,9 @@ export async function GET(req: NextRequest) {
         role: user.role,
         studentId: user.studentId,
         orgId: user.orgId,
+        departmentId: user.departmentId || null,
+        year: user.year || null,
+        avatarUrl: user.avatarUrl || null,
         organizationName: organization?.name || null,
         branding: organization
           ? {

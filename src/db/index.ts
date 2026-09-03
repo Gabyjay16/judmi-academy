@@ -456,6 +456,51 @@ export async function initDatabase() {
     // Safe column addition for manual_payments (plan/meta details for whole-system purchases)
     try { await client.execute(`ALTER TABLE manual_payments ADD COLUMN meta_json TEXT;`); } catch {}
 
+    // 18. Student chat forums (general + departmental)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS chat_channels (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        type TEXT NOT NULL DEFAULT 'general',
+        department_id TEXT REFERENCES departments(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        channel_id TEXT NOT NULL REFERENCES chat_channels(id) ON DELETE CASCADE,
+        author_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        author_name TEXT NOT NULL,
+        author_avatar_url TEXT,
+        type TEXT NOT NULL DEFAULT 'text',
+        content TEXT,
+        media_url TEXT,
+        media_duration_seconds INTEGER,
+        reply_to_id TEXT,
+        reply_preview TEXT,
+        reply_author_name TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS chat_notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        message_id TEXT REFERENCES chat_messages(id) ON DELETE SET NULL,
+        sender_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        sender_name TEXT NOT NULL,
+        channel_id TEXT REFERENCES chat_channels(id) ON DELETE SET NULL,
+        channel_label TEXT NOT NULL,
+        reply_content TEXT,
+        reply_type TEXT NOT NULL DEFAULT 'text',
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);

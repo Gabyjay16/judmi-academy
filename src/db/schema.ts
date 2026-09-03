@@ -376,6 +376,58 @@ export const manualPayments = sqliteTable("manual_payments", {
   reviewedByAdminId: text("reviewed_by_admin_id"),
 });
 
+// Student chat forums. Each channel is scoped to a school (org_id):
+// - type "general": one per org, all students of the school can chat.
+// - type "department": one per (org, department), all students of that
+//   department can chat regardless of year/level.
+export const chatChannels = sqliteTable("chat_channels", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("general"), // "general" | "department"
+  departmentId: text("department_id").references(() => departments.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const chatMessages = sqliteTable("chat_messages", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  channelId: text("channel_id").notNull().references(() => chatChannels.id, { onDelete: "cascade" }),
+  authorUserId: text("author_user_id").references(() => users.id, { onDelete: "set null" }),
+  authorName: text("author_name").notNull(),
+  authorAvatarUrl: text("author_avatar_url"),
+  type: text("type").notNull().default("text"), // "text" | "image" | "voice"
+  content: text("content"), // text body (or caption for image)
+  mediaUrl: text("media_url"), // image data URL / voice blob URL
+  mediaDurationSeconds: integer("media_duration_seconds"), // voice note length
+  replyToId: text("reply_to_id"), // message this replies to
+  replyPreview: text("reply_preview"), // preview of the replied message
+  replyAuthorName: text("reply_author_name"), // author of the replied message
+  createdAt: text("created_at").notNull(),
+});
+
+// Notification created whenever a user replies to / tags someone in the forum,
+// so the recipient can see it in the notification space and jump to the chat.
+export const chatNotifications = sqliteTable("chat_notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  messageId: text("message_id").references(() => chatMessages.id, { onDelete: "set null" }),
+  senderUserId: text("sender_user_id").references(() => users.id, { onDelete: "set null" }),
+  senderName: text("sender_name").notNull(),
+  channelId: text("channel_id").references(() => chatChannels.id, { onDelete: "set null" }),
+  channelLabel: text("channel_label").notNull(),
+  replyContent: text("reply_content"),
+  replyType: text("reply_type").notNull().default("text"),
+  isRead: integer("is_read").notNull().default(0), // 0 = unread, 1 = read
+  createdAt: text("created_at").notNull(),
+});
+
+export type ChatChannel = typeof chatChannels.$inferSelect;
+export type NewChatChannel = typeof chatChannels.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type ChatNotification = typeof chatNotifications.$inferSelect;
+export type NewChatNotification = typeof chatNotifications.$inferInsert;
 export type Meeting = typeof meetings.$inferSelect;
 export type NewMeeting = typeof meetings.$inferInsert;
 export type InverseMarking = typeof inverseMarkings.$inferSelect;
