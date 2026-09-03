@@ -13,7 +13,6 @@ import {
   FileText,
   ShieldCheck,
   ChevronDown,
-  Building2,
   GraduationCap,
 } from "lucide-react";
 
@@ -51,19 +50,6 @@ export default function StudentDashboardPage() {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentName, setDocumentName] = useState<string | null>(null);
 
-  // Read user's org branding (name/logo/color) from the persistent session.
-  const [branding, setBranding] = useState<any | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("judmi_user");
-      if (!raw) return null;
-      const u = JSON.parse(raw);
-      return u?.branding || null;
-    } catch {
-      return null;
-    }
-  });
-
   useEffect(() => {
     fetchUser();
     fetchComplaints();
@@ -75,7 +61,6 @@ export default function StudentDashboardPage() {
       const data = await res.json();
       if (data.user) {
         setUser(data.user);
-        if (data.user.branding) setBranding(data.user.branding);
       }
     } catch {}
   };
@@ -215,32 +200,57 @@ export default function StudentDashboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 sm:space-y-10 animate-fade-in">
 
-      {/* Welcome Section */}
-      <section className="space-y-4 animate-slide-up">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <span className="inline-block text-[13px] sm:text-sm font-bold uppercase tracking-[0.22em] text-amber-600">
-              {branding?.brandName ? `${branding.brandName} · Student Portal` : "Welcome Back"}
+      {/* Welcome Hero Banner */}
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200 shadow-xl shadow-navy-900/5 animate-slide-up">
+        <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-indigo-900" />
+        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-amber-500/25 blur-3xl" />
+        <div className="absolute -bottom-28 -left-20 w-80 h-80 rounded-full bg-indigo-400/20 blur-3xl" />
+        <div className="absolute top-8 right-10 opacity-10 rotate-12 select-none pointer-events-none">
+          <GraduationCap className="w-40 h-40 text-white/40" strokeWidth={1} />
+        </div>
+        <div className="relative px-6 sm:px-10 py-8 sm:py-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-amber-300">
+              Student Portal
             </span>
-            <h1 className="page-heading mt-1">
-              Hello {firstName}
-            </h1>
-            <p className="page-subheading max-w-2xl mt-2">
-              {user?.studentId ? `Matricule: ${user.studentId} • ` : ""}
-              Start an assessment with your teacher&apos;s access code, check your work for authenticity, and manage academic requests.
-            </p>
           </div>
-          {branding?.brandName && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 shadow-sm text-sm font-bold text-slate-700 shrink-0">
-              {branding.logoData ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={branding.logoData} alt={branding.brandName} className="w-5 h-5 object-contain" />
-              ) : (
-                <Building2 className="w-5 h-5 text-navy-700" />
-              )}
-              <span>{branding.brandName}</span>
+          <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
+            Hello {firstName}
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm sm:text-base text-navy-100/90 leading-relaxed">
+            {user?.studentId ? (
+              <span className="inline-flex items-center gap-1.5 font-semibold text-amber-300 mr-2">
+                <FileText className="w-4 h-4" />
+                Matricule: {user.studentId}
+              </span>
+            ) : null}
+            Start an assessment with your teacher&apos;s access code, check your work for authenticity, and manage academic requests.
+          </p>
+
+          <div className="mt-7 grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl">
+            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm">
+              <GraduationCap className="w-5 h-5 text-amber-400 shrink-0" />
+              <div>
+                <div className="text-sm font-bold text-white">Assessments</div>
+                <div className="text-[11px] text-navy-200/80">Join by code</div>
+              </div>
             </div>
-          )}
+            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm">
+              <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
+              <div>
+                <div className="text-sm font-bold text-white">Authenticity</div>
+                <div className="text-[11px] text-navy-200/80">Plagiarism check</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm">
+              <MessageSquare className="w-5 h-5 text-amber-400 shrink-0" />
+              <div>
+                <div className="text-sm font-bold text-white">Petitions</div>
+                <div className="text-[11px] text-navy-200/80">Grade requests</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -351,46 +361,35 @@ export default function StudentDashboardPage() {
               </div>
             )}
 
-            <div className="surface-elevated p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl">
-              <div className="space-y-1">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-navy-700" />
-                  <span>Academic Grievance & Grade Petitions</span>
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Submit formal requests regarding missing marks, grade discrepancies, and course record issues.
-                </p>
-              </div>
-
-              {formAvailable ? (
-                <button
-                  onClick={() => setShowComplaintModal(true)}
-                  className="btn-primary w-full sm:w-auto text-xs"
-                >
-                  <span>+ Submit Complaint</span>
-                </button>
-              ) : (
-                <div className="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
-                  Forms Disabled by Admin
-                </div>
-              )}
-            </div>
-
-            {!formAvailable && (
-              <div className="p-6 sm:p-8 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-amber-900 text-sm">
-                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                  <span>Complaint Submission Not Available Yet</span>
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Academic complaint and petition submission is currently disabled for {complaintsData?.schoolName || "your school"} until configured and activated by your school administrator.
-                </p>
-              </div>
-            )}
-
             <div className="surface-elevated overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Your Submitted Petitions</h3>
+              <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100">
+                <div className="space-y-1">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-navy-700" />
+                    <span>Academic Complaints & Petitions</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Submit formal requests about missing marks, grade discrepancies, or course record issues.
+                  </p>
+                </div>
+
+                {formAvailable ? (
+                  <button
+                    onClick={() => setShowComplaintModal(true)}
+                    className="btn-primary w-full sm:w-auto text-xs shrink-0"
+                  >
+                    <span>+ Submit Complaint</span>
+                  </button>
+                ) : (
+                  <div className="px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200 inline-flex items-center gap-1.5 shrink-0">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Submission Disabled by Admin</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-4 sm:px-6 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Your Submitted Petitions</span>
                 <span className="text-xs text-slate-500 font-semibold">{complaintsList.length} Total</span>
               </div>
 
