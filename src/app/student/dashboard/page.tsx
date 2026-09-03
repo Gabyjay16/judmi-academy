@@ -34,7 +34,7 @@ export default function StudentDashboardPage() {
   // Complaints State
   const [complaintsData, setComplaintsData] = useState<any | null>(null);
   const [complaintsLoading, setComplaintsLoading] = useState(false);
-  const [showComplaints, setShowComplaints] = useState(true);
+  const [showComplaints, setShowComplaints] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [submittingComplaint, setSubmittingComplaint] = useState(false);
   const [complaintError, setComplaintError] = useState<string | null>(null);
@@ -201,24 +201,21 @@ export default function StudentDashboardPage() {
     <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 sm:space-y-10 animate-fade-in">
 
       {/* Welcome Hero Banner */}
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200 shadow-xl shadow-navy-900/5 animate-slide-up">
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200 shadow-lg shadow-navy-900/5 animate-slide-up">
         <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-indigo-900" />
-        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-amber-500/25 blur-3xl" />
-        <div className="absolute -bottom-28 -left-20 w-80 h-80 rounded-full bg-indigo-400/20 blur-3xl" />
-        <div className="absolute top-8 right-10 opacity-10 rotate-12 select-none pointer-events-none">
-          <GraduationCap className="w-40 h-40 text-white/40" strokeWidth={1} />
-        </div>
-        <div className="relative px-6 sm:px-10 py-8 sm:py-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
+        <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-amber-500/25 blur-3xl" />
+        <div className="absolute -bottom-28 -left-20 w-64 h-64 rounded-full bg-indigo-400/20 blur-3xl" />
+        <div className="relative px-5 sm:px-7 py-6 sm:py-8">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-amber-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300">
               Student Portal
             </span>
           </div>
-          <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
+          <h1 className="mt-3 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Hello {firstName}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm sm:text-base text-navy-100/90 leading-relaxed">
+          <p className="mt-2 max-w-2xl text-sm text-navy-100/90 leading-relaxed">
             {user?.studentId ? (
               <span className="inline-flex items-center gap-1.5 font-semibold text-amber-300 mr-2">
                 <FileText className="w-4 h-4" />
@@ -227,30 +224,6 @@ export default function StudentDashboardPage() {
             ) : null}
             Start an assessment with your teacher&apos;s access code, check your work for authenticity, and manage academic requests.
           </p>
-
-          <div className="mt-7 grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl">
-            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm">
-              <GraduationCap className="w-5 h-5 text-amber-400 shrink-0" />
-              <div>
-                <div className="text-sm font-bold text-white">Assessments</div>
-                <div className="text-[11px] text-navy-200/80">Join by code</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm">
-              <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
-              <div>
-                <div className="text-sm font-bold text-white">Authenticity</div>
-                <div className="text-[11px] text-navy-200/80">Plagiarism check</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm">
-              <MessageSquare className="w-5 h-5 text-amber-400 shrink-0" />
-              <div>
-                <div className="text-sm font-bold text-white">Petitions</div>
-                <div className="text-[11px] text-navy-200/80">Grade requests</div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
