@@ -1,5 +1,5 @@
 import { db, initDatabase } from "@/db";
-import { chatChannels, departments, users, organizations } from "@/db/schema";
+import { chatChannels, departments, organizations } from "@/db/schema";
 import { eq, and, asc, or } from "drizzle-orm";
 import { generateId } from "@/lib/utils";
 import type { User } from "@/db/schema";
@@ -125,34 +125,13 @@ export async function listUserChannels(user: User): Promise<ForumChannelView[]> 
     )
     .orderBy(asc(chatChannels.type));
 
-  const views: ForumChannelView[] = [];
-  for (const c of channels) {
-    const count = await channelMemberCount(user.orgId || "", c.id);
-    views.push({
-      id: c.id,
-      type: c.type,
-      name: c.type === GENERAL ? `${c.name} · ${c.orgName || ""}`.trim() : c.name,
-      departmentId: c.departmentId,
-      departmentName: c.departmentName,
-      memberCount: count,
-    });
-  }
+  const views: ForumChannelView[] = channels.map((c) => ({
+    id: c.id,
+    type: c.type,
+    name: c.type === GENERAL ? `${c.name} · ${c.orgName || ""}`.trim() : c.name,
+    departmentId: c.departmentId,
+    departmentName: c.departmentName,
+    memberCount: 0,
+  }));
   return views;
-}
-
-// Approximate unique-member count for a channel (students who are in the same
-// org + (for department channels) the same department).
-async function channelMemberCount(orgId: string, channelId: string): Promise<number> {
-  const chRows = await db
-    .select({ type: chatChannels.type, departmentId: chatChannels.departmentId })
-    .from(chatChannels)
-    .where(eq(chatChannels.id, channelId))
-    .limit(1);
-  const ch = chRows[0];
-  if (!ch) return 0;
-
-  const members = ch.type === DEPARTMENT && ch.departmentId
-    ? await db.select({ id: users.id }).from(users).where(and(eq(users.orgId, orgId), eq(users.departmentId, ch.departmentId)))
-    : await db.select({ id: users.id }).from(users).where(eq(users.orgId, orgId));
-  return members.length;
 }

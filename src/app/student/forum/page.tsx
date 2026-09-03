@@ -17,6 +17,7 @@ import {
   Camera,
   CheckCheck,
   Shield,
+  Settings,
 } from "lucide-react";
 import { upload } from "@vercel/blob/client";
 
@@ -95,6 +96,7 @@ export default function StudentForumPage() {
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [profileModal, setProfileModal] = useState<Member | null>(null);
   const [notifBellOpen, setNotifBellOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Image attachment
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -174,7 +176,7 @@ export default function StudentForumPage() {
   }, []);
 
   useEffect(() => {
-    fetchSession().then(fetchChannels);
+    Promise.all([fetchSession(), fetchChannels()]);
   }, [fetchSession, fetchChannels]);
 
   useEffect(() => {
@@ -519,7 +521,18 @@ export default function StudentForumPage() {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950">Chat Forum</h1>
         </div>
 
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="relative w-11 h-11 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-600 hover:border-navy-200 transition-colors"
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+
+          <div className="relative">
           <button
             type="button"
             onClick={() => { setNotifBellOpen(!notifBellOpen); if (!notifBellOpen) fetchNotifications(); }}
@@ -586,6 +599,7 @@ export default function StudentForumPage() {
               )}
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -648,14 +662,14 @@ export default function StudentForumPage() {
                   className={`group flex items-end gap-2 ${mine ? "justify-end flex-row-reverse" : ""} animate-fade-in`}
                 >
                   {!mine && <Avatar member={avatarMember} size={34} />}
-                  <div className={`max-w-[78%] ${mine ? "items-end" : ""} flex flex-col`}>
+                  <div className={`max-w-[88%] sm:max-w-[78%] min-w-0 ${mine ? "items-end" : ""} flex flex-col`}>
                     {msg.replyPreview && (
                       <div className={`mb-0.5 text-[11px] rounded-xl px-3 py-1.5 max-w-[220px] truncate ${mine ? "bg-white/30 text-white/90" : "bg-slate-100 text-slate-500"} border ${mine ? "border-white/20" : "border-slate-200"}`}>
                         Replying to <b>{msg.replyAuthorName}</b>: {msg.replyPreview}
                       </div>
                     )}
                     <div
-                      className={`rounded-2xl px-3.5 py-2.5 shadow-sm ${mine ? "bg-navy-900 text-white rounded-tr-sm" : "bg-white text-slate-800 border border-slate-200 rounded-tl-sm"}`}
+                      className={`max-w-full min-w-0 rounded-2xl px-3.5 py-2.5 shadow-sm ${mine ? "bg-navy-900 text-white rounded-tr-sm" : "bg-white text-slate-800 border border-slate-200 rounded-tl-sm"}`}
                     >
                       {!mine && <div className="text-[11px] font-bold text-navy-700 mb-0.5">{msg.authorName}</div>}
 
@@ -666,12 +680,12 @@ export default function StudentForumPage() {
                       {msg.type === "image" && (
                         <button type="button" onClick={() => setProfileModal({ id: msg.id, name: msg.authorName, studentId: null, departmentName: null, avatarUrl: msg.mediaUrl } as any)} className="block">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={msg.mediaUrl!} alt="uploaded" className="max-w-[260px] w-full rounded-xl" />
+                          <img src={msg.mediaUrl!} alt="uploaded" className="max-w-[220px] w-full max-h-56 object-cover rounded-xl" />
                         </button>
                       )}
 
                       {msg.type === "voice" && (
-                        <div className="flex items-center gap-2 min-w-[180px]">
+                        <div className="flex items-center gap-2 min-w-[150px]">
                           <button
                             type="button"
                             onClick={() => togglePlay(msg)}
@@ -740,7 +754,7 @@ export default function StudentForumPage() {
               You are viewing this forum in read-only mode.
             </div>
           ) : (
-            <div className="flex items-end gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 ref={imageInputRef}
                 type="file"
@@ -753,7 +767,7 @@ export default function StudentForumPage() {
               </button>
 
               {recording ? (
-                <div className="flex-1 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200">
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200">
                   <div className="flex items-center gap-2 text-rose-600 text-sm font-bold">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
                     Recording {recTime}s
@@ -768,7 +782,7 @@ export default function StudentForumPage() {
                   </div>
                 </div>
               ) : attachedImage ? (
-                <button type="button" onClick={handleSendImage} disabled={sending} className="flex-1 h-10 rounded-xl bg-navy-900 text-white text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-50">
+                <button type="button" onClick={handleSendImage} disabled={sending} className="flex-1 min-w-0 h-10 rounded-xl bg-navy-900 text-white text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-50">
                   <Send className="w-4 h-4" /> Send Photo
                 </button>
               ) : (
@@ -779,12 +793,12 @@ export default function StudentForumPage() {
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleSendText(); }}
                     placeholder={replyTo ? `Reply to ${replyTo.authorName}…` : "Write a message… (or record a voice note)"}
-                    className="flex-1 h-10 px-4 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-400 bg-slate-50"
+                    className="flex-1 min-w-0 h-10 px-4 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy-400 bg-slate-50"
                   />
                   <button type="button" onClick={startRecording} className="w-10 h-10 shrink-0 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center hover:bg-rose-100 transition-colors" title="Record voice note">
                     <Mic className="w-5 h-5" />
                   </button>
-                  <button type="button" onClick={handleSendText} disabled={!draft.trim() || sending} className="w-10 h-10 shrink-0 rounded-xl bg-navy-900 text-white flex items-center justify-center disabled:opacity-40 hover:bg-navy-800 transition-colors">
+                  <button type="button" onClick={handleSendText} disabled={!draft.trim() || sending} className="w-10 h-10 shrink-0 rounded-xl bg-navy-900 text-white flex items-center justify-center disabled:opacity-40 hover:bg-navy-800 transition-colors" title="Send">
                     <Send className="w-5 h-5" />
                   </button>
                 </>
@@ -852,27 +866,49 @@ export default function StudentForumPage() {
         </div>
       )}
 
-      {/* Profile settings (set avatar) */}
-      <div className="surface p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Avatar member={user} size={48} />
-          <div>
-            <div className="text-sm font-bold text-slate-900">{user?.name || "Student"}</div>
-            <div className="text-xs text-slate-500">
-              {user?.departmentId ? "Department member" : "School member"} · {orgId ? "Linked to school" : "Unlinked"}
+      {/* Settings modal */}
+      {settingsOpen && (
+        <div className="modal-overlay" onClick={() => setSettingsOpen(false)}>
+          <div className="surface-elevated w-full max-w-sm rounded-2xl overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-navy-700" /> Settings
+              </h3>
+              <button type="button" onClick={() => setSettingsOpen(false)} className="text-slate-400 hover:text-rose-500">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Profile */}
+              <div className="flex items-center gap-3">
+                <Avatar member={user} size={56} />
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-slate-900 truncate">{user?.name || "Student"}</div>
+                  <div className="text-xs text-slate-500">
+                    {user?.departmentId ? "Department member" : "School member"} · {orgId ? "Linked to school" : "Unlinked"}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Profile Photo</div>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar} className="btn-primary w-full text-sm px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5">
+                  <Camera className="w-4 h-4" /> {uploadingAvatar ? "Uploading…" : "Set Profile Photo"}
+                </button>
+              </div>
+
+              <div>
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Actions</div>
+                <button type="button" onClick={() => { setSettingsOpen(false); setShowTagPicker(true); }} className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 hover:border-navy-300 hover:bg-navy-50 transition-colors">
+                  <Users className="w-4 h-4" /> Tag a student
+                </button>
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setShowTagPicker(!showTagPicker)} className="btn-outline text-xs px-3 py-2 rounded-xl flex items-center gap-1.5">
-            <Users className="w-4 h-4" /> Tag student
-          </button>
-          <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={uploadingAvatar} className="btn-primary text-xs px-3 py-2 rounded-xl flex items-center gap-1.5">
-            <Camera className="w-4 h-4" /> {uploadingAvatar ? "Uploading…" : "Set Profile Photo"}
-          </button>
-          <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
