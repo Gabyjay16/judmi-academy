@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { 
   GraduationCap, 
   BookOpen, 
-  Timer, 
   CheckCircle2, 
   XCircle, 
   History, 
@@ -196,7 +195,6 @@ export default function StudentDashboardPage() {
   const student = data?.student || { name: "Student", studentId: "" };
   const stats = data?.stats || { totalTaken: 0, avgPercentage: 0, passRate: 0, highestScore: 0 };
   const history = data?.history || [];
-  const availableExams = data?.availableExams || [];
   const complaintsList = complaintsData?.complaints || [];
   const formAvailable = complaintsData?.formAvailable === true;
   const formConfig = complaintsData?.formConfig;
@@ -388,7 +386,7 @@ export default function StudentDashboardPage() {
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">No examination attempts yet</h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Enter an exam access code in the box above or launch one of the available assessments below.
+                  Enter the exam access code your teacher gave you to attempt and track your assessment.
                 </p>
               </div>
             ) : (
@@ -461,54 +459,6 @@ export default function StudentDashboardPage() {
               </div>
             )}
           </div>
-
-          {/* Available exams */}
-          {availableExams.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-navy-700" />
-                <span>Available Assessments</span>
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {availableExams.map((exam: any) => (
-                  <div
-                    key={exam.id}
-                    className="card card-hover p-5 flex flex-col justify-between gap-4"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-xs text-navy-800 bg-navy-50 px-2 py-0.5 rounded border border-navy-100">
-                          {exam.code}
-                        </span>
-                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                          <Timer className="w-3 h-3" /> {exam.durationMinutes} mins
-                        </span>
-                      </div>
-
-                      <h3 className="font-bold text-slate-900 text-sm sm:text-base mt-2.5">
-                        {exam.title}
-                      </h3>
-                      {exam.subject && (
-                        <p className="text-xs text-slate-500 mt-0.5">{exam.subject}</p>
-                      )}
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">Pass Mark: {exam.passScorePercentage}%</span>
-                      <Link
-                        href={`/test/${exam.code}`}
-                        className="btn-primary px-3.5 py-1.5 text-xs"
-                      >
-                        <span>Launch Test</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

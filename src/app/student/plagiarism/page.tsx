@@ -15,17 +15,17 @@ import {
   Sparkles,
   AlertTriangle,
   KeyRound,
+  Upload,
 } from "lucide-react";
 import PlagiarismResult, { CheckDisplay } from "@/components/PlagiarismResult";
-
-const MIN_CHARS = 80;
+import { extractTextFromFile } from "@/lib/pdf-parser";
 
 export default function StudentPlagiarismPage() {
   const router = useRouter();
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
-  const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<CheckDisplay | null>(null);
@@ -56,16 +56,24 @@ export default function StudentPlagiarismPage() {
   const runCheck = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (text.trim().length < MIN_CHARS) {
-      setError(`Please enter at least ${MIN_CHARS} characters of text to check.`);
+    if (!file) {
+      setError("Please upload a PDF or Word (.docx) document containing your work to check.");
       return;
     }
     setRunning(true);
     try {
+      const extracted = await extractTextFromFile(file);
+      if (!extracted.ok || !extracted.text.trim()) {
+        setError(extracted.message || "Could not read text from that document. Please try another file.");
+        return;
+      }
       const res = await fetch("/api/plagcheck", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim() || "Untitled work", text }),
+        body: JSON.stringify({
+          title: title.trim() || file.name,
+          text: extracted.text,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -73,7 +81,7 @@ export default function StudentPlagiarismPage() {
         return;
       }
       setResult(json.check);
-      setText("");
+      setFile(null);
       fetchHistory();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
@@ -124,7 +132,7 @@ export default function StudentPlagiarismPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Plagiarism & Authenticity Checker</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
-            Paste your work to check it for copied/recycled text and likely AI-generated writing. When the check finishes, a unique verification code lets your teacher confirm the exact result under your school.
+            Upload your thesis or assignment (PDF or Word) and we'll check it for copied, recycled, or likely AI-generated writing. When the check finishes, a unique verification code lets your teacher confirm the exact result under your school.
           </p>
         </div>
       </div>
@@ -160,31 +168,71 @@ export default function StudentPlagiarismPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-emerald-600" />
-              Your text
-            </span>
-            <span className="font-normal text-slate-400">{text.trim().length.toLocaleString()} / 60,000 chars • min {MIN_CHARS}</span>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-emerald-600" />
+            Upload your work (PDF or Word)
           </label>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={10}
-            placeholder="Paste the assignment, essay, or report you want to check..."
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y"
-          />
+
+          <label
+            className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-all cursor-pointer p-8 text-center ${
+              file
+                ? "border-emerald-400 bg-emerald-50/60"
+                : "border-slate-300 bg-slate-50/50 hover:border-emerald-400 hover:bg-emerald-50/30"
+            }`}
+          >
+            {file ? (
+              <>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <span className="text-sm font-bold text-slate-800">{file.name}</span>
+                <span className="text-xs text-slate-500">
+                  {(file.size / 1024 / 1024).toFixed(1)} MB • {file.type.includes("pdf") ? "PDF" : "Word"} document
+                </span>
+                <span className="text-[11px] font-semibold text-emerald-600">Tap to choose a different file</span>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <span className="text-sm font-bold text-slate-800">Choose a PDF or Word document</span>
+                <span className="text-xs text-slate-500 max-w-sm">
+                  Your thesis, essay or report as a .pdf or .docx file. The AI reads the document and gives you the result.
+                </span>
+              </>
+            )}
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={(e) => {
+                const chosen = e.target.files?.[0] || null;
+                if (chosen) {
+                  const name = chosen.name.toLowerCase();
+                  const ext = name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc");
+                  if (!ext) {
+                    setFile(null);
+                    setError("Please upload a PDF or Word (.doc / .docx) document.");
+                    return;
+                  }
+                  setError(null);
+                  setFile(chosen);
+                }
+              }}
+            />
+          </label>
         </div>
 
         <button
           type="submit"
-          disabled={running || text.trim().length < MIN_CHARS}
+          disabled={running || !file}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5"
         >
           {running ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Analyzing your text…
+              Analyzing your document…
             </>
           ) : (
             <>
