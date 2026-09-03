@@ -22,6 +22,36 @@ import {
   Check
 } from "lucide-react";
 
+// Downscale & compress an image to a small JPEG data URL for safe storage.
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Could not process image"));
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.6));
+      };
+      img.onerror = () => reject(new Error("Could not read that image"));
+      img.src = String(reader.result);
+    };
+    reader.onerror = () => reject(new Error("Could not read that image"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<"individual" | "school_pro">("individual");
@@ -49,6 +79,12 @@ export default function CheckoutPage() {
   // Fapshi portal checkout states
   const [confirming, setConfirming] = useState(false);
   const [paymentRef, setPaymentRef] = useState<string | null>(null);
+
+  // Manual (Mobile Money screenshot) payment states
+  const [paymentMode, setPaymentMode] = useState<"fapshi" | "manual">("fapshi");
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [submittingManual, setSubmittingManual] = useState(false);
+  const [manualPending, setManualPending] = useState<any | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -155,6 +191,14 @@ export default function CheckoutPage() {
     setTimeout(poll, 3000);
   };
 
+  // Redirect manual-mode users back to their dashboard after submission.
+  useEffect(() => {
+    if (success && paymentMode === "manual") {
+      const t = setTimeout(() => router.push(plan === "school_pro" ? "/org/dashboard" : "/dashboard"), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [success, paymentMode, plan, router]);
+
   const refreshUser = async () => {
     try {
       const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
@@ -166,6 +210,9 @@ export default function CheckoutPage() {
       if (data?.user) {
         setIsLoggedIn(true);
         setCurrentUser(data.user);
+        if (data.globalSettings?.paymentMode) {
+          setPaymentMode(data.globalSettings.paymentMode === "manual" ? "manual" : "fapshi");
+        }
         if (typeof window !== "undefined") {
           if (data.token) localStorage.setItem("judmi_session", data.token);
           localStorage.setItem("judmi_user", JSON.stringify(data.user));
@@ -192,6 +239,9 @@ export default function CheckoutPage() {
         setPhone(data.user.email || "");
         setMomoPhone(data.user.email || "");
         if (data.user.organizationName) setOrganizationName(data.user.organizationName);
+        if (data.globalSettings?.paymentMode) {
+          setPaymentMode(data.globalSettings.paymentMode === "manual" ? "manual" : "fapshi");
+        }
         if (typeof window !== "undefined") {
           if (data.token) localStorage.setItem("judmi_session", data.token);
           localStorage.setItem("judmi_user", JSON.stringify(data.user));
@@ -288,6 +338,56 @@ export default function CheckoutPage() {
         }
         setIsLoggedIn(true);
         setCurrentUser(signupData.user);
+      }
+
+      // ----- MANUAL MODE: Mobile Money + screenshot (whole system) -----
+      if (paymentMode === "manual") {
+        if (!screenshotFile) {
+          setError("Please upload a screenshot of your payment confirmation.");
+          setLoading(false);
+          return;
+        }
+        if (!screenshotFile.type.startsWith("image/")) {
+          setError("The payment proof must be an image (PNG/JPG) screenshot.");
+          setLoading(false);
+          return;
+        }
+        setSubmittingManual(true);
+        try {
+          const screenshotUrl = await compressImage(screenshotFile);
+          const headers: Record<string, string> = { "Content-Type": "application/json" };
+          if (sessionToken) headers["x-session-token"] = sessionToken;
+          const manualRes = await fetch("/api/manual-payments", {
+            method: "POST",
+            headers,
+            credentials: "include",
+            body: JSON.stringify({
+              feature: plan,
+              cycle: billingCycle,
+              orgName: plan === "school_pro" ? organizationName : undefined,
+              phone: momoPhone,
+              operator: "MTN Mobile Money",
+              screenshotUrl,
+              screenshotName: screenshotFile.name,
+            }),
+          });
+          const manualData = await manualRes.json();
+          if (!manualRes.ok || !manualData?.success) {
+            setError(manualData?.error || "Could not submit your payment request.");
+            setSubmittingManual(false);
+            return;
+          }
+          setScreenshotFile(null);
+          setSubmittingManual(false);
+          setSuccess(true);
+          setManualPending(manualData);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        } catch (err: any) {
+          setError(err.message || "Payment submission failed. Please try again.");
+          setSubmittingManual(false);
+          return;
+        }
       }
 
       // Start a real Fapshi payment. No plan is granted here.
@@ -434,9 +534,13 @@ export default function CheckoutPage() {
               <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Payment Confirmed!</h3>
+              <h3 className="text-xl font-bold text-slate-900">
+                {paymentMode === "manual" ? "Payment Request Submitted!" : "Payment Confirmed!"}
+              </h3>
               <p className="text-xs text-slate-500">
-                Your Judmi Academy {plan === "school_pro" ? "School" : "Pro"} subscription is now active. Redirecting to your dashboard...
+                {paymentMode === "manual"
+                  ? "Your payment screenshot has been sent. An administrator will verify your payment and activate your plan. Redirecting to your dashboard..."
+                  : `Your Judmi Academy ${plan === "school_pro" ? "School" : "Pro"} subscription is now active. Redirecting to your dashboard...`}
               </p>
             </div>
           ) : confirming ? (
@@ -584,7 +688,7 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {/* Secure Payment (Fapshi powered) */}
+              {/* Secure Payment */}
               <div className="space-y-3 pt-2">
                 <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
                   <span>2. Secure Payment</span>
@@ -593,16 +697,113 @@ export default function CheckoutPage() {
                   </span>
                 </h3>
 
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-2">
-                  <Smartphone className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Fapshi Secure Checkout: </span>
-                    <span>
-                      When you click Pay, you will be redirected to our secure Fapshi payment page, where you complete the payment
-                      with MTN Mobile Money or Orange Money. Your plan activates automatically the moment the payment is confirmed.
-                    </span>
+                {paymentMode === "manual" ? (
+                  <div className="space-y-3">
+                    {/* Mobile Money transfer details */}
+                    <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-4 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                          <Smartphone className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-extrabold text-slate-900">MTN Mobile Money</p>
+                          <p className="text-[11px] text-slate-500">Pay exactly, upload your proof below</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                        <div className="bg-white rounded-xl border border-slate-200 p-3">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</p>
+                          <p className="text-base font-extrabold text-slate-900">{currentPlan.priceLocal}</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-slate-200 p-3">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Number</p>
+                          <p className="text-base font-extrabold text-slate-900 font-mono">681597837</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-slate-200 p-3">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Name</p>
+                          <p className="text-sm font-extrabold text-slate-900">Brandon Judmi</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <ol className="text-xs text-slate-600 space-y-1.5 list-decimal list-inside">
+                      <li>Dial *126# and transfer <strong className="text-slate-900">{currentPlan.priceLocal}</strong> to <strong className="font-mono">681597837</strong> (Brandon Judmi).</li>
+                      <li>Take a screenshot of the MTN confirmation message.</li>
+                      <li>Enter the phone number you paid from (optional).</li>
+                      <li>Upload the screenshot and submit. An administrator verifies your payment and activates your plan.</li>
+                    </ol>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Mobile Money phone number (optional)</label>
+                      <input
+                        type="tel"
+                        value={momoPhone}
+                        onChange={(e) => setMomoPhone(e.target.value)}
+                        placeholder="e.g. 681597837"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                        Payment screenshot (proof)
+                      </label>
+                      <label
+                        className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-all cursor-pointer p-6 text-center ${
+                          screenshotFile
+                            ? "border-emerald-400 bg-emerald-50/60"
+                            : "border-slate-300 bg-slate-50/50 hover:border-emerald-400 hover:bg-emerald-50/30"
+                        }`}
+                      >
+                        {screenshotFile ? (
+                          <>
+                            <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center">
+                              <CheckCircle2 className="w-5 h-5" />
+                            </div>
+                            <span className="text-sm font-bold text-slate-800">{screenshotFile.name}</span>
+                            <span className="text-[11px] font-semibold text-emerald-600">Tap to choose a different screenshot</span>
+                          </>
+                        ) : (
+                          <>
+                            <Smartphone className="w-6 h-6 text-emerald-600" />
+                            <span className="text-sm font-bold text-slate-800">Upload your payment screenshot</span>
+                            <span className="text-xs text-slate-500">A clear screenshot of the MTN confirmation message.</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const chosen = e.target.files?.[0] || null;
+                            if (chosen && !chosen.type.startsWith("image/")) {
+                              setScreenshotFile(null);
+                              setError("Payment proof must be an image (PNG/JPG) screenshot.");
+                              return;
+                            }
+                            setError(null);
+                            setScreenshotFile(chosen);
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      Your plan is activated only after an administrator verifies your payment and approves your request.
+                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-2">
+                    <Smartphone className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Fapshi Secure Checkout: </span>
+                      <span>
+                        When you click Pay, you will be redirected to our secure Fapshi payment page, where you complete the payment
+                        with MTN Mobile Money or Orange Money. Your plan activates automatically the moment the payment is confirmed.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Submit CTA */}
@@ -611,12 +812,20 @@ export default function CheckoutPage() {
                   type="submit"
                   disabled={
                     loading ||
+                    submittingManual ||
                     (!isLoggedIn && (!name || !phone || !password || !confirmPassword)) ||
-                    (plan === "school_pro" && !organizationName)
+                    (plan === "school_pro" && !organizationName) ||
+                    (paymentMode === "manual" && !screenshotFile)
                   }
                   className="w-full py-4 rounded-2xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2"
                 >
-                  <span>{loading ? "Preparing Secure Checkout..." : `Pay ${currentPlan.priceLocal} — Continue to Fapshi Checkout`}</span>
+                  {loading || submittingManual ? (
+                    <span>{loading ? "Preparing Secure Checkout..." : "Submitting payment request..."}</span>
+                  ) : paymentMode === "manual" ? (
+                    <span>Submit Payment Proof</span>
+                  ) : (
+                    <span>Pay {currentPlan.priceLocal} — Continue to Fapshi Checkout</span>
+                  )}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

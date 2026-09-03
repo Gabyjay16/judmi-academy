@@ -230,6 +230,11 @@ export async function initDatabase() {
         sql: `INSERT OR IGNORE INTO system_settings (key, value, description, updated_at) VALUES ('free_all_organizations', 'false', 'Enable 100% Free School Pro Access for all organizations', ?)`,
         args: [now]
       });
+      // Global payment method: "fapshi" (online checkout) or "manual" (Mobile Money + screenshot verified by admin)
+      await client.execute({
+        sql: `INSERT OR IGNORE INTO system_settings (key, value, description, updated_at) VALUES ('payment_mode', 'fapshi', 'Payment method used across the whole platform: fapshi (online) or manual (screenshot)', ?)`,
+        args: [now]
+      });
     } catch {}
 
     // Safe column additions for users
@@ -447,6 +452,9 @@ export async function initDatabase() {
         reviewed_by_admin_id TEXT
       );
     `);
+
+    // Safe column addition for manual_payments (plan/meta details for whole-system purchases)
+    try { await client.execute(`ALTER TABLE manual_payments ADD COLUMN meta_json TEXT;`); } catch {}
 
     isInitialized = true;
   } catch (error) {

@@ -68,6 +68,7 @@ export default function StudentPlagiarismPage() {
   const [loading, setLoading] = useState(true);
   const [plagiarismAccess, setPlagiarismAccess] = useState(false);
   const [paymentRequest, setPaymentRequest] = useState<any | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"fapshi" | "manual">("manual");
 
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -77,10 +78,14 @@ export default function StudentPlagiarismPage() {
   const [history, setHistory] = useState<CheckDisplay[]>([]);
   const [lastCopied, setLastCopied] = useState<string | null>(null);
 
-  // Payment gate state
+  // Payment gate state (manual screenshot flow)
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [phone, setPhone] = useState("");
   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  // Payment gate state (Fapshi online flow)
+  const [payingFapshi, setPayingFapshi] = useState(false);
+  const [confirmingFapshi, setConfirmingFapshi] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -109,12 +114,102 @@ export default function StudentPlagiarismPage() {
         const data = await res.json();
         setUser(data.user || null);
         setPlagiarismAccess(data.user?.plagiarismAccess === true);
+        if (data.globalSettings?.paymentMode) {
+          setPaymentMode(data.globalSettings.paymentMode === "manual" ? "manual" : "fapshi");
+        }
       } catch {}
       setLoading(false);
       fetchHistory();
       loadPaymentStatus();
     })();
   }, [fetchHistory, loadPaymentStatus]);
+
+  // Auto-resume a Fapshi plagiarism payment on return (?pay=...) so access
+  // unlocks the moment the webhook confirms SUCCESSFUL.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payParam = new URLSearchParams(window.location.search).get("pay");
+    if (payParam) {
+      localStorage.setItem("judmi_plag_payment", JSON.stringify({ paymentId: payParam, createdAt: Date.now() }));
+      startFapshiPolling(payParam);
+    } else {
+      try {
+        const pendingRaw = localStorage.getItem("judmi_plag_payment");
+        if (pendingRaw) {
+          const pending = JSON.parse(pendingRaw);
+          if (pending?.paymentId && Date.now() - (pending.createdAt || 0) < 1000 * 60 * 120) {
+            startFapshiPolling(pending.paymentId);
+          } else {
+            localStorage.removeItem("judmi_plag_payment");
+          }
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startFapshiPolling = (paymentId: string) => {
+    setConfirmingFapshi(true);
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
+        const res = await fetch(`/api/payments/status?paymentId=${encodeURIComponent(paymentId)}`, {
+          headers: storedToken ? { "x-session-token": storedToken } : {},
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (data?.status === "SUCCESSFUL") {
+          localStorage.removeItem("judmi_plag_payment");
+          setConfirmingFapshi(false);
+          setError(null);
+          setPlagiarismAccess(true);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+        if (data?.status === "FAILED" || data?.status === "EXPIRED") {
+          localStorage.removeItem("judmi_plag_payment");
+          setConfirmingFapshi(false);
+          setError(data?.status === "EXPIRED" ? "This payment link expired. No money was taken — try again." : "Payment failed. No money was taken — try again.");
+          return;
+        }
+      } catch {}
+      if (attempts < 72) {
+        setTimeout(poll, 10000);
+      } else {
+        setConfirmingFapshi(false);
+        setError("We could not confirm your payment yet. If you already paid, refresh this page to re-check.");
+      }
+    };
+    setTimeout(poll, 3000);
+  };
+
+  const startFapshiPayment = async () => {
+    setError(null);
+    setPayingFapshi(true);
+    try {
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("judmi_session") || "" : "";
+      const res = await fetch("/api/payments/plagiarism", {
+        method: "POST",
+        headers: storedToken ? { "Content-Type": "application/json", "x-session-token": storedToken } : { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Could not start the payment. Please try again.");
+        return;
+      }
+      if (typeof window !== "undefined") {
+        localStorage.setItem("judmi_plag_payment", JSON.stringify({ paymentId: json.paymentId, createdAt: Date.now() }));
+      }
+      window.location.href = json.link;
+    } catch (err: any) {
+      setError(err?.message || "Payment setup failed. Please try again.");
+    } finally {
+      setPayingFapshi(false);
+    }
+  };
 
   const submitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,7 +404,21 @@ export default function StudentPlagiarismPage() {
           </div>
         )}
 
-        {/* Payment instructions + form */}
+        {confirmingFapshi && paymentMode === "fapshi" && (
+          <div className="p-5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 space-y-1.5">
+            <div className="flex items-center gap-2 font-bold text-sm text-indigo-900">
+              <Loader2 className="w-5 h-5 text-indigo-600 animate-spin shrink-0" />
+              <span>Confirming your payment...</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Your Mobile Money payment is being verified. Keep this page open — your plagiarism checker access
+              activates automatically once confirmed.
+            </p>
+          </div>
+        )}
+
+        {/* Payment method card */}
+        {paymentMode === "manual" ? (
         <form onSubmit={submitPayment} className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
           <div className="flex items-center gap-2">
             <Smartphone className="w-4 h-4 text-emerald-600" />
@@ -442,6 +551,60 @@ export default function StudentPlagiarismPage() {
             Your access is activated only after an administrator verifies your payment and grants permission.
           </p>
         </form>
+        ) : (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-indigo-600" />
+            <h2 className="text-sm font-extrabold text-slate-800">Activate the Plagiarism Checker</h2>
+          </div>
+
+          <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50/40 p-4 sm:p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold text-slate-900">Online Checkout — {PRICE.toLocaleString()} FCFA</p>
+                <p className="text-[11px] text-slate-500">Secure Fapshi payment via MTN MoMo / Orange Money</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              When you click Pay, you will be redirected to our secure Fapshi checkout to complete the {PRICE.toLocaleString()} FCFA
+              payment with MTN Mobile Money or Orange Money. Your Plagiarism Checker access unlocks automatically the moment
+              the payment is confirmed — no screenshot or admin approval needed.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={startFapshiPayment}
+            disabled={payingFapshi || confirmingFapshi}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-1.5"
+          >
+            {payingFapshi ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Preparing secure checkout…
+              </>
+            ) : confirmingFapshi ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Confirming payment…
+              </>
+            ) : (
+              <>
+                <Smartphone className="w-4 h-4" />
+                Pay {PRICE.toLocaleString()} FCFA — Continue to Checkout
+              </>
+            )}
+          </button>
+
+          <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
+            <KeyRound className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            Use the Mobile Money option in the checkout to pay securely. Access is granted instantly after confirmation.
+          </p>
+        </div>
+        )}
       </div>
     );
   }

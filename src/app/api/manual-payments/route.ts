@@ -4,7 +4,7 @@ import { manualPayments } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { generateId } from "@/lib/utils";
-import { manualPriceFor, MANUAL_FEATURE_LABELS, MANUAL_FEATURE_PRICES } from "@/lib/manual-payments";
+import { manualPriceFor, MANUAL_FEATURE_LABELS, MANUAL_PLAN_KEYS } from "@/lib/manual-payments";
 
 const MAX_SCREENSHOT_BYTES = 3 * 1024 * 1024; // ~3MB (data URL decoded)
 
@@ -18,18 +18,26 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const feature = String(body?.feature || "").trim();
-    const amount = Number(body?.amount);
     const phone = String(body?.phone || "").trim();
     const operator = String(body?.operator || "").trim() || "MTN Mobile Money";
     const screenshotUrl = String(body?.screenshotUrl || "");
     const screenshotName = String(body?.screenshotName || "").trim();
     const note = String(body?.note || "").trim();
+    const orgName = String(body?.orgName || "").trim();
+    const cycle = body?.cycle === "yearly" ? "yearly" : "monthly";
 
-    // Validate feature is a manual-payment-gated one with a defined price.
-    const expected = manualPriceFor(feature);
-    if (!MANUAL_FEATURE_PRICES[feature] || expected <= 0) {
+    const meta = orgName || cycle ? { cycle, orgName: orgName || undefined } : null;
+
+    // Validate: the feature must be a manual-payment feature (gated feature OR
+    // a supported plan purchase), and the amount must match exactly.
+    const expected = manualPriceFor(feature, meta || undefined);
+    if (expected <= 0) {
       return NextResponse.json({ error: "Invalid payment feature." }, { status: 400 });
     }
+    if (MANUAL_PLAN_KEYS.includes(feature as any) && feature === "school_pro" && !orgName) {
+      return NextResponse.json({ error: "School / institution name is required." }, { status: 400 });
+    }
+    const amount = Number(body?.amount);
     if (amount !== expected) {
       return NextResponse.json(
         { error: `The amount must be exactly ${expected.toLocaleString()} FCFA.` },
@@ -75,6 +83,7 @@ export async function POST(req: NextRequest) {
       screenshotUrl,
       screenshotName: screenshotName || "payment.png",
       note,
+      metaJson: meta ? JSON.stringify(meta) : undefined,
       status: "pending",
       createdAt: now,
     });
@@ -126,6 +135,7 @@ export async function GET(req: NextRequest) {
       screenshotUrl: r.screenshotUrl,
       screenshotName: r.screenshotName,
       note: r.note,
+      meta: r.metaJson ? (() => { try { return JSON.parse(r.metaJson); } catch { return null; } })() : null,
       status: r.status,
       createdAt: r.createdAt,
       reviewedAt: r.reviewedAt,

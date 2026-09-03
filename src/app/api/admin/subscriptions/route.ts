@@ -51,6 +51,7 @@ export async function GET() {
       systemSettings: {
         freeAllTeachers: settingsMap["free_all_teachers"] === "true",
         freeAllOrganizations: settingsMap["free_all_organizations"] === "true",
+        paymentMode: settingsMap["payment_mode"] === "manual" ? "manual" : "fapshi",
       },
     });
   } catch (error: any) {
@@ -94,6 +95,24 @@ export async function POST(req: NextRequest) {
         settingKey,
         settingValue: settingValue === true,
       });
+    }
+
+    // Action 0b: Set the global payment method (fapshi online vs manual screenshot)
+    if (action === "set_payment_mode") {
+      const mode = body.mode === "manual" ? "manual" : "fapshi";
+      const val = mode === "manual" ? "manual" : "fapshi";
+      const existing = await db.select().from(systemSettings).where(eq(systemSettings.key, "payment_mode")).limit(1);
+      if (existing.length > 0) {
+        await db.update(systemSettings).set({ value: val, updatedAt: now }).where(eq(systemSettings.key, "payment_mode"));
+      } else {
+        await db.insert(systemSettings).values({
+          key: "payment_mode",
+          value: val,
+          description: "Payment method used across the whole platform: fapshi (online) or manual (screenshot)",
+          updatedAt: now,
+        });
+      }
+      return NextResponse.json({ success: true, mode });
     }
 
     // Action 1: Grant or change access plan for a teacher or student user

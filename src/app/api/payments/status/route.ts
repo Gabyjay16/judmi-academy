@@ -3,7 +3,7 @@ import { db, initDatabase } from "@/db";
 import { payments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
-import { confirmPayment, voidPayment, type PaidPlan } from "@/lib/payments";
+import { confirmPayment, voidPayment } from "@/lib/payments";
 import { getFapshiPaymentStatus, fapshiConfigured } from "@/lib/fapshi";
 
 // Reconcile against Fapshi at most once per 45s per payment (their rate limit
@@ -64,7 +64,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const redirectTo = (payment.plan as PaidPlan) === "school_pro" ? "/org/dashboard" : "/dashboard";
+    const redirectTo =
+      payment.plan === "school_pro" ? "/org/dashboard"
+      : payment.plan === "plagiarism" ? "/student/plagiarism"
+      : "/dashboard";
 
     return NextResponse.json({
       success: true,

@@ -36,9 +36,10 @@ export default function AdminPanelPage() {
   const [allOrgs, setAllOrgs] = useState<any[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
   const [viewingPayment, setViewingPayment] = useState<any | null>(null);
-  const [systemSettings, setSystemSettings] = useState<{ freeAllTeachers: boolean; freeAllOrganizations: boolean }>({
+  const [systemSettings, setSystemSettings] = useState<{ freeAllTeachers: boolean; freeAllOrganizations: boolean; paymentMode: "fapshi" | "manual" }>({
     freeAllTeachers: false,
     freeAllOrganizations: false,
+    paymentMode: "fapshi",
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -146,6 +147,30 @@ export default function AdminPanelPage() {
       }
     } catch (e) {
       console.error("Toggle system setting error:", e);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSetPaymentMode = async (mode: "fapshi" | "manual") => {
+    if (mode === systemSettings.paymentMode) return;
+    if (!confirm(`Switch the entire platform to ${mode === "manual" ? "manual (Mobile Money screenshot)" : "Fapshi (online checkout)"} payments?`)) return;
+    try {
+      setActionLoading("payment_mode");
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_payment_mode", mode }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSystemSettings((prev) => ({ ...prev, paymentMode: mode }));
+      } else {
+        alert(data.error || "Failed to switch payment mode.");
+      }
+    } catch (e) {
+      console.error("Set payment mode error:", e);
+      alert("Failed to switch payment mode.");
     } finally {
       setActionLoading(null);
     }
@@ -1167,6 +1192,55 @@ export default function AdminPanelPage() {
       {/* TAB 5: Manual Payment Approvals */}
       {activeTab === "payments" && (
         <div className="space-y-6">
+          {/* Global Payment Method Switch (whole system) */}
+          <div className="p-5 rounded-3xl border-2 border-indigo-200 bg-indigo-50/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-sm">Global Payment Method</h4>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                    systemSettings.paymentMode === "manual" ? "text-emerald-700" : "text-indigo-700"
+                  }`}>
+                    {systemSettings.paymentMode === "manual" ? "● Manual: Mobile Money + screenshot (admin approval)" : "● Fapshi: online checkout (auto-activate)"}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                This switch sets how payments are accepted across the <strong>whole system</strong> — student plagiarism and
+                plan subscriptions. Manual mode: users pay the Mobile Money number and upload a screenshot (approved here).
+                Fapshi mode: users checkout online through Fapshi and access activates automatically.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1.5 bg-white rounded-2xl border border-slate-200 shadow-xs text-xs font-bold">
+              <button
+                type="button"
+                disabled={actionLoading === "payment_mode"}
+                onClick={() => handleSetPaymentMode("fapshi")}
+                className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                  systemSettings.paymentMode === "fapshi" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Fapshi
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading === "payment_mode"}
+                onClick={() => handleSetPaymentMode("manual")}
+                className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                  systemSettings.paymentMode === "manual" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                Manual
+              </button>
+            </div>
+          </div>
+
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
             <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -1175,8 +1249,8 @@ export default function AdminPanelPage() {
                   <span>Manual Payment Approvals</span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Students pay via Mobile Money and upload a screenshot as proof. Review the screenshot, then click
-                  &quot;Grant Permission&quot; to unlock the feature — or reject the request.
+                  Users pay via Mobile Money and upload a screenshot as proof. Review the screenshot, then approve to
+                  grant the feature or subscription plan — or reject the request.
                 </p>
               </div>
 
@@ -1220,6 +1294,9 @@ export default function AdminPanelPage() {
 
                         <td className="px-4 py-4">
                           <div className="font-bold text-slate-900">{req.label}</div>
+                          {req.meta?.cycle && (
+                            <div className="text-[10px] text-slate-500 capitalize">{req.meta.cycle} plan</div>
+                          )}
                           <div className="text-xs text-slate-500">{req.amount.toLocaleString()} FCFA</div>
                         </td>
 

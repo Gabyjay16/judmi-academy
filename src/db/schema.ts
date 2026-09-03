@@ -367,6 +367,9 @@ export const manualPayments = sqliteTable("manual_payments", {
   screenshotUrl: text("screenshot_url").notNull(), // data URL (base64) of the payment screenshot
   screenshotName: text("screenshot_name"),
   note: text("note"),
+  // Extra details about the purchase: for plan features (individual/school_pro)
+  // this holds { cycle, orgName }; for features it may hold other metadata.
+  metaJson: text("meta_json"),
   status: text("status").notNull().default("pending"), // "pending" | "approved" | "rejected"
   createdAt: text("created_at").notNull(),
   reviewedAt: text("reviewed_at"),

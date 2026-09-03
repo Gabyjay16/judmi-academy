@@ -46,9 +46,14 @@ export async function PUT(
       })
       .where(eq(manualPayments.id, id));
 
-    // Grant the feature only when the payment is approved.
+    // Grant the feature only when the payment is approved. Plan purchases pass
+    // their meta (cycle, orgName) so the correct plan/org is granted.
     if (status === "approved" && request.userId) {
-      await grantManualFeatureAccess(request.userId, request.feature);
+      let meta: { cycle?: string; orgName?: string } | null | undefined;
+      if (request.metaJson) {
+        try { meta = JSON.parse(request.metaJson); } catch { meta = null; }
+      }
+      await grantManualFeatureAccess(request.userId, request.feature, meta);
     }
 
     return NextResponse.json({ success: true, status });

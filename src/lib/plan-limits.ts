@@ -147,11 +147,13 @@ export async function getGlobalSystemSettings() {
     return {
       freeAllTeachers: settingsMap["free_all_teachers"] === "true",
       freeAllOrganizations: settingsMap["free_all_organizations"] === "true",
+      paymentMode: settingsMap["payment_mode"] === "manual" ? "manual" : "fapshi",
     };
   } catch {
     return {
       freeAllTeachers: false,
       freeAllOrganizations: false,
+      paymentMode: "fapshi",
     };
   }
 }

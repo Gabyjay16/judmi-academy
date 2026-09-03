@@ -31,6 +31,12 @@ export async function applyPaidPlan(payment: Payment): Promise<void> {
 
   if (!payment.userId) return;
 
+  // Plagiarism feature purchase (student authenticity checker, 5000 FCFA).
+  if (payment.plan === "plagiarism") {
+    await db.update(users).set({ plagiarismAccess: 1 }).where(eq(users.id, payment.userId));
+    return;
+  }
+
   const userRows = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
   if (userRows.length === 0) return;
   const user = userRows[0];
