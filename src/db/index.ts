@@ -754,6 +754,90 @@ export async function initDatabase() {
       );
     `);
 
+    // ── Parent / Guardian links ───────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS parent_links (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        parent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        parent_name TEXT,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        student_name TEXT,
+        relationship TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Internal Messaging ────────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sender_name TEXT,
+        recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        subject TEXT,
+        body TEXT NOT NULL,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        read_at TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Clubs & Societies ─────────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS clubs (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        category TEXT,
+        advisor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        advisor_name TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS club_members (
+        id TEXT PRIMARY KEY,
+        club_id TEXT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+        member_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        member_name TEXT,
+        role TEXT NOT NULL DEFAULT 'member',
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS club_announcements (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        club_id TEXT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        body TEXT,
+        posted_by_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        posted_by_name TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Study Resources / Learning Materials ─────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS study_resources (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+        course_name TEXT,
+        department_id TEXT,
+        title TEXT NOT NULL,
+        description TEXT,
+        url TEXT,
+        file_type TEXT,
+        uploaded_by_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        uploaded_by_name TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
 
     // ── Assignments ────────────────────────────────────────────────────────────

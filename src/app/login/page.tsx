@@ -62,6 +62,8 @@ export default function LoginPage() {
         router.push("/org/dashboard");
       } else if (user.role === "student") {
         router.push("/student/dashboard");
+      } else if (user.role === "parent") {
+        router.push("/parent/dashboard");
       } else {
         router.push("/dashboard");
       }

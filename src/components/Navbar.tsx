@@ -33,7 +33,12 @@ import {
   Users2,
   ShieldAlert,
   Library,
-  BarChart3
+  BarChart3,
+  MessageSquare,
+  CalendarClock,
+  BookOpenText,
+  HeartHandshake,
+  TrendingUp
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
 
@@ -213,9 +218,20 @@ export default function Navbar() {
       { href: "/student/fees", label: "My Fees", icon: Wallet },
       { href: "/student/discipline", label: "Conduct", icon: ShieldAlert },
       { href: "/student/library", label: "Library", icon: Library },
+      { href: "/student/resources", label: "Resources", icon: BookOpenText },
+      { href: "/student/clubs", label: "Clubs", icon: CalendarClock },
+      { href: "/student/messages", label: "Messages", icon: MessageSquare },
       { href: "/student/profile", label: "Profile", icon: User },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
+    ];
+  } else if (currentUser?.role === "parent" || pathname.startsWith("/parent")) {
+    navLinks = [
+      { href: "/parent/dashboard", label: "My Children", icon: HeartHandshake },
+      { href: "/parent/messages", label: "Messages", icon: MessageSquare },
+      { href: "/student/announcements", label: "Announcements", icon: Megaphone },
+      { href: "/student/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/student/resources", label: "Resources", icon: BookOpenText },
     ];
   } else if (currentUser?.role === "org_admin" || pathname.startsWith("/org")) {
     navLinks = [
@@ -240,6 +256,11 @@ export default function Navbar() {
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/dashboard/report-cards", label: "Report Cards", icon: BookOpen },
+      { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
+      { href: "/dashboard/clubs", label: "Clubs", icon: CalendarClock },
+      { href: "/dashboard/resources", label: "Resources", icon: BookOpenText },
+      { href: "/dashboard/parents", label: "Parents", icon: HeartHandshake },
+      { href: "/dashboard/performance", label: "Performance", icon: TrendingUp },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -264,6 +285,11 @@ export default function Navbar() {
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/dashboard/report-cards", label: "Report Cards", icon: BookOpen },
+      { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
+      { href: "/dashboard/clubs", label: "Clubs", icon: CalendarClock },
+      { href: "/dashboard/resources", label: "Resources", icon: BookOpenText },
+      { href: "/dashboard/parents", label: "Parents", icon: HeartHandshake },
+      { href: "/dashboard/performance", label: "Performance", icon: TrendingUp },
     ];
   } else {
     navLinks = [
@@ -289,6 +315,9 @@ export default function Navbar() {
       navLinks.push({ href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 });
       navLinks.push({ href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays });
       navLinks.push({ href: "/dashboard/report-cards", label: "Report Cards", icon: BookOpen });
+      navLinks.push({ href: "/dashboard/messages", label: "Messages", icon: MessageSquare });
+      navLinks.push({ href: "/dashboard/clubs", label: "Clubs", icon: CalendarClock });
+      navLinks.push({ href: "/dashboard/resources", label: "Resources", icon: BookOpenText });
     }
     if (!currentUser?.orgId) {
       navLinks.push({ href: "/pricing", label: "Pricing", icon: CreditCard });

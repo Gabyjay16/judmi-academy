@@ -711,6 +711,84 @@ export const academicTerms = sqliteTable("academic_terms", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Parent / Guardian links ────────────────────────────────────────────────────
+
+export const parentLinks = sqliteTable("parent_links", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  parentId: text("parent_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  parentName: text("parent_name"),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentName: text("student_name"),
+  relationship: text("relationship").default("guardian"), // "guardian" | "father" | "mother" | "other"
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Internal Messaging ─────────────────────────────────────────────────────────
+
+export const messages = sqliteTable("messages", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  senderId: text("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  senderName: text("sender_name"),
+  recipientId: text("recipient_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  subject: text("subject"),
+  body: text("body").notNull(),
+  isRead: integer("is_read").notNull().default(0),
+  readAt: text("read_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Clubs & Societies ──────────────────────────────────────────────────────────
+
+export const clubs = sqliteTable("clubs", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").default("other"), // "academic" | "sports" | "arts" | "tech" | "culture" | "other"
+  advisorId: text("advisor_id").references(() => users.id, { onDelete: "set null" }),
+  advisorName: text("advisor_name"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const clubMembers = sqliteTable("club_members", {
+  id: text("id").primaryKey(),
+  clubId: text("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  memberName: text("member_name"),
+  role: text("role").notNull().default("member"), // "member" | "lead"
+  createdAt: text("created_at").notNull(),
+});
+
+export const clubAnnouncements = sqliteTable("club_announcements", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  clubId: text("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body"),
+  postedById: text("posted_by_id").references(() => users.id, { onDelete: "set null" }),
+  postedByName: text("posted_by_name"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Study Resources / Learning Materials ───────────────────────────────────────
+
+export const studyResources = sqliteTable("study_resources", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  courseId: text("course_id").references(() => courses.id, { onDelete: "set null" }),
+  courseName: text("course_name"),
+  departmentId: text("department_id"),
+  title: text("title").notNull(),
+  description: text("description"),
+  url: text("url"),
+  fileType: text("file_type").default("link"), // "link" | "document" | "video" | "slides"
+  uploadedById: text("uploaded_by_id").references(() => users.id, { onDelete: "set null" }),
+  uploadedByName: text("uploaded_by_name"),
+  createdAt: text("created_at").notNull(),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type Exam = typeof exams.$inferSelect;
@@ -771,4 +849,16 @@ export type AcademicEvent = typeof academicEvents.$inferSelect;
 export type NewAcademicEvent = typeof academicEvents.$inferInsert;
 export type AcademicTerm = typeof academicTerms.$inferSelect;
 export type NewAcademicTerm = typeof academicTerms.$inferInsert;
+export type ParentLink = typeof parentLinks.$inferSelect;
+export type NewParentLink = typeof parentLinks.$inferInsert;
+export type Message = typeof messages.$inferSelect;
+export type NewMessage = typeof messages.$inferInsert;
+export type Club = typeof clubs.$inferSelect;
+export type NewClub = typeof clubs.$inferInsert;
+export type ClubMember = typeof clubMembers.$inferSelect;
+export type NewClubMember = typeof clubMembers.$inferInsert;
+export type ClubAnnouncement = typeof clubAnnouncements.$inferSelect;
+export type NewClubAnnouncement = typeof clubAnnouncements.$inferInsert;
+export type StudyResource = typeof studyResources.$inferSelect;
+export type NewStudyResource = typeof studyResources.$inferInsert;
 
