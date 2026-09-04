@@ -90,8 +90,8 @@ export default function StudentResultsPage() {
           </h1>
         </div>
         <div className="flex gap-2">
-          <a href="/api/org/results/export" className="btn-primary text-xs py-2 px-3 rounded-xl flex items-center gap-1.5 shrink-0">
-            <Download className="w-4 h-4" /> Download PDF
+          <a href="/api/org/transcript" className="btn-primary text-xs py-2 px-3 rounded-xl flex items-center gap-1.5 shrink-0">
+            <Download className="w-4 h-4" /> Official Transcript (PDF)
           </a>
           <button type="button" onClick={print} className="btn-outline text-xs py-2 px-3 rounded-xl flex items-center gap-1.5 shrink-0">
             <Printer className="w-4 h-4" /> Print

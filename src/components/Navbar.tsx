@@ -208,6 +208,8 @@ export default function Navbar() {
       { href: "/student/announcements", label: "Announcements", icon: Megaphone },
       { href: "/student/assignments", label: "Assignments", icon: ClipboardList },
       { href: "/student/results", label: "Results", icon: GraduationCap },
+      { href: "/student/report-card", label: "Report Card", icon: BookOpen },
+      { href: "/student/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/student/fees", label: "My Fees", icon: Wallet },
       { href: "/student/discipline", label: "Conduct", icon: ShieldAlert },
       { href: "/student/library", label: "Library", icon: Library },
@@ -236,6 +238,8 @@ export default function Navbar() {
       { href: "/dashboard/discipline", label: "Conduct & Discipline", icon: ShieldAlert },
       { href: "/dashboard/library", label: "Library", icon: Library },
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/dashboard/report-cards", label: "Report Cards", icon: BookOpen },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -258,6 +262,8 @@ export default function Navbar() {
       { href: "/dashboard/discipline", label: "Conduct & Discipline", icon: ShieldAlert },
       { href: "/dashboard/library", label: "Library", icon: Library },
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/dashboard/report-cards", label: "Report Cards", icon: BookOpen },
     ];
   } else {
     navLinks = [
@@ -281,6 +287,8 @@ export default function Navbar() {
       navLinks.push({ href: "/dashboard/discipline", label: "Conduct & Discipline", icon: ShieldAlert });
       navLinks.push({ href: "/dashboard/library", label: "Library", icon: Library });
       navLinks.push({ href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 });
+      navLinks.push({ href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays });
+      navLinks.push({ href: "/dashboard/report-cards", label: "Report Cards", icon: BookOpen });
     }
     if (!currentUser?.orgId) {
       navLinks.push({ href: "/pricing", label: "Pricing", icon: CreditCard });

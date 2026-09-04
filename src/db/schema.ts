@@ -683,6 +683,34 @@ export const libraryLoans = sqliteTable("library_loans", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Academic Calendar & Terms ──────────────────────────────────────────────────
+
+export const academicEvents = sqliteTable("academic_events", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  date: text("date").notNull(),               // "YYYY-MM-DD"
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  type: text("type").notNull().default("event"), // "event" | "holiday" | "deadline" | "exam" | "term_start" | "term_end"
+  venue: text("venue"),
+  audience: text("audience").notNull().default("all"), // "all" | "students" | "teachers"
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdByName: text("created_by_name"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const academicTerms = sqliteTable("academic_terms", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),               // e.g. "Term 1 · 2025-2026"
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  isActive: integer("is_active").notNull().default(0), // 1 = current active term
+  createdAt: text("created_at").notNull(),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type Exam = typeof exams.$inferSelect;
@@ -739,4 +767,8 @@ export type LibraryBook = typeof libraryBooks.$inferSelect;
 export type NewLibraryBook = typeof libraryBooks.$inferInsert;
 export type LibraryLoan = typeof libraryLoans.$inferSelect;
 export type NewLibraryLoan = typeof libraryLoans.$inferInsert;
+export type AcademicEvent = typeof academicEvents.$inferSelect;
+export type NewAcademicEvent = typeof academicEvents.$inferInsert;
+export type AcademicTerm = typeof academicTerms.$inferSelect;
+export type NewAcademicTerm = typeof academicTerms.$inferInsert;
 

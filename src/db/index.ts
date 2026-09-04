@@ -724,6 +724,36 @@ export async function initDatabase() {
       );
     `);
 
+    // ── Academic Calendar & Terms ─────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS academic_events (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        description TEXT,
+        date TEXT NOT NULL,
+        start_time TEXT,
+        end_time TEXT,
+        type TEXT NOT NULL DEFAULT 'event',
+        venue TEXT,
+        audience TEXT NOT NULL DEFAULT 'all',
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_by_name TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS academic_terms (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        start_date TEXT,
+        end_date TEXT,
+        is_active INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
 
     // ── Assignments ────────────────────────────────────────────────────────────
