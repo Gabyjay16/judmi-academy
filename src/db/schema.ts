@@ -509,8 +509,31 @@ export const assignmentSubmissions = sqliteTable("assignment_submissions", {
   gradedAt: text("graded_at"),
 });
 
+// ── Results / Transcripts ──────────────────────────────────────────────────────
+
+export const results = sqliteTable("results", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentName: text("student_name"),
+  courseId: text("course_id").references(() => courses.id, { onDelete: "set null" }),
+  courseName: text("course_name"),
+  term: text("term").notNull(),                 // e.g. "Term 1", "2025"
+  examScore: integer("exam_score"),             // out of 100
+  assignmentScore: integer("assignment_score"), // aggregate out of 100
+  total: integer("total"),                      // final combined score out of 100
+  grade: text("grade"),                          // A, B, C, D, F
+  remarks: text("remarks"),
+  published: integer("published").notNull().default(0),
+  publishedAt: text("published_at"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull(),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+export type Result = typeof results.$inferSelect;
+export type NewResult = typeof results.$inferInsert;
 export type Assignment = typeof assignments.$inferSelect;
 export type NewAssignment = typeof assignments.$inferInsert;
 export type AssignmentSubmission = typeof assignmentSubmissions.$inferSelect;

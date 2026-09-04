@@ -184,6 +184,7 @@ export default function Navbar() {
       { href: "/student/attendance", label: "Attendance", icon: ClipboardCheck },
       { href: "/student/announcements", label: "Announcements", icon: Megaphone },
       { href: "/student/assignments", label: "Assignments", icon: ClipboardList },
+      { href: "/student/results", label: "Results", icon: GraduationCap },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
@@ -200,6 +201,7 @@ export default function Navbar() {
       { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
       { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
       { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
+      { href: "/dashboard/results", label: "Results", icon: GraduationCap },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -214,6 +216,7 @@ export default function Navbar() {
       { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
       { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
       { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
+      { href: "/dashboard/results", label: "Results", icon: GraduationCap },
     ];
   } else {
     navLinks = [
@@ -225,6 +228,7 @@ export default function Navbar() {
       { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
       { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
       { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
+      { href: "/dashboard/results", label: "Results", icon: GraduationCap },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
     if (currentUser?.orgId) {

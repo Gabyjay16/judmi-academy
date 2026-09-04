@@ -595,6 +595,28 @@ export async function initDatabase() {
         graded_at TEXT
       );
     `);
+
+    // ── Results / Transcripts ──────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS results (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        student_name TEXT,
+        course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+        course_name TEXT,
+        term TEXT NOT NULL,
+        exam_score INTEGER,
+        assignment_score INTEGER,
+        total INTEGER,
+        grade TEXT,
+        remarks TEXT,
+        published INTEGER NOT NULL DEFAULT 0,
+        published_at TEXT,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
   } catch (error) {
     console.error("Database initialization error:", error);
   }
