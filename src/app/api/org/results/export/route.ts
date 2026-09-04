@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { results, users, organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { canViewResults } from "@/lib/results-access";
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,6 +28,9 @@ export async function GET(req: NextRequest) {
       .where(eq(results.studentId, studentId));
 
     // Published only for the student owner; staff see all.
+    if (!isStaff && !(await canViewResults(user, studentId))) {
+      return NextResponse.json({ error: "Results are locked until outstanding fees are cleared or an administrator approves access." }, { status: 403 });
+    }
     const visible = isStaff ? rows : rows.filter((r) => r.published === 1);
 
     let orgName = "";

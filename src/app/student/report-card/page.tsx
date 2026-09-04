@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Printer, Star, Loader2 } from "lucide-react";
+import { BookOpen, Printer, Star, Loader2, Lock } from "lucide-react";
 
 interface CourseRow { id: string; courseName: string; examScore: number | null; assignmentScore: number | null; total: number | null; grade: string | null; remarks: string | null; }
 interface TermSummary { term: string; courses: CourseRow[]; avg: number | null; gradeCounts: Record<string, number>; performance: string; }
@@ -84,6 +84,15 @@ export default function StudentReportCard() {
   }
 
   if (!data || !data.student) {
+    if (data?.error) {
+      return (
+        <div className="max-w-2xl mx-auto px-5 py-16 text-center surface-elevated rounded-2xl space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto"><Lock className="w-7 h-7" /></div>
+          <p className="text-sm font-bold text-slate-800">Report card locked</p>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">{data.error}</p>
+        </div>
+      );
+    }
     return (
       <div className="max-w-2xl mx-auto px-5 py-16 text-center surface-elevated rounded-2xl">
         <BookOpen className="w-10 h-10 text-navy-200 mx-auto mb-3" />

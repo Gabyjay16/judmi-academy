@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GraduationCap, Award, BookOpen, Download, Printer } from "lucide-react";
+import { GraduationCap, Award, BookOpen, Download, Printer, Lock } from "lucide-react";
 
 interface Result {
   id: string;
@@ -28,6 +28,7 @@ function gradeColor(g: string | null) {
 export default function StudentResultsPage() {
   const [user, setUser] = useState<any>(null);
   const [items, setItems] = useState<Result[]>([]);
+  const [gated, setGated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function StudentResultsPage() {
     if (!user?.orgId) { setLoading(false); return; }
     fetch("/api/org/results")
       .then((r) => r.json())
-      .then((data) => setItems(data.results || []))
+      .then((data) => { setItems(data.results || []); setGated(!!data.gated); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [user?.orgId]);
@@ -62,6 +63,22 @@ export default function StudentResultsPage() {
           <GraduationCap className="w-6 h-6" />
         </div>
         <p className="text-sm text-slate-500 font-semibold">Loading results…</p>
+      </div>
+    );
+  }
+
+  if (gated) {
+    return (
+      <div className="max-w-4xl mx-auto px-5 py-16 text-center space-y-4 animate-fade-in">
+        <div className="w-16 h-16 rounded-3xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h1 className="text-xl font-extrabold text-slate-900">Results Locked</h1>
+        <p className="text-sm text-slate-500 max-w-md mx-auto">
+          Your results are currently locked because of outstanding school fees.
+          Please clear your fees — or contact the school administrator to approve
+          access — and your results will appear here.
+        </p>
       </div>
     );
   }

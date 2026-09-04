@@ -47,6 +47,7 @@ export const users = sqliteTable("users", {
   canManageComplaints: integer("can_manage_complaints").notNull().default(0), // 1 = delegated review access
   // Manual-payment-gated feature access (granted by admin after screenshot verification)
   plagiarismAccess: integer("plagiarism_access").notNull().default(0), // 1 = plagiarism feature unlocked
+  resultsApproved: integer("results_approved").notNull().default(0),   // 1 = admin override granting results access regardless of fees
   // Per-service access control (set by super admin). NULL = full access (all services allowed).
   allowedServices: text("allowed_services"), // JSON: string[]
   status: text("status").notNull().default("active"), // "active" | "suspended" | "pending"

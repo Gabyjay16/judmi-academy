@@ -240,6 +240,7 @@ export async function initDatabase() {
     // Safe column additions for users
     try { await client.execute(`ALTER TABLE users ADD COLUMN department_id TEXT;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN can_manage_complaints INTEGER DEFAULT 0;`); } catch {}
+    try { await client.execute(`ALTER TABLE users ADD COLUMN results_approved INTEGER DEFAULT 0;`); } catch {}
 
     // 9. Departments table
     await client.execute(`

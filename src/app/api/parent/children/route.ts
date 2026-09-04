@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { parentLinks, users, results, attendanceRecords, disciplineRecords, invoices, feePayments, organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { canViewResults } from "@/lib/results-access";
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +24,8 @@ export async function GET(req: NextRequest) {
       if (!student) continue;
 
       const resultRows = await db.select().from(results).where(eq(results.studentId, student.id));
-      const published = resultRows.filter((r) => r.published === 1);
+      const resultsLocked = !(await canViewResults(user, student.id));
+      const published = !resultsLocked ? resultRows.filter((r) => r.published === 1) : [];
       const byTerm = published.reduce<Record<string, typeof published>>((acc, r) => {
         (acc[r.term] = acc[r.term] || []).push(r);
         return acc;
@@ -66,6 +68,7 @@ export async function GET(req: NextRequest) {
         },
         terms,
         termSummaries,
+        resultsLocked,
         attendancePct,
         conduct: { incidents, rewards },
         fees: { totalInvoiced, totalPaid, balanceOutstanding },

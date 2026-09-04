@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { results, users, organizations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { canViewResults } from "@/lib/results-access";
 
 const STAFF = ["admin", "org_admin", "teacher"];
 const GPA: Record<string, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 };
@@ -21,7 +22,12 @@ export async function GET(req: NextRequest) {
     if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
 
     let rows = await db.select().from(results).where(eq(results.studentId, studentId));
-    if (!isStaff) rows = rows.filter((r) => r.published === 1);
+    if (!isStaff) {
+      if (!(await canViewResults(user, studentId))) {
+        return NextResponse.json({ error: "Results are locked until outstanding fees are cleared or an administrator approves access." }, { status: 403 });
+      }
+      rows = rows.filter((r) => r.published === 1);
+    }
 
     let orgName = "Judmi Academy";
     if (student.orgId) {

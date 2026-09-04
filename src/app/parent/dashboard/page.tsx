@@ -9,6 +9,7 @@ interface ChildSummary {
   student: { id: string; name: string; studentId: string | null; year: string | null; departmentId: string | null; email: string; };
   terms: string[];
   termSummaries: { term: string; avg: number | null; count: number }[];
+  resultsLocked?: boolean;
   attendancePct: number | null;
   conduct: { incidents: number; rewards: number };
   fees: { totalInvoiced: number; totalPaid: number; balanceOutstanding: number };
@@ -139,7 +140,13 @@ export default function ParentDashboard() {
             <div className="p-5">
               <h3 className="text-sm font-extrabold text-slate-900 mb-3">Term Averages</h3>
               {child.termSummaries.length === 0 ? (
-                <p className="text-xs text-slate-400 font-semibold">No published results yet.</p>
+                child.resultsLocked ? (
+                  <p className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                    Results are locked while outstanding fees remain. Once fees are cleared (or approved by the school), this child&apos;s results will appear here.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-400 font-semibold">No published results yet.</p>
+                )
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">

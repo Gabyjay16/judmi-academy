@@ -216,6 +216,7 @@ export default function Navbar() {
       { href: "/student/report-card", label: "Report Card", icon: BookOpen },
       { href: "/student/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/student/fees", label: "My Fees", icon: Wallet },
+      { href: "/student/registration", label: "Course Registration", icon: ClipboardList },
       { href: "/student/discipline", label: "Conduct", icon: ShieldAlert },
       { href: "/student/library", label: "Library", icon: Library },
       { href: "/student/resources", label: "Resources", icon: BookOpenText },
@@ -260,6 +261,8 @@ export default function Navbar() {
       { href: "/dashboard/clubs", label: "Clubs", icon: CalendarClock },
       { href: "/dashboard/resources", label: "Resources", icon: BookOpenText },
       { href: "/dashboard/parents", label: "Parents", icon: HeartHandshake },
+      { href: "/dashboard/course-packs", label: "Course Packs", icon: ClipboardList },
+      { href: "/dashboard/results-approval", label: "Results Approval", icon: ShieldCheck },
       { href: "/dashboard/performance", label: "Performance", icon: TrendingUp },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
@@ -289,6 +292,8 @@ export default function Navbar() {
       { href: "/dashboard/clubs", label: "Clubs", icon: CalendarClock },
       { href: "/dashboard/resources", label: "Resources", icon: BookOpenText },
       { href: "/dashboard/parents", label: "Parents", icon: HeartHandshake },
+      { href: "/dashboard/course-packs", label: "Course Packs", icon: ClipboardList },
+      { href: "/dashboard/results-approval", label: "Results Approval", icon: ShieldCheck },
       { href: "/dashboard/performance", label: "Performance", icon: TrendingUp },
     ];
   } else {
@@ -318,6 +323,8 @@ export default function Navbar() {
       navLinks.push({ href: "/dashboard/messages", label: "Messages", icon: MessageSquare });
       navLinks.push({ href: "/dashboard/clubs", label: "Clubs", icon: CalendarClock });
       navLinks.push({ href: "/dashboard/resources", label: "Resources", icon: BookOpenText });
+      navLinks.push({ href: "/dashboard/course-packs", label: "Course Packs", icon: ClipboardList });
+      navLinks.push({ href: "/dashboard/results-approval", label: "Results Approval", icon: ShieldCheck });
     }
     if (!currentUser?.orgId) {
       navLinks.push({ href: "/pricing", label: "Pricing", icon: CreditCard });

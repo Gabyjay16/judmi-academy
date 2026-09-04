@@ -4,6 +4,7 @@ import { results } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { generateId } from "@/lib/utils";
+import { canViewResults } from "@/lib/results-access";
 
 function computeGrade(total: number) {
   if (total >= 80) return "A";
@@ -21,7 +22,10 @@ export async function GET(req: NextRequest) {
     if (!user.orgId) return NextResponse.json({ error: "No organization" }, { status: 400 });
 
     if (user.role === "student") {
-      // Students only see published results.
+      // Students only see published results, and only if fees are settled (or admin-approved).
+      if (!(await canViewResults(user))) {
+        return NextResponse.json({ results: [], gated: true, reason: "fees" }, { status: 200 });
+      }
       const rows = await db
         .select()
         .from(results)
