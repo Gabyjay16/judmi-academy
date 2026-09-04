@@ -273,6 +273,22 @@ export default function StudentDashboardPage() {
         </div>
       </section>
 
+      {/* Incomplete Profile Banner */}
+      {user && (!user.departmentId || !user.year) && (
+        <section className="bg-amber-50 border border-amber-100 rounded-2xl px-5 py-4 flex items-center gap-4 animate-slide-up" style={{ animationDelay: "40ms" }}>
+          <span className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-5 h-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-extrabold text-amber-900">Complete your profile</div>
+            <div className="text-xs text-amber-700 mt-0.5">Select your department and level so your school can see you in their records.</div>
+          </div>
+          <Link href="/student/profile/setup" className="btn-primary text-xs px-4 py-2 rounded-xl shrink-0 flex items-center gap-1.5">
+            Setup <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </section>
+      )}
+
       {/* Start an Assessment (exam access code) accordion */}
       <section className="animate-slide-up" style={{ animationDelay: "60ms" }}>
         <button

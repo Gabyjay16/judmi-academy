@@ -185,6 +185,7 @@ export default function Navbar() {
       { href: "/student/announcements", label: "Announcements", icon: Megaphone },
       { href: "/student/assignments", label: "Assignments", icon: ClipboardList },
       { href: "/student/results", label: "Results", icon: GraduationCap },
+      { href: "/student/profile", label: "Profile", icon: User },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
