@@ -24,6 +24,7 @@ import {
   Music4,
   Scale,
   CalendarDays,
+  ClipboardCheck,
   ChevronDown
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
@@ -178,6 +179,7 @@ export default function Navbar() {
     navLinks = [
       { href: "/student/dashboard", label: "Student Hub", icon: GraduationCap },
       { href: "/student/timetable", label: "Timetable", icon: CalendarDays },
+      { href: "/student/attendance", label: "Attendance", icon: ClipboardCheck },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
@@ -191,6 +193,7 @@ export default function Navbar() {
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
+      { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -202,6 +205,7 @@ export default function Navbar() {
       { href: "/dashboard", label: "Exam Studio", icon: LayoutDashboard },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
+      { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
     ];
   } else {
     navLinks = [
@@ -210,6 +214,7 @@ export default function Navbar() {
       { href: "/dashboard/extract-info", label: "Extract Info", icon: ScanLine },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
       { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
+      { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
     if (currentUser?.orgId) {

@@ -450,8 +450,23 @@ export const timetableEntries = sqliteTable("timetable_entries", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Attendance ─────────────────────────────────────────────────────────────────
+
+export const attendanceRecords = sqliteTable("attendance_records", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  courseId: text("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),                    // "YYYY-MM-DD"
+  status: text("status").notNull().default("present"), // "present" | "absent" | "late" | "excused"
+  markedBy: text("marked_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull(),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+export type NewAttendanceRecord = typeof attendanceRecords.$inferInsert;
 export type Course = typeof courses.$inferSelect;
 export type NewCourse = typeof courses.$inferInsert;
 export type TimetableEntry = typeof timetableEntries.$inferSelect;

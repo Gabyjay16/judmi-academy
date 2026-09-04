@@ -531,6 +531,20 @@ export async function initDatabase() {
       );
     `);
 
+    // ── Attendance ─────────────────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS attendance_records (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'present',
+        marked_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);
