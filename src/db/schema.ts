@@ -422,6 +422,40 @@ export const chatNotifications = sqliteTable("chat_notifications", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Timetable / course management ─────────────────────────────────────────────
+
+export const courses = sqliteTable("courses", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  departmentId: text("department_id").references(() => departments.id, { onDelete: "set null" }),
+  name: text("name").notNull(),                    // e.g. "Computer Science 101"
+  code: text("code"),                               // e.g. "CSC 101"
+  teacherId: text("teacher_id").references(() => users.id, { onDelete: "set null" }),
+  year: text("year"),                               // e.g. "Year 1" — filters timetable per student level
+  createdAt: text("created_at").notNull(),
+});
+
+export const timetableEntries = sqliteTable("timetable_entries", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  departmentId: text("department_id").references(() => departments.id, { onDelete: "set null" }),
+  courseId: text("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  day: integer("day").notNull(),                    // 0=Mon 1=Tue 2=Wed 3=Thu 4=Fri 5=Sat 6=Sun
+  periodNo: integer("period_no").notNull(),         // 1, 2, 3 … ordering within a day
+  startTime: text("start_time").notNull(),          // "08:00"
+  endTime: text("end_time").notNull(),              // "09:00"
+  venue: text("venue"),                             // "Room A-204"
+  year: text("year"),                               // e.g. "Year 1" — matches student.year for filtering
+  teacherId: text("teacher_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+export type Course = typeof courses.$inferSelect;
+export type NewCourse = typeof courses.$inferInsert;
+export type TimetableEntry = typeof timetableEntries.$inferSelect;
+export type NewTimetableEntry = typeof timetableEntries.$inferInsert;
 export type ChatChannel = typeof chatChannels.$inferSelect;
 export type NewChatChannel = typeof chatChannels.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;

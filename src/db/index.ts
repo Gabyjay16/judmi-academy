@@ -501,6 +501,36 @@ export async function initDatabase() {
       );
     `);
 
+    // ── Timetable / course management ─────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS courses (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        code TEXT,
+        teacher_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        year TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS timetable_entries (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        day INTEGER NOT NULL,
+        period_no INTEGER NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        venue TEXT,
+        year TEXT,
+        teacher_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);

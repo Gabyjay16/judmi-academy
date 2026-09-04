@@ -23,6 +23,7 @@ import {
   ScanLine,
   Music4,
   Scale,
+  CalendarDays,
   ChevronDown
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
@@ -176,6 +177,7 @@ export default function Navbar() {
   } else if (currentUser?.role === "student" || pathname.startsWith("/student")) {
     navLinks = [
       { href: "/student/dashboard", label: "Student Hub", icon: GraduationCap },
+      { href: "/student/timetable", label: "Timetable", icon: CalendarDays },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
@@ -188,6 +190,7 @@ export default function Navbar() {
       { href: "/dashboard", label: "Teacher Studio", icon: LayoutDashboard },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
+      { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -198,6 +201,7 @@ export default function Navbar() {
       { href: "/org/dashboard", label: "School Hub", icon: Building2 },
       { href: "/dashboard", label: "Exam Studio", icon: LayoutDashboard },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
+      { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
     ];
   } else {
     navLinks = [
@@ -205,6 +209,7 @@ export default function Navbar() {
       { href: "/dashboard/scan-scripts", label: "Mark Scripts", icon: Camera },
       { href: "/dashboard/extract-info", label: "Extract Info", icon: ScanLine },
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
+      { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
     if (currentUser?.orgId) {
