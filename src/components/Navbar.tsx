@@ -28,7 +28,12 @@ import {
   Megaphone,
   ClipboardList,
   Bell,
-  ChevronDown
+  ChevronDown,
+  Wallet,
+  Users2,
+  ShieldAlert,
+  Library,
+  BarChart3
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
 
@@ -203,6 +208,9 @@ export default function Navbar() {
       { href: "/student/announcements", label: "Announcements", icon: Megaphone },
       { href: "/student/assignments", label: "Assignments", icon: ClipboardList },
       { href: "/student/results", label: "Results", icon: GraduationCap },
+      { href: "/student/fees", label: "My Fees", icon: Wallet },
+      { href: "/student/discipline", label: "Conduct", icon: ShieldAlert },
+      { href: "/student/library", label: "Library", icon: Library },
       { href: "/student/profile", label: "Profile", icon: User },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
@@ -223,6 +231,11 @@ export default function Navbar() {
       { href: "/dashboard/results", label: "Results", icon: GraduationCap },
       { href: "/dashboard/exams", label: "Exam Scheduler", icon: CalendarDays },
       { href: "/dashboard/programs", label: "Departments & Programs", icon: Building2 },
+      { href: "/dashboard/fees", label: "Fees & Billing", icon: Wallet },
+      { href: "/dashboard/enrollments", label: "Enrollments", icon: Users2 },
+      { href: "/dashboard/discipline", label: "Conduct & Discipline", icon: ShieldAlert },
+      { href: "/dashboard/library", label: "Library", icon: Library },
+      { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -240,6 +253,11 @@ export default function Navbar() {
       { href: "/dashboard/results", label: "Results", icon: GraduationCap },
       { href: "/dashboard/exams", label: "Exam Scheduler", icon: CalendarDays },
       { href: "/dashboard/programs", label: "Departments & Programs", icon: Building2 },
+      { href: "/dashboard/fees", label: "Fees & Billing", icon: Wallet },
+      { href: "/dashboard/enrollments", label: "Enrollments", icon: Users2 },
+      { href: "/dashboard/discipline", label: "Conduct & Discipline", icon: ShieldAlert },
+      { href: "/dashboard/library", label: "Library", icon: Library },
+      { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
     ];
   } else {
     navLinks = [
@@ -258,6 +276,11 @@ export default function Navbar() {
     if (currentUser?.orgId) {
       navLinks.splice(2, 0, { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 });
       navLinks.push({ href: "/dashboard/programs", label: "Departments & Programs", icon: Building2 });
+      navLinks.push({ href: "/dashboard/fees", label: "Fees & Billing", icon: Wallet });
+      navLinks.push({ href: "/dashboard/enrollments", label: "Enrollments", icon: Users2 });
+      navLinks.push({ href: "/dashboard/discipline", label: "Conduct & Discipline", icon: ShieldAlert });
+      navLinks.push({ href: "/dashboard/library", label: "Library", icon: Library });
+      navLinks.push({ href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 });
     }
     if (!currentUser?.orgId) {
       navLinks.push({ href: "/pricing", label: "Pricing", icon: CreditCard });

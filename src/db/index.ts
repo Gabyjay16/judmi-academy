@@ -615,6 +615,115 @@ export async function initDatabase() {
       );
     `);
 
+    // ── Fees & Billing ─────────────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS fee_structures (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        department_id TEXT REFERENCES departments(id) ON DELETE SET NULL,
+        program_id TEXT REFERENCES programs(id) ON DELETE SET NULL,
+        year TEXT,
+        period TEXT,
+        description TEXT,
+        mandatory INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS invoices (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        student_name TEXT,
+        fee_structure_id TEXT REFERENCES fee_structures(id) ON DELETE SET NULL,
+        fee_name TEXT,
+        description TEXT,
+        amount INTEGER NOT NULL,
+        paid_amount INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'unpaid',
+        due_date TEXT,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS fee_payments (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        amount INTEGER NOT NULL,
+        method TEXT NOT NULL DEFAULT 'cash',
+        reference TEXT,
+        note TEXT,
+        recorded_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        paid_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Enrollment management ──────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS enrollments (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        course_name TEXT,
+        year TEXT,
+        enrolled_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Conduct & Discipline ───────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS discipline_records (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        student_name TEXT,
+        type TEXT NOT NULL DEFAULT 'incident',
+        severity TEXT DEFAULT 'minor',
+        title TEXT NOT NULL,
+        notes TEXT,
+        recorded_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        recorded_by_name TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Library ────────────────────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS library_books (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        author TEXT,
+        isbn TEXT,
+        category TEXT,
+        location TEXT,
+        total_copies INTEGER NOT NULL DEFAULT 1,
+        available_copies INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+      );
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS library_loans (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        book_id TEXT NOT NULL REFERENCES library_books(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        student_name TEXT,
+        due_date TEXT NOT NULL,
+        returned_at TEXT,
+        status TEXT NOT NULL DEFAULT 'borrowed',
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
 
     // ── Assignments ────────────────────────────────────────────────────────────

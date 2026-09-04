@@ -581,6 +581,108 @@ export const programs = sqliteTable("programs", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Fees & Billing ─────────────────────────────────────────────────────────────
+
+export const feeStructures = sqliteTable("fee_structures", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),              // e.g. "Tuition - Year 1"
+  amount: integer("amount").notNull(),        // in FCFA
+  departmentId: text("department_id").references(() => departments.id, { onDelete: "set null" }),
+  programId: text("program_id").references(() => programs.id, { onDelete: "set null" }),
+  year: text("year"),                          // e.g. "Year 1"
+  period: text("period"),                      // e.g. "Term 1", "2025"
+  description: text("description"),
+  mandatory: integer("mandatory").notNull().default(1),
+  createdAt: text("created_at").notNull(),
+});
+
+export const invoices = sqliteTable("invoices", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentName: text("student_name"),
+  feeStructureId: text("fee_structure_id").references(() => feeStructures.id, { onDelete: "set null" }),
+  feeName: text("fee_name"),
+  description: text("description"),
+  amount: integer("amount").notNull(),
+  paidAmount: integer("paid_amount").notNull().default(0),
+  status: text("status").notNull().default("unpaid"), // "unpaid" | "partial" | "paid" | "waived"
+  dueDate: text("due_date"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull(),
+});
+
+export const feePayments = sqliteTable("fee_payments", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  invoiceId: text("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(),
+  method: text("method").notNull().default("cash"), // "cash" | "mobile" | "bank" | "card"
+  reference: text("reference"),
+  note: text("note"),
+  recordedBy: text("recorded_by").references(() => users.id, { onDelete: "set null" }),
+  paidAt: text("paid_at").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Enrollment management ──────────────────────────────────────────────────────
+
+export const enrollments = sqliteTable("enrollments", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  courseId: text("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  courseName: text("course_name"),
+  year: text("year"),
+  enrolledAt: text("enrolled_at").notNull(),
+});
+
+// ── Conduct & Discipline ───────────────────────────────────────────────────────
+
+export const disciplineRecords = sqliteTable("discipline_records", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentName: text("student_name"),
+  type: text("type").notNull().default("incident"), // "incident" | "reward" | "contact"
+  severity: text("severity").default("minor"),       // "minor" | "major" | "warning" | (rewards: "acknowledgment")
+  title: text("title").notNull(),
+  notes: text("notes"),
+  recordedBy: text("recorded_by").references(() => users.id, { onDelete: "set null" }),
+  recordedByName: text("recorded_by_name"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Library ────────────────────────────────────────────────────────────────────
+
+export const libraryBooks = sqliteTable("library_books", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  author: text("author"),
+  isbn: text("isbn"),
+  category: text("category"),
+  location: text("location"),
+  totalCopies: integer("total_copies").notNull().default(1),
+  availableCopies: integer("available_copies").notNull().default(1),
+  createdAt: text("created_at").notNull(),
+});
+
+export const libraryLoans = sqliteTable("library_loans", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  bookId: text("book_id").notNull().references(() => libraryBooks.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentName: text("student_name"),
+  dueDate: text("due_date").notNull(),
+  returnedAt: text("returned_at"),
+  status: text("status").notNull().default("borrowed"), // "borrowed" | "returned" | "overdue"
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull(),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type Exam = typeof exams.$inferSelect;
@@ -623,4 +725,18 @@ export type ExtractTemplate = typeof extractTemplates.$inferSelect;
 export type NewExtractTemplate = typeof extractTemplates.$inferInsert;
 export type ExtractAdvancedSet = typeof extractAdvancedSets.$inferSelect;
 export type NewExtractAdvancedSet = typeof extractAdvancedSets.$inferInsert;
+export type FeeStructure = typeof feeStructures.$inferSelect;
+export type NewFeeStructure = typeof feeStructures.$inferInsert;
+export type Invoice = typeof invoices.$inferSelect;
+export type NewInvoice = typeof invoices.$inferInsert;
+export type FeePayment = typeof feePayments.$inferSelect;
+export type NewFeePayment = typeof feePayments.$inferInsert;
+export type Enrollment = typeof enrollments.$inferSelect;
+export type NewEnrollment = typeof enrollments.$inferInsert;
+export type DisciplineRecord = typeof disciplineRecords.$inferSelect;
+export type NewDisciplineRecord = typeof disciplineRecords.$inferInsert;
+export type LibraryBook = typeof libraryBooks.$inferSelect;
+export type NewLibraryBook = typeof libraryBooks.$inferInsert;
+export type LibraryLoan = typeof libraryLoans.$inferSelect;
+export type NewLibraryLoan = typeof libraryLoans.$inferInsert;
 
