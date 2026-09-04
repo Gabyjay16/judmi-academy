@@ -251,6 +251,9 @@ export async function initDatabase() {
         created_at TEXT NOT NULL
       );
     `);
+    // Safe column additions for departments (program management)
+    try { await client.execute(`ALTER TABLE departments ADD COLUMN head_id TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE departments ADD COLUMN description TEXT;`); } catch {}
 
     // 10. Complaint Forms configuration table
     await client.execute(`
@@ -557,6 +560,57 @@ export async function initDatabase() {
         author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
         author_name TEXT,
         event_date TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS exams (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+        course_name TEXT,
+        title TEXT NOT NULL,
+        description TEXT,
+        exam_date TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        venue TEXT,
+        duration INTEGER,
+        total_marks INTEGER NOT NULL DEFAULT 100,
+        instructions TEXT,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_by_name TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Notifications (in-app) ──────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        org_id TEXT REFERENCES organizations(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type TEXT NOT NULL DEFAULT 'general',
+        title TEXT NOT NULL,
+        body TEXT,
+        link TEXT,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // ── Programs ────────────────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS programs (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        department_id TEXT REFERENCES departments(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        code TEXT,
+        description TEXT,
+        duration TEXT,
+        head_id TEXT REFERENCES users(id) ON DELETE SET NULL,
         created_at TEXT NOT NULL
       );
     `);

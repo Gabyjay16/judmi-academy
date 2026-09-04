@@ -66,6 +66,34 @@ export async function POST(req: NextRequest) {
       createdAt: now,
     });
 
+    // Notify students (and/or teachers) in the org.
+    try {
+      const { users, notifications } = await import("@/db/schema");
+      const notifyRole = audience === "teachers" ? "teacher" : audience === "students" ? "student" : null;
+      const members = await db.select({ id: users.id }).from(users).where(eq(users.orgId, user.orgId));
+      const targets = members.filter(
+        (m) => !notifyRole || m.id === user.id // always notify author; notify others per role
+      );
+      for (const m of members) {
+        if (notifyRole) {
+          const row = await db.select().from(users).where(eq(users.id, m.id)).limit(1);
+          if (row[0] && row[0].role !== notifyRole) continue;
+        }
+        if (m.id === user.id) continue;
+        await db.insert(notifications).values({
+          id: generateId(),
+          orgId: user.orgId,
+          userId: m.id,
+          type: "announcement",
+          title: title.trim(),
+          body: content?.trim() || null,
+          link: "/student/announcements",
+          isRead: 0,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch {}
+
     return NextResponse.json({ success: true, id });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed" }, { status: 500 });

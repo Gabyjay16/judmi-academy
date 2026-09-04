@@ -131,3 +131,45 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Failed to delete department" }, { status: 500 });
   }
 }
+
+// PATCH update a department (head of department, name, code, description)
+export async function PATCH(req: NextRequest) {
+  try {
+    await initDatabase();
+    const currentUser = await getCurrentUser();
+    if (!currentUser || (currentUser.role !== "org_admin" && currentUser.role !== "admin")) {
+      return NextResponse.json({ error: "Only school administrators can update departments." }, { status: 403 });
+    }
+    if (!currentUser.orgId) {
+      return NextResponse.json({ error: "No organization linked to this account." }, { status: 400 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Department ID is required." }, { status: 400 });
+
+    const dept = await db.select().from(departments).where(eq(departments.id, id)).limit(1);
+    if (!dept[0] || dept[0].orgId !== currentUser.orgId) {
+      return NextResponse.json({ error: "Department not found." }, { status: 404 });
+    }
+
+    const body = await req.json();
+    const updates: Record<string, any> = {};
+    if (body.name !== undefined) updates.name = body.name?.trim() || dept[0].name;
+    if (body.code !== undefined) updates.code = body.code ? body.code.trim().toUpperCase() : null;
+    if (body.description !== undefined) updates.description = body.description?.trim() || null;
+    if (body.headId !== undefined) updates.headId = body.headId || null;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No fields to update." }, { status: 400 });
+    }
+
+    await db.update(departments).set(updates).where(eq(departments.id, id));
+    const updated = await db.select().from(departments).where(eq(departments.id, id)).limit(1);
+
+    return NextResponse.json({ success: true, department: updated[0] });
+  } catch (error: any) {
+    console.error("Update department error:", error);
+    return NextResponse.json({ error: error.message || "Failed to update department" }, { status: 500 });
+  }
+}

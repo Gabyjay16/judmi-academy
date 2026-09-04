@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { assignments, assignmentSubmissions } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { generateId } from "@/lib/utils";
 
 export async function GET(
   req: NextRequest,
@@ -81,6 +82,22 @@ export async function POST(
         gradedAt: new Date().toISOString(),
       })
       .where(eq(assignmentSubmissions.id, submissionId));
+
+    // Create a grade notification for the student.
+    if (parsedScore !== null && existing[0].studentId) {
+      const { notifications } = await import("@/db/schema");
+      await db.insert(notifications).values({
+        id: generateId(),
+        orgId: user.orgId,
+        userId: existing[0].studentId,
+        type: "grade",
+        title: `Graded: ${assignment[0].title}`,
+        body: `You scored ${parsedScore} out of ${maxScore}.`,
+        link: "/student/assignments",
+        isRead: 0,
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

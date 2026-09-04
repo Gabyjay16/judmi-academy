@@ -23,6 +23,8 @@ export const departments = sqliteTable("departments", {
   orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   code: text("code"),
+  headId: text("head_id"),
+  description: text("description"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -530,8 +532,63 @@ export const results = sqliteTable("results", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Exams (scheduled exams tied to timetable) ─────────────────────────────────
+
+export const exams = sqliteTable("exams", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  courseId: text("course_id").references(() => courses.id, { onDelete: "set null" }),
+  courseName: text("course_name"),
+  title: text("title").notNull(),
+  description: text("description"),
+  examDate: text("exam_date").notNull(),           // "YYYY-MM-DD"
+  startTime: text("start_time").notNull(),          // "09:00"
+  endTime: text("end_time").notNull(),              // "11:00"
+  venue: text("venue"),
+  duration: integer("duration"),                    // minutes
+  totalMarks: integer("total_marks").notNull().default(100),
+  instructions: text("instructions"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdByName: text("created_by_name"),
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Notifications (in-app) ────────────────────────────────────────────────────
+
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("general"),  // "announcement" | "grade" | "assignment" | "general"
+  title: text("title").notNull(),
+  body: text("body"),
+  link: text("link"),                                // e.g. "/student/results"
+  isRead: integer("is_read").notNull().default(0),  // 0 = unread
+  createdAt: text("created_at").notNull(),
+});
+
+// ── Programs ──────────────────────────────────────────────────────────────────
+
+export const programs = sqliteTable("programs", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  departmentId: text("department_id").references(() => departments.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  code: text("code"),
+  description: text("description"),
+  duration: text("duration"),                         // e.g. "4 years"
+  headId: text("head_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull(),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+export type Exam = typeof exams.$inferSelect;
+export type NewExam = typeof exams.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+export type Program = typeof programs.$inferSelect;
+export type NewProgram = typeof programs.$inferInsert;
 export type Result = typeof results.$inferSelect;
 export type NewResult = typeof results.$inferInsert;
 export type Assignment = typeof assignments.$inferSelect;
@@ -566,3 +623,4 @@ export type ExtractTemplate = typeof extractTemplates.$inferSelect;
 export type NewExtractTemplate = typeof extractTemplates.$inferInsert;
 export type ExtractAdvancedSet = typeof extractAdvancedSets.$inferSelect;
 export type NewExtractAdvancedSet = typeof extractAdvancedSets.$inferInsert;
+

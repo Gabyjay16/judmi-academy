@@ -27,6 +27,7 @@ import {
   ClipboardCheck,
   Megaphone,
   ClipboardList,
+  Bell,
   ChevronDown
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
@@ -68,6 +69,22 @@ export default function Navbar() {
     }
     return null;
   });
+
+  const [unreadCount, setUnreadCount] = useState(0);
+  useEffect(() => {
+    if (!currentUser?.id) { setUnreadCount(0); return; }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/notifications");
+        const data = await res.json();
+        if (!cancelled) setUnreadCount(data.unreadCount || 0);
+      } catch {}
+    };
+    load();
+    const timer = setInterval(load, 30000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [currentUser?.id, pathname]);
 
   const isDashboardRoute = pathname.startsWith("/dashboard") || 
                            pathname.startsWith("/org") || 
@@ -181,6 +198,7 @@ export default function Navbar() {
     navLinks = [
       { href: "/student/dashboard", label: "Student Hub", icon: GraduationCap },
       { href: "/student/timetable", label: "Timetable", icon: CalendarDays },
+      { href: "/student/exams", label: "Exams", icon: BookOpen },
       { href: "/student/attendance", label: "Attendance", icon: ClipboardCheck },
       { href: "/student/announcements", label: "Announcements", icon: Megaphone },
       { href: "/student/assignments", label: "Assignments", icon: ClipboardList },
@@ -203,6 +221,8 @@ export default function Navbar() {
       { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
       { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
       { href: "/dashboard/results", label: "Results", icon: GraduationCap },
+      { href: "/dashboard/exams", label: "Exam Scheduler", icon: CalendarDays },
+      { href: "/dashboard/programs", label: "Departments & Programs", icon: Building2 },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -218,6 +238,8 @@ export default function Navbar() {
       { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
       { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
       { href: "/dashboard/results", label: "Results", icon: GraduationCap },
+      { href: "/dashboard/exams", label: "Exam Scheduler", icon: CalendarDays },
+      { href: "/dashboard/programs", label: "Departments & Programs", icon: Building2 },
     ];
   } else {
     navLinks = [
@@ -230,10 +252,12 @@ export default function Navbar() {
       { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
       { href: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
       { href: "/dashboard/results", label: "Results", icon: GraduationCap },
+      { href: "/dashboard/exams", label: "Exam Scheduler", icon: CalendarDays },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
     if (currentUser?.orgId) {
       navLinks.splice(2, 0, { href: "/dashboard/take-minutes", label: "Take Minutes", icon: Music4 });
+      navLinks.push({ href: "/dashboard/programs", label: "Departments & Programs", icon: Building2 });
     }
     if (!currentUser?.orgId) {
       navLinks.push({ href: "/pricing", label: "Pricing", icon: CreditCard });
@@ -378,6 +402,22 @@ export default function Navbar() {
                   >
                     <Zap className="w-4 h-4 fill-white" />
                     <span>Upgrade</span>
+                  </Link>
+                )}
+
+                {/* Notifications Bell */}
+                {currentUser?.role === "student" && (
+                  <Link
+                    href="/student/notifications"
+                    onClick={() => setUnreadCount(0)}
+                    className="relative w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-navy-700 hover:border-slate-300 transition-colors shadow-sm"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 )}
 

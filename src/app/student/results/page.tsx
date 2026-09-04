@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GraduationCap, Award, BookOpen, Download } from "lucide-react";
+import { GraduationCap, Award, BookOpen, Download, Printer } from "lucide-react";
 
 interface Result {
   id: string;
@@ -89,9 +89,14 @@ export default function StudentResultsPage() {
             <GraduationCap className="w-7 h-7 text-navy-700" /> My Results
           </h1>
         </div>
-        <button type="button" onClick={print} className="btn-outline text-xs py-2 px-3 rounded-xl flex items-center gap-1.5 shrink-0">
-          <Download className="w-4 h-4" /> Print / Save
-        </button>
+        <div className="flex gap-2">
+          <a href="/api/org/results/export" className="btn-primary text-xs py-2 px-3 rounded-xl flex items-center gap-1.5 shrink-0">
+            <Download className="w-4 h-4" /> Download PDF
+          </a>
+          <button type="button" onClick={print} className="btn-outline text-xs py-2 px-3 rounded-xl flex items-center gap-1.5 shrink-0">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+        </div>
       </div>
 
       {overall.length > 0 && (
