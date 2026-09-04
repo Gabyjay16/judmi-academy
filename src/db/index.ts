@@ -545,6 +545,22 @@ export async function initDatabase() {
       );
     `);
 
+    // ── Announcements ──────────────────────────────────────────────────────────
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS announcements (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        body TEXT,
+        pinned INTEGER NOT NULL DEFAULT 0,
+        audience TEXT NOT NULL DEFAULT 'all',
+        author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        author_name TEXT,
+        event_date TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
     isInitialized = true;
   } catch (error) {
     console.error("Database initialization error:", error);

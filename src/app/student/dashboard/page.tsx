@@ -14,7 +14,43 @@ import {
   ShieldCheck,
   ChevronDown,
   GraduationCap,
+  Megaphone,
 } from "lucide-react";
+
+function RecentAnnouncements() {
+  const [items, setItems] = useState<any[]>([]);
+  useEffect(() => {
+    fetch("/api/org/announcements")
+      .then((r) => r.json())
+      .then((data) => setItems((data.announcements || []).slice(0, 3)))
+      .catch(() => {});
+  }, []);
+  if (items.length === 0) return null;
+  return (
+    <section className="animate-slide-up" style={{ animationDelay: "60ms" }}>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+          <Megaphone className="w-4 h-4 text-navy-700" /> Latest Announcements
+        </h2>
+        <Link href="/student/announcements" className="text-[11px] font-bold text-navy-700 hover:underline">View all</Link>
+      </div>
+      <div className="space-y-2">
+        {items.map((a) => (
+          <Link key={a.id} href="/student/announcements" className="surface card-hover px-4 py-3 flex items-start gap-3 transition-all">
+            <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${a.pinned ? "bg-amber-50 text-amber-600" : "bg-navy-50 text-navy-700"}`}>
+              <Megaphone className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-slate-900 truncate">{a.title}</div>
+              {a.body && <div className="text-[11px] text-slate-500 truncate">{a.body}</div>}
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0 mt-0.5 ml-auto" />
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function StudentDashboardPage() {
   const router = useRouter();
@@ -307,6 +343,9 @@ export default function StudentDashboardPage() {
           ))}
         </div>
       </section>
+
+      {/* Recent Announcements */}
+      <RecentAnnouncements />
 
       {/* Academic Complaints */}
       <section className="animate-slide-up" style={{ animationDelay: "180ms" }} id="complaints">

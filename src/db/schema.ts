@@ -463,8 +463,25 @@ export const attendanceRecords = sqliteTable("attendance_records", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Announcements ──────────────────────────────────────────────────────────────
+
+export const announcements = sqliteTable("announcements", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body"),
+  pinned: integer("pinned").notNull().default(0), // 1 = show on top
+  audience: text("audience").notNull().default("all"), // "all" | "students" | "teachers"
+  authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
+  authorName: text("author_name"),
+  eventDate: text("event_date"), // optional date for calendar/event-style announcements
+  createdAt: text("created_at").notNull(),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+export type Announcement = typeof announcements.$inferSelect;
+export type NewAnnouncement = typeof announcements.$inferInsert;
 export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
 export type NewAttendanceRecord = typeof attendanceRecords.$inferInsert;
 export type Course = typeof courses.$inferSelect;

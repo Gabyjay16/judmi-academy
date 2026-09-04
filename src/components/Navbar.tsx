@@ -25,6 +25,7 @@ import {
   Scale,
   CalendarDays,
   ClipboardCheck,
+  Megaphone,
   ChevronDown
 } from "lucide-react";
 import AdminLoginModal from "@/components/AdminLoginModal";
@@ -180,6 +181,7 @@ export default function Navbar() {
       { href: "/student/dashboard", label: "Student Hub", icon: GraduationCap },
       { href: "/student/timetable", label: "Timetable", icon: CalendarDays },
       { href: "/student/attendance", label: "Attendance", icon: ClipboardCheck },
+      { href: "/student/announcements", label: "Announcements", icon: Megaphone },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
@@ -194,6 +196,7 @@ export default function Navbar() {
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
       { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
+      { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
     ];
   } else if (currentUser?.role === "admin" || pathname.startsWith("/admin")) {
     navLinks = [
@@ -206,6 +209,7 @@ export default function Navbar() {
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
       { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
       { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
+      { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
     ];
   } else {
     navLinks = [
@@ -215,6 +219,7 @@ export default function Navbar() {
       { href: "/dashboard/create", label: "Create Exam", icon: BookOpen },
       { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
       { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
+      { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
       { href: "/dashboard/inverse-marking", label: "Inverse Marking", icon: Scale },
     ];
     if (currentUser?.orgId) {
