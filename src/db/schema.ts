@@ -478,8 +478,43 @@ export const announcements = sqliteTable("announcements", {
   createdAt: text("created_at").notNull(),
 });
 
+// ── Assignments ────────────────────────────────────────────────────────────────
+
+export const assignments = sqliteTable("assignments", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  courseId: text("course_id").references(() => courses.id, { onDelete: "set null" }),
+  courseName: text("course_name"),
+  dueDate: text("due_date"),
+  maxScore: integer("max_score").notNull().default(100),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdByName: text("created_by_name"),
+  pinned: integer("pinned").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+});
+
+export const assignmentSubmissions = sqliteTable("assignment_submissions", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  assignmentId: text("assignment_id").notNull().references(() => assignments.id, { onDelete: "cascade" }),
+  studentId: text("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentName: text("student_name"),
+  content: text("content"),
+  fileName: text("file_name"),
+  score: integer("score"),
+  feedback: text("feedback"),
+  submittedAt: text("submitted_at").notNull(),
+  gradedAt: text("graded_at"),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+export type Assignment = typeof assignments.$inferSelect;
+export type NewAssignment = typeof assignments.$inferInsert;
+export type AssignmentSubmission = typeof assignmentSubmissions.$inferSelect;
+export type NewAssignmentSubmission = typeof assignmentSubmissions.$inferInsert;
 export type Announcement = typeof announcements.$inferSelect;
 export type NewAnnouncement = typeof announcements.$inferInsert;
 export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
