@@ -176,44 +176,21 @@ export function isPaidUser(user: User | null, globalSettings?: { freeAllTeachers
 export async function checkUserQuota(user: User | null, feature: FeatureType) {
   const globalSettings = await getGlobalSystemSettings();
 
-  if (!user) {
-    return {
-      allowed: true,
-      limit: FREE_PLAN_LIMITS[feature],
-      used: 0,
-      remaining: FREE_PLAN_LIMITS[feature],
-      isPro: false,
-      planType: "free",
-      globalFreeAllTeachers: globalSettings.freeAllTeachers,
-      globalFreeAllOrgs: globalSettings.freeAllOrganizations,
-    };
-  }
-
-  const isPro = isPaidUser(user, globalSettings);
-  if (isPro) {
-    return {
-      allowed: true,
-      limit: Infinity,
-      used: feature === "examGenerations" ? user.examGenerationsUsed : feature === "scriptScans" ? user.scriptScansUsed : user.essayGradingsUsed,
-      remaining: Infinity,
-      isPro: true,
-      planType: globalSettings.freeAllTeachers ? "pro_free_access" : (user.planType || "individual"),
-      globalFreeAllTeachers: globalSettings.freeAllTeachers,
-      globalFreeAllOrgs: globalSettings.freeAllOrganizations,
-    };
-  }
-
-  const limit = FREE_PLAN_LIMITS[feature];
-  const used = feature === "examGenerations" ? user.examGenerationsUsed || 0 : feature === "scriptScans" ? user.scriptScansUsed || 0 : user.essayGradingsUsed || 0;
-  const remaining = Math.max(0, limit - used);
+  // All services are free and unlimited. Quotas are disabled.
+  const used =
+    feature === "examGenerations"
+      ? user?.examGenerationsUsed || 0
+      : feature === "scriptScans"
+        ? user?.scriptScansUsed || 0
+        : user?.essayGradingsUsed || 0;
 
   return {
-    allowed: used < limit,
-    limit,
+    allowed: true,
+    limit: Infinity,
     used,
-    remaining,
-    isPro: false,
-    planType: "free",
+    remaining: Infinity,
+    isPro: true,
+    planType: user?.planType || "free",
     globalFreeAllTeachers: globalSettings.freeAllTeachers,
     globalFreeAllOrgs: globalSettings.freeAllOrganizations,
   };

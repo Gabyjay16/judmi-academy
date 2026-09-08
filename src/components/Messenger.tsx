@@ -6,7 +6,7 @@ import { MessageSquare, Mail, MailOpen, Send, Trash2, X, Inbox, SendHorizonal, C
 interface Msg { id: string; senderId: string; senderName: string; recipientId: string; subject: string | null; body: string; isRead: boolean; createdAt: string; }
 interface Recipient { id: string; name: string; label: string; role: string; }
 
-export default function Messenger({ portal }: { portal: "staff" | "student" }) {
+export default function Messenger({ portal }: { portal: "staff" | "student" | "parent" }) {
   const [msgBox, setMsgBox] = useState<"inbox" | "outbox">("inbox");
   const [inbox, setInbox] = useState<Msg[]>([]);
   const [outbox, setOutbox] = useState<Msg[]>([]);
@@ -82,7 +82,7 @@ export default function Messenger({ portal }: { portal: "staff" | "student" }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <span className="inline-block text-[12px] sm:text-sm font-bold uppercase tracking-[0.22em] text-amber-600">
-            {portal === "staff" ? "Staff Portal" : "Student Portal"}
+            {portal === "staff" ? "Staff Portal" : portal === "parent" ? "Parent Portal" : "Student Portal"}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 flex items-center gap-2">
             <MessageSquare className="w-7 h-7 text-navy-700" /> My Messages

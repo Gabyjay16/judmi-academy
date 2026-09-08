@@ -6,7 +6,6 @@ import { desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { generateId, generateTestCode } from "@/lib/utils";
 import { analyzePlagiarism } from "@/lib/openrouter";
-import { hasManualFeatureAccess } from "@/lib/manual-payments";
 
 const MIN_TEXT_CHARS = 80;
 const MAX_TEXT_CHARS = 60_000;
@@ -22,19 +21,6 @@ export async function POST(req: NextRequest) {
     if (!currentUser.orgId) {
       return NextResponse.json(
         { error: "This tool is only available to students and teachers registered under a school." },
-        { status: 403 }
-      );
-    }
-    // Plagiarism checks are a paid feature: students must have admin-approved
-    // access (granted after verifying their manual Mobile Money payment).
-    if (currentUser.role !== "admin" && !hasManualFeatureAccess(currentUser, "plagiarism")) {
-      return NextResponse.json(
-        {
-          error: "You need to activate the Plagiarism & Authenticity Checker before running a check.",
-          paymentRequired: true,
-          feature: "plagiarism",
-          price: 5000,
-        },
         { status: 403 }
       );
     }

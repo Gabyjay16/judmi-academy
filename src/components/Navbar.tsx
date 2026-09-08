@@ -18,7 +18,6 @@ import {
   GraduationCap, 
   CreditCard, 
   Camera,
-  Zap,
   Crown,
   ScanLine,
   Music4,
@@ -187,7 +186,6 @@ export default function Navbar() {
   };
 
   const isUserAuthenticated = Boolean(currentUser || isDashboardRoute);
-  const isSchoolManaged = Boolean(currentUser?.orgId);
 
   const schoolName = schoolBranding?.brandName || schoolBranding?.name || "";
   const schoolAbbr = schoolName
@@ -224,7 +222,6 @@ export default function Navbar() {
       { href: "/student/messages", label: "Messages", icon: MessageSquare },
       { href: "/student/profile", label: "Profile", icon: User },
       { href: "/student/inverse-marking", label: "Inverse Marking", icon: Scale },
-      { href: "/pricing", label: "Plans", icon: CreditCard },
     ];
   } else if (currentUser?.role === "parent" || pathname.startsWith("/parent")) {
     navLinks = [
@@ -325,9 +322,6 @@ export default function Navbar() {
       navLinks.push({ href: "/dashboard/resources", label: "Resources", icon: BookOpenText });
       navLinks.push({ href: "/dashboard/course-packs", label: "Course Packs", icon: ClipboardList });
       navLinks.push({ href: "/dashboard/results-approval", label: "Results Approval", icon: ShieldCheck });
-    }
-    if (!currentUser?.orgId) {
-      navLinks.push({ href: "/pricing", label: "Pricing", icon: CreditCard });
     }
   }
 
@@ -458,20 +452,9 @@ export default function Navbar() {
               </button>
             </form>
 
-            {/* If Authenticated: Show Upgrade & Profile with Logout */}
+            {/* If Authenticated: Show Profile & Logout */}
             {isUserAuthenticated ? (
               <div className="flex items-center gap-2">
-                {/* Upgrade Button — hidden for school-managed accounts (billing is central) */}
-                {!isSchoolManaged && (
-                  <Link
-                    href="/checkout?plan=individual"
-                    className="btn-accent px-4 py-2 text-xs"
-                  >
-                    <Zap className="w-4 h-4 fill-white" />
-                    <span>Upgrade</span>
-                  </Link>
-                )}
-
                 {/* Notifications Bell */}
                 {currentUser?.role === "student" && (
                   <Link
@@ -523,37 +506,47 @@ export default function Navbar() {
                         )}
                       </div>
 
-                      {currentUser?.role !== "teacher" && !isSchoolManaged ? (
+                      {currentUser?.role === "student" && (
                         <Link
-                          href="/checkout?plan=individual"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="dropdown-item text-amber-700 bg-amber-50 hover:bg-amber-100"
-                        >
-                          <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
-                          <span>Upgrade Account</span>
-                        </Link>
-                      ) : null}
-
-                      {currentUser?.role !== "teacher" && (
-                        <Link
-                          href="/dashboard"
+                          href="/student/dashboard"
                           onClick={() => setUserDropdownOpen(false)}
                           className="dropdown-item"
                         >
                           <LayoutDashboard className="w-4 h-4 text-navy-700" />
-                          <span>Teacher Dashboard</span>
+                          <span>Student Dashboard</span>
                         </Link>
                       )}
 
-                      {currentUser?.role !== "teacher" && (
+                      {currentUser?.role === "parent" && (
                         <Link
-                          href="/dashboard/scan-scripts"
+                          href="/parent/dashboard"
                           onClick={() => setUserDropdownOpen(false)}
                           className="dropdown-item"
                         >
-                          <Camera className="w-4 h-4 text-navy-700" />
-                          <span>Mark Scripts Studio</span>
+                          <HeartHandshake className="w-4 h-4 text-navy-700" />
+                          <span>My Children</span>
                         </Link>
+                      )}
+
+                      {(currentUser?.role === "teacher" || currentUser?.role === "org_admin" || currentUser?.role === "admin") && (
+                        <>
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="dropdown-item"
+                          >
+                            <LayoutDashboard className="w-4 h-4 text-navy-700" />
+                            <span>Teacher Dashboard</span>
+                          </Link>
+                          <Link
+                            href="/dashboard/scan-scripts"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="dropdown-item"
+                          >
+                            <Camera className="w-4 h-4 text-navy-700" />
+                            <span>Mark Scripts Studio</span>
+                          </Link>
+                        </>
                       )}
 
                       <button
@@ -656,18 +649,6 @@ export default function Navbar() {
               {/* Authenticated User Mobile Controls */}
               {isUserAuthenticated ? (
                 <div className="pt-2 border-t border-slate-100 space-y-2">
-                  {/* Upgrade Account Button — hidden for school-managed accounts */}
-                  {!isSchoolManaged && (
-                    <Link
-                      href="/checkout?plan=individual"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="btn-accent w-full py-3 text-xs"
-                    >
-                      <Zap className="w-4 h-4 fill-white" />
-                      <span>Upgrade Account</span>
-                    </Link>
-                  )}
-
                   {/* Logout Button */}
                   <button
                     type="button"
