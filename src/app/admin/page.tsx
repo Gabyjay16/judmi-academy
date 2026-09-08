@@ -25,7 +25,8 @@ import {
   Crown,
   Smartphone,
   ImageIcon,
-  XCircle
+  XCircle,
+  Settings2
 } from "lucide-react";
 
 export default function AdminPanelPage() {
@@ -429,83 +430,71 @@ export default function AdminPanelPage() {
   }
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
+  const pendingPayments = paymentRequests.filter((r) => r.status === "pending").length;
   const filteredUsers = allUsers.filter((u) => 
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const navItems = [
+    { id: "subscriptions" as const, label: "Access & Grants", sub: `${allUsers.length} users · ${allOrgs.length} schools`, icon: Crown },
+    { id: "resets" as const, label: "Password Resets", sub: `${pendingRequests.length} pending`, icon: KeyRound },
+    { id: "organizations" as const, label: "School Hub", sub: `${allOrgs.length} registered schools`, icon: Building2 },
+    { id: "payments" as const, label: "Payment Requests", sub: `${pendingPayments} awaiting approval`, icon: Smartphone },
+    { id: "settings" as const, label: "Admin Settings", sub: "Account & password", icon: Settings2 },
+  ] as const;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-700 text-xs font-bold uppercase tracking-wider mb-2">
-            <ShieldCheck className="w-4 h-4 text-purple-600" />
-            <span>Judmi Academy • Super Administrator Control</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Admin Panel & Access Management
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Grant full Pro access to teachers & organizations, approve password resets, and manage Mobile Money subscriptions.
-          </p>
+      <div>
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-700 text-xs font-bold uppercase tracking-wider mb-2">
+          <ShieldCheck className="w-4 h-4 text-purple-600" />
+          <span>Judmi Academy • Super Administrator Control</span>
         </div>
-
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl text-xs font-semibold">
-          <button
-            onClick={() => setActiveTab("subscriptions")}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-              activeTab === "subscriptions" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Crown className="w-3.5 h-3.5 text-amber-500" />
-            <span>Grant Full Pro Access</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("resets")}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-              activeTab === "resets" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Password Resets ({pendingRequests.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("organizations")}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-              activeTab === "organizations" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>School Hub</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-              activeTab === "settings" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Admin Settings</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("payments")}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-              activeTab === "payments" ? "bg-white text-emerald-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Payment Requests ({paymentRequests.filter((r) => r.status === "pending").length})</span>
-          </button>
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Admin Panel & Access Management
+        </h1>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Grant full Pro access to teachers & organizations, approve password resets, and manage Mobile Money subscriptions.
+        </p>
       </div>
+
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Section Navigation — vertical sidebar on desktop, wrapping grid on mobile (no horizontal scroll) */}
+        <nav className="w-full lg:w-60 shrink-0">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 lg:sticky lg:top-24 space-y-1">
+            <p className="hidden lg:block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3 pt-2 pb-1">
+              Control Center
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all ${
+                    activeTab === item.id
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 lg:border-0"
+                  }`}
+                >
+                  <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? "text-white" : "text-indigo-600"}`} />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold truncate">{item.label}</span>
+                    <span className={`block text-[10px] truncate ${activeTab === item.id ? "text-indigo-100" : "text-slate-400"}`}>
+                      {item.sub}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </nav>
+
+        {/* Active Section Content */}
+        <div className="flex-1 min-w-0 w-full">
 
       {/* TAB 1: Grant Full Access & Manage Subscriptions */}
       {activeTab === "subscriptions" && (
@@ -1430,7 +1419,8 @@ export default function AdminPanelPage() {
           </div>
         </div>
       )}
-
+        </div>
+      </div>
     </div>
   );
 }

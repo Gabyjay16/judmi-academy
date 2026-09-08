@@ -113,7 +113,7 @@ export default function StudentPlagiarismPage() {
         const res = await fetch("/api/auth");
         const data = await res.json();
         setUser(data.user || null);
-        setPlagiarismAccess(true);
+        setPlagiarismAccess(data.user?.plagiarismAccess === true);
         if (data.globalSettings?.paymentMode) {
           setPaymentMode(data.globalSettings.paymentMode === "manual" ? "manual" : "fapshi");
         }
