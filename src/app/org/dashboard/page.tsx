@@ -29,16 +29,21 @@ import {
   FileText,
   ShieldCheck,
   ExternalLink,
-  Search
+  Search,
+  ScanLine,
+  Palette,
+  Link2
 } from "lucide-react";
+import ExtractInfoWorkbench from "@/components/ExtractInfoWorkbench";
+import SchoolBrandingPanel from "@/components/SchoolBrandingPanel";
 
 export default function OrgDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Navigation Tabs: "teachers" | "students" | "departments" | "complaints" | "tests"
-  const [activeTab, setActiveTab] = useState<"teachers" | "students" | "departments" | "complaints" | "tests">("teachers");
+  // Navigation Tabs: "teachers" | "students" | "departments" | "complaints" | "tests" | "extract" | "branding"
+  const [activeTab, setActiveTab] = useState<"teachers" | "students" | "departments" | "complaints" | "tests" | "extract" | "branding">("teachers");
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Departments State
@@ -97,10 +102,8 @@ export default function OrgDashboardPage() {
 
   // Modals & Member Creation
   const [showAddModal, setShowAddModal] = useState(false);
-  const [subRole, setSubRole] = useState<"teacher" | "student">("teacher");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [studentId, setStudentId] = useState("");
   const [memberDeptId, setMemberDeptId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -188,7 +191,7 @@ export default function OrgDashboardPage() {
     fetchComplaints();
   }, [filterDepartment, filterNature, filterCourse, filterLevel, filterStatus, searchQuery]);
 
-  // Create Sub-account (Manual Teacher / Student Creation)
+  // Create Teacher Sub-account (students register themselves via the enrolment link)
   const handleCreateSubAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -201,25 +204,23 @@ export default function OrgDashboardPage() {
         body: JSON.stringify({
           name,
           email,
-          role: subRole,
-          studentId: subRole === "student" ? studentId : undefined,
+          role: "teacher",
           departmentId: memberDeptId || undefined,
         }),
       });
 
       const json = await res.json();
       if (!res.ok) {
-        setFormError(json.error || "Failed to create sub-account");
+        setFormError(json.error || "Failed to create teacher account");
       } else {
         setShowAddModal(false);
         setName("");
         setEmail("");
-        setStudentId("");
         setMemberDeptId("");
         fetchOrg();
       }
     } catch (err: any) {
-      setFormError(err.message || "Failed to create sub-account");
+      setFormError(err.message || "Failed to create teacher account");
     } finally {
       setSubmitting(false);
     }
@@ -367,6 +368,12 @@ export default function OrgDashboardPage() {
 
   const organization = data?.organization || { name: "Organization", seatLimit: 50, planType: "school_pro" };
   const seats = data?.seats || { total: 50, used: 0, available: 50 };
+  const orgSlug = organization.slug || organization.id || "";
+  const displayTitle = organization.brandName || organization.name || "School";
+  const enrolmentLink =
+    orgSlug && organization.accessKey
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}/school/${orgSlug}?key=${organization.accessKey}`
+      : "";
   const teachers = data?.teachers || [];
   const students = data?.students || [];
   const tests = data?.tests || [];
@@ -380,37 +387,64 @@ export default function OrgDashboardPage() {
       {/* School Org Header */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: organization.brandColor || "#a5b4fc" }}>
             <Building2 className="w-4 h-4" />
             <span>School / Institutional Organization</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            {organization.name}
-          </h1>
+          <div className="flex items-center gap-3">
+            {organization.logoData && (
+              <div className="w-11 h-11 rounded-xl overflow-hidden bg-white/15 ring-2 ring-white/15 flex items-center justify-center shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={organization.logoData} alt={organization.name} className="w-full h-full object-contain" />
+              </div>
+            )}
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              {organization.brandName || organization.name}
+            </h1>
+          </div>
           <p className="text-xs sm:text-sm text-slate-300">
             Manage departments, faculty teachers, enrolled students, and academic grievance petitions.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="bg-white/10 px-3.5 py-2.5 rounded-2xl border border-white/15 backdrop-blur-xs flex items-center gap-3 text-xs">
-            <div className="space-y-0.5">
-              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block">Student School Code:</span>
-              <span className="font-mono font-bold text-white tracking-wide">{organization.slug || organization.id}</span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+          {enrolmentLink ? (
+            <div className="bg-white/10 p-3 rounded-2xl border border-white/15 backdrop-blur-xs w-full sm:w-auto space-y-2">
+              <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" />
+                {displayTitle} Student Enrolment Link
+              </span>
+              {/* Mobile-friendly: full link wraps onto multiple lines */}
+              <div className="flex items-center gap-2">
+                <span
+                  className="font-mono font-bold text-white tracking-wide text-[10px] sm:text-xs leading-relaxed break-all flex-1 min-w-0"
+                  title={enrolmentLink}
+                >
+                  {enrolmentLink}
+                </span>
+                <button
+                  onClick={() => {
+                    if (typeof navigator !== "undefined") {
+                      navigator.clipboard.writeText(enrolmentLink);
+                      setCopiedCode(true);
+                      setTimeout(() => setCopiedCode(false), 2000);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition-colors shrink-0"
+                >
+                  {copiedCode ? "✓ Copied!" : "Copy"}
+                </button>
+              </div>
             </div>
+          ) : (
             <button
-              onClick={() => {
-                if (typeof navigator !== "undefined" && (organization.slug || organization.id)) {
-                  navigator.clipboard.writeText(organization.slug || organization.id);
-                  setCopiedCode(true);
-                  setTimeout(() => setCopiedCode(false), 2000);
-                }
-              }}
-              className="px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition-colors"
+              onClick={() => setActiveTab("branding")}
+              className="px-3.5 py-2.5 rounded-2xl bg-white/10 border border-white/15 text-white text-[11px] font-bold hover:bg-white/20 transition-colors flex items-center gap-1.5"
             >
-              {copiedCode ? "✓ Copied!" : "Copy Code"}
+              <Link2 className="w-3.5 h-3.5 text-indigo-300" />
+              Set up your Student Enrolment Link
             </button>
-          </div>
+          )}
 
           <button
             onClick={() => setShowFormBuilderModal(true)}
@@ -513,6 +547,25 @@ export default function OrgDashboardPage() {
               <BarChart3 className="w-3.5 h-3.5" />
               <span>School Tests ({tests.length})</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab("extract")}
+              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                activeTab === "extract" ? "bg-white text-teal-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <ScanLine className="w-3.5 h-3.5" />
+              <span>Extract Info</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("branding")}
+              className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                activeTab === "branding" ? "bg-white text-indigo-700 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span>Link &amp; Branding</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -530,7 +583,7 @@ export default function OrgDashboardPage() {
                 className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Create Sub-Account</span>
+                <span>Create Teacher</span>
               </button>
             )}
           </div>
@@ -605,6 +658,26 @@ export default function OrgDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
+                {students.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center">
+                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 mb-2">
+                        <Link2 className="w-5 h-5" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-700">No enrolled students yet.</p>
+                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                        Share your <strong>Student Enrolment Link</strong> (Link &amp; Branding tab) so students can
+                        log in or register under your school. New registrations appear here automatically.
+                      </p>
+                      <button
+                        onClick={() => { setActiveTab("branding"); }}
+                        className="mt-3 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
+                      >
+                        Get My Enrolment Link
+                      </button>
+                    </td>
+                  </tr>
+                )}
                 {students.map((s: any) => (
                   <tr key={s.id} className="hover:bg-slate-50/50">
                     <td className="px-5 py-4 font-bold text-slate-900 flex items-center gap-2">
@@ -933,16 +1006,28 @@ export default function OrgDashboardPage() {
           </div>
         )}
 
+        {/* 6. EXTRACT INFO TAB */}
+        {activeTab === "extract" && (
+          <div className="p-0">
+            <ExtractInfoWorkbench />
+          </div>
+        )}
+
+        {/* 7. SCHOOL LINK & BRANDING TAB */}
+        {activeTab === "branding" && (
+          <SchoolBrandingPanel />
+        )}
+
       </div>
 
-      {/* MODAL 1: ADD SUB-ACCOUNT (Teacher / Student) */}
+      {/* MODAL 1: ADD TEACHER SUB-ACCOUNT */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border border-slate-200">
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-slate-900">Add School Sub-Account</h3>
+              <h3 className="text-lg font-bold text-slate-900">Add Teacher Account</h3>
               <p className="text-xs text-slate-500">
-                Create a faculty teacher or enrolled student sub-account under your school subscription.
+                Create a faculty teacher sub-account under your school subscription. Students register themselves.
               </p>
             </div>
 
@@ -953,25 +1038,19 @@ export default function OrgDashboardPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setSubRole("teacher")}
-                className={`py-2 rounded-lg transition-colors ${
-                  subRole === "teacher" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600"
-                }`}
-              >
-                Teacher Sub-Account
-              </button>
-              <button
-                type="button"
-                onClick={() => setSubRole("student")}
-                className={`py-2 rounded-lg transition-colors ${
-                  subRole === "student" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600"
-                }`}
-              >
-                Student Sub-Account
-              </button>
+            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-800 leading-relaxed flex items-start gap-2">
+              <Link2 className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+              <span>
+                <strong>Students join by themselves.</strong> Copy your <strong>Student Enrolment Link</strong> from the{" "}
+                <button
+                  type="button"
+                  onClick={() => { setShowAddModal(false); setActiveTab("branding"); }}
+                  className="font-bold underline text-indigo-700 hover:text-indigo-900"
+                >
+                  Link &amp; Branding
+                </button>{" "}
+                tab and share it — anyone who opens it can log in or register as a student under your school.
+              </span>
             </div>
 
             <form onSubmit={handleCreateSubAccount} className="space-y-4">
@@ -1015,19 +1094,6 @@ export default function OrgDashboardPage() {
                 </div>
               )}
 
-              {subRole === "student" && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Student Matricule</label>
-                  <input
-                    type="text"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                    placeholder="e.g. MAT-2026-089"
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              )}
-
               <p className="text-[11px] text-slate-400">
                 * Default starter password will be set to <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-bold">password123</code>
               </p>
@@ -1046,7 +1112,7 @@ export default function OrgDashboardPage() {
                   disabled={submitting || !name || !email}
                   className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
                 >
-                  {submitting ? "Creating..." : "Save Sub-Account"}
+                  {submitting ? "Creating..." : "Create Teacher Account"}
                 </button>
               </div>
             </form>

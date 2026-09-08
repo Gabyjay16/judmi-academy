@@ -3,6 +3,7 @@ import { db, initDatabase } from "@/db";
 import { complaints, complaintForms, departments, organizations, users } from "@/db/schema";
 import { eq, desc, and, or, like } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { enforceServiceAccess } from "@/lib/plan-limits";
 import { generateId } from "@/lib/utils";
 
 // GET complaints: Students get their own; School Admins & delegated reviewers get school complaints with filters
@@ -28,6 +29,12 @@ export async function GET(req: NextRequest) {
       currentUser.role === "org_admin" || 
       currentUser.role === "admin" || 
       (currentUser.role === "teacher" && (currentUser as any).canManageComplaints === 1);
+
+    // Per-service access control for staff reviewers (granted by super admin)
+    if (isStaffReviewer && currentUser.orgId) {
+      const denied = await enforceServiceAccess("complaints", currentUser);
+      if (denied) return denied;
+    }
 
     if (isStaffReviewer && currentUser.orgId) {
       // 1. Fetch School Complaints with flexible sorting/filtering

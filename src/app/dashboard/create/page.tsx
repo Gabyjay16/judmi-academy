@@ -20,7 +20,10 @@ import {
   BookOpen,
   Lock,
   Zap,
-  Crown
+  Crown,
+  ListChecks,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { extractTextFromFile } from "@/lib/pdf-parser";
 import { UpgradeModal } from "@/components/UpgradeModal";
@@ -59,17 +62,16 @@ export default function CreateExamPage() {
   // Note & Generation inputs
   const [notes, setNotes] = useState("");
   const [subject, setSubject] = useState("General Science & Tech");
-  const [questionCount, setQuestionCount] = useState(10);
+  const [questionCount, setQuestionCount] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "mixed">("mixed");
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Exam Configuration Settings
-  const [title, setTitle] = useState("Midterm Assessment");
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("Automated timed assessment generated from curriculum notes.");
   
-  // Timer & Duration settings: Auto vs Custom
-  const [isAutoDuration, setIsAutoDuration] = useState(true);
-  const [customDurationMinutes, setCustomDurationMinutes] = useState<number>(10);
+  // Timer & Duration settings: blank defaults to number of questions (e.g. 20 questions = 20 mins)
+  const [durationMinutes, setDurationMinutes] = useState("");
 
   const [distributionMode, setDistributionMode] = useState<"general" | "shuffled">("shuffled");
   const [questionsPerStudent, setQuestionsPerStudent] = useState(5);
@@ -80,20 +82,26 @@ export default function CreateExamPage() {
 
   // Generated Questions List
   const [questionsList, setQuestionsList] = useState<EditableQuestion[]>([]);
+  const [showQuestions, setShowQuestions] = useState(false);
+
+  // File reading state
+  const [readingFile, setReadingFile] = useState(false);
+  const [fileReadNotice, setFileReadNotice] = useState<string | null>(null);
 
   // Publishing State
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishedCode, setPublishedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Computed Auto Duration: 1 min per question answered by student
-  const effectiveQuestionsToAnswer = distributionMode === "shuffled" 
-    ? Math.min(questionsPerStudent, Math.max(1, questionsList.length))
-    : Math.max(1, questionsList.length);
+// Exam time is always set manually by the teacher and is required before publishing.
+  const effectiveDurationMinutes = durationMinutes.trim()
+    ? Math.max(1, Math.min(300, parseInt(durationMinutes, 10) || 0))
+    : null;
 
-  const effectiveDurationMinutes = isAutoDuration
-    ? effectiveQuestionsToAnswer // 10 questions = 10 mins, 25 questions = 25 mins
-    : customDurationMinutes;
+  // Blank "number of questions" is allowed — defaults to 10 when left empty
+  const parsedQuestionCount = questionCount.trim()
+    ? Math.max(1, Math.min(100, parseInt(questionCount, 10) || 10))
+    : 10;
 
   // Sample notes loader for quick testing
   const handleLoadSampleNotes = () => {
@@ -111,12 +119,28 @@ export default function CreateExamPage() {
   // Handle File Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const text = await extractTextFromFile(file);
+    if (!file) return;
+    setReadingFile(true);
+    setFileReadNotice(null);
+    try {
+      const { text, ok, message } = await extractTextFromFile(file);
       setNotes(text);
-      if (!title || title === "Midterm Assessment") {
-        setTitle(`${file.name.replace(/\.[^/.]+$/, "")} Assessment`);
+      if (!ok) {
+        setFileReadNotice(`Couldn't use "${file.name}" — ${message}`);
+      } else {
+        const words = text.trim().split(/\s+/).filter(Boolean).length;
+        setFileReadNotice(
+          words > 0
+            ? `Imported ${file.name} — ${words.toLocaleString()} words ready for question generation.`
+            : `No text was found in "${file.name}". Please paste the text directly.`
+        );
       }
+    } catch (err) {
+      console.error("File read error:", err);
+      setFileReadNotice(`Could not read "${file.name}". Please paste the text directly.`);
+    } finally {
+      setReadingFile(false);
+      e.target.value = "";
     }
   };
 
@@ -134,7 +158,7 @@ export default function CreateExamPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           notes,
-          count: questionCount,
+          count: parsedQuestionCount,
           difficulty,
           subject,
           type: "mcq",
@@ -150,9 +174,10 @@ export default function CreateExamPage() {
 
       if (data.questions && data.questions.length > 0) {
         setQuestionsList(data.questions);
-        if (questionsPerStudent > data.questions.length) {
-          setQuestionsPerStudent(data.questions.length);
-        }
+        // Every student receives the full question set the teacher requested
+        // (e.g. "30 questions" means each student answers all 30 questions).
+        setQuestionsPerStudent(Math.max(1, data.questions.length));
+        setShowQuestions(false);
         setStep(2);
       } else {
         alert(data.error || "Could not generate questions. Please try again.");
@@ -217,7 +242,12 @@ export default function CreateExamPage() {
   // Publish Exam
   const handlePublish = async () => {
     if (!title.trim()) {
-      alert("Please provide an exam title.");
+      alert("Please provide an exam title. (Students see this title when the exam is about to start.)");
+      return;
+    }
+
+    if (!effectiveDurationMinutes) {
+      alert("Please set the exam time/duration in minutes before publishing.");
       return;
     }
 
@@ -232,7 +262,6 @@ export default function CreateExamPage() {
           subject,
           notesContent: notes,
           durationMinutes: effectiveDurationMinutes,
-          isAutoDuration,
           distributionMode,
           questionsPerStudent: distributionMode === "shuffled" ? questionsPerStudent : questionsList.length,
           passScorePercentage,
@@ -355,6 +384,23 @@ export default function CreateExamPage() {
                     className="hidden"
                   />
                 </label>
+                {readingFile && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Reading file…
+                  </span>
+                )}
+                {!readingFile && fileReadNotice && (
+                  <span
+                    className={
+                      fileReadNotice.startsWith("Couldn't") || fileReadNotice.startsWith("Could not") || fileReadNotice.startsWith("No text")
+                        ? "text-amber-600 text-xs font-semibold"
+                        : "text-emerald-600 text-xs font-semibold"
+                    }
+                  >
+                    {fileReadNotice}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -390,22 +436,19 @@ export default function CreateExamPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Questions to Generate <span className="text-slate-400 font-normal">(Type any number)</span>
+                  Questions to Generate <span className="text-slate-400 font-normal">(Type a number — leave blank to use 10)</span>
                 </label>
                 <input
                   type="number"
                   min={1}
                   max={100}
                   value={questionCount}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value) || 1;
-                    setQuestionCount(Math.max(1, Math.min(100, val)));
-                  }}
+                  onChange={(e) => setQuestionCount(e.target.value)}
                   placeholder="e.g. 10, 20, 25, 50"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
-                  {distributionMode === "shuffled" ? "Minimum 20 questions required for Shuffled Mode" : "Enter the exact number of questions you want generated"}
+                  {distributionMode === "shuffled" ? "Minimum 20 questions required for Shuffled Mode" : "Leave blank and we will generate 10. Type a number for a custom amount."}
                 </span>
               </div>
 
@@ -468,8 +511,8 @@ export default function CreateExamPage() {
                       return;
                     }
                     setDistributionMode("shuffled");
-                    if (questionCount < 20) {
-                      setQuestionCount(20);
+                    if (parsedQuestionCount < 20) {
+                      setQuestionCount("20");
                     }
                   }}
                   className={`p-4 rounded-2xl border-2 cursor-pointer transition-all relative ${
@@ -546,12 +589,13 @@ export default function CreateExamPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Exam Title
+                  Exam Title <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. First Term Biology Examination"
                   className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                 />
               </div>
@@ -576,58 +620,39 @@ export default function CreateExamPage() {
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-slate-800 flex items-center gap-2">
                     <Timer className="w-4 h-4 text-indigo-600" />
-                    <span>Test Duration / Timer</span>
+                    <span>Exam Time / Duration</span>
                   </label>
-                  <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                    {effectiveDurationMinutes} Minutes Total
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                    effectiveDurationMinutes
+                      ? "text-indigo-700 bg-indigo-50 border-indigo-100"
+                      : "text-amber-700 bg-amber-50 border-amber-200"
+                  }`}>
+                    {effectiveDurationMinutes ? `${effectiveDurationMinutes} Minutes` : "Set time below"}
                   </span>
                 </div>
 
-                {/* Auto vs Custom Radio */}
-                <div className="space-y-2 text-xs">
-                  <label className="flex items-start gap-2.5 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-white/80 transition-colors">
-                    <input
-                      type="radio"
-                      name="durationMode"
-                      checked={isAutoDuration}
-                      onChange={() => setIsAutoDuration(true)}
-                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <div>
-                      <span className="font-semibold text-slate-900 flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Auto Calculated Duration (1 min per question)</span>
-                      </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Automatically sets {effectiveQuestionsToAnswer} mins for {effectiveQuestionsToAnswer} questions to be answered (e.g. 10 questions = 10 mins, 25 questions = 25 mins).
-                      </p>
-                    </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Time limit for students (minutes) <span className="text-rose-500">*</span>
                   </label>
-
-                  <label className="flex items-start gap-2.5 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-white/80 transition-colors">
+                  <div className="flex items-center gap-2">
                     <input
-                      type="radio"
-                      name="durationMode"
-                      checked={!isAutoDuration}
-                      onChange={() => setIsAutoDuration(false)}
-                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      type="number"
+                      min={1}
+                      max={300}
+                      required
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(e.target.value)}
+                      placeholder="e.g. 45"
+                      className="w-28 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
-                    <div className="flex-1">
-                      <span className="font-semibold text-slate-900">Custom Duration</span>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <input
-                          type="number"
-                          min={1}
-                          max={300}
-                          disabled={isAutoDuration}
-                          value={customDurationMinutes}
-                          onChange={(e) => setCustomDurationMinutes(Math.max(1, Number(e.target.value)))}
-                          className="w-24 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-40"
-                        />
-                        <span className="text-slate-500 text-xs">Minutes</span>
-                      </div>
-                    </div>
-                  </label>
+                    <span className="text-slate-500 text-xs">Minutes</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    {durationMinutes.trim()
+                      ? `Students will have ${effectiveDurationMinutes} minutes.`
+                      : `Required. Enter how many minutes students get to complete the exam.`}
+                  </p>
                 </div>
               </div>
 
@@ -796,32 +821,96 @@ export default function CreateExamPage() {
             </div>
           </div>
 
+          {/* Review & Approve (Approve-first) */}
+          {!showQuestions && (
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-indigo-600/20">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-[11px] font-bold">
+                <Sparkles className="w-3.5 h-3.5" />
+                {questionsList.length} question{questionsList.length === 1 ? "" : "s"} are ready
+              </div>
+              <h3 className="text-xl font-extrabold mt-3">Review & Approve Your Exam</h3>
+              <p className="text-sm text-white/80 mt-1 max-w-lg">
+                Nothing has been published yet. View and edit every question, or approve right away to generate the exam code.
+              </p>
+
+              <div className="flex flex-wrap gap-2 mt-4 text-[11px] font-semibold">
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{questionsList.length} Questions</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{effectiveDurationMinutes ? `${effectiveDurationMinutes} mins` : "Time not set"}</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10 capitalize">{difficulty}</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{distributionMode === "shuffled" ? "Shuffled mode" : "General mode"}</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10">{parsedQuestionCount} targeted</span>
+              </div>
+
+              <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowQuestions(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white text-indigo-700 font-bold text-sm hover:bg-indigo-50 transition-colors"
+                >
+                  <ListChecks className="w-4 h-4" />
+                  View & Edit Questions
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={isPublishing || questionsList.length === 0}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-bold text-sm transition-colors"
+                >
+                  {isPublishing ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4" />
+                  )}
+                  {isPublishing ? "Publishing..." : "Approve & Generate Exam"}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 mt-3 text-[11px] text-white/70">
+                <Lock className="w-3.5 h-3.5" />
+                Publishing generates a 6-character code students use to join this exam.
+              </div>
+            </div>
+          )}
+
           {/* Question Bank Review & Editor */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuestions((s) => !s)}
+                    className="inline-flex items-center gap-1.5 p-2 -ml-2 rounded-xl hover:bg-slate-100 text-slate-700"
+                    title={showQuestions ? "Collapse question bank" : "Expand question bank"}
+                  >
+                    {showQuestions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
                   <span>Question Bank Studio</span>
                   <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                     {questionsList.length} Items
                   </span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Click on an option letter to change the correct answer key. Edit text freely.
+                  {showQuestions
+                    ? "Click on an option letter to change the correct answer key. Edit text freely."
+                    : "Questions are ready — click “View & Edit Questions” above to fine-tune them before publishing."}
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddCustomQuestion}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Question
-              </button>
+              {showQuestions && (
+                <button
+                  type="button"
+                  onClick={handleAddCustomQuestion}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Question
+                </button>
+              )}
             </div>
 
             {/* Questions List */}
+            {showQuestions && (
             <div className="space-y-4">
               {questionsList.map((q, qIdx) => (
                 <div
@@ -917,13 +1006,14 @@ export default function CreateExamPage() {
                 </div>
               ))}
             </div>
+            )}
 
             {/* Bottom Action CTA */}
             <div className="p-6 bg-white rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
               <div>
                 <h4 className="text-sm font-bold text-slate-900">Ready to publish exam?</h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Duration: <strong className="text-indigo-700">{effectiveDurationMinutes} minutes</strong> • Retakes: <strong className={allowRetake ? "text-emerald-700" : "text-amber-700"}>{allowRetake ? "Allowed" : "Disabled (1 attempt)"}</strong>
+                  Duration: <strong className="text-indigo-700">{effectiveDurationMinutes ? `${effectiveDurationMinutes} minutes` : "not set yet"}</strong> • Retakes: <strong className={allowRetake ? "text-emerald-700" : "text-amber-700"}>{allowRetake ? "Allowed" : "Disabled (1 attempt)"}</strong>
                 </p>
               </div>
 
@@ -979,7 +1069,7 @@ export default function CreateExamPage() {
                   {publishedCode}
                 </div>
                 <div className="text-[11px] text-indigo-700 font-semibold mt-1">
-                  ⏱️ {effectiveDurationMinutes} Mins • {allowRetake ? "Retakes Allowed" : "One Attempt Only"}
+                  ⏱️ {effectiveDurationMinutes ?? 0} Mins • {allowRetake ? "Retakes Allowed" : "One Attempt Only"}
                 </div>
               </div>
 

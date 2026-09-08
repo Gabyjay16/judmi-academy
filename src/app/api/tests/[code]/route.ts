@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { tests, questions, submissions, organizations } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { assignQuestionsToStudent } from "@/lib/question-shuffler";
 import { seedDemoData } from "@/db/seed";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest,
@@ -120,5 +121,47 @@ export async function GET(
   } catch (error: any) {
     console.error("Fetch test by code error:", error);
     return NextResponse.json({ error: error?.message || "Failed to fetch test" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  try {
+    await initDatabase();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+    }
+
+    const { code } = await params;
+    const testRows = await db
+      .select()
+      .from(tests)
+      .where(eq(tests.code, code.toUpperCase()))
+      .limit(1);
+
+    if (testRows.length === 0) {
+      return NextResponse.json({ error: "Test not found." }, { status: 404 });
+    }
+
+    const test = testRows[0];
+
+    // Only the owning teacher, an admin, or a member of the owning org may delete.
+    const isAdmin = user.role === "admin" || user.role === "org_admin" || user.role === "super_admin";
+    const ownsExam = test.teacherUserId === user.id;
+    const sameOrg = user.orgId && test.orgId === user.orgId;
+
+    if (!isAdmin && !ownsExam && !sameOrg) {
+      return NextResponse.json({ error: "You do not have permission to delete this exam." }, { status: 403 });
+    }
+
+    await db.delete(tests).where(eq(tests.id, test.id));
+
+    return NextResponse.json({ success: true, message: "Exam deleted successfully." });
+  } catch (error: any) {
+    console.error("Delete test error:", error);
+    return NextResponse.json({ error: error?.message || "Failed to delete test" }, { status: 500 });
   }
 }

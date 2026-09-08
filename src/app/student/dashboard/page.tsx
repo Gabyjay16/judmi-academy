@@ -28,7 +28,8 @@ import {
   Check,
   Send,
   HelpCircle,
-  Network
+  Network,
+  ShieldCheck
 } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import { exportStudentTranscriptPDF } from "@/lib/pdf-export";
@@ -58,12 +59,27 @@ export default function StudentDashboardPage() {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentName, setDocumentName] = useState<string | null>(null);
 
+<<<<<<< HEAD
   // Link School State
   const [showLinkSchoolModal, setShowLinkSchoolModal] = useState(false);
   const [linkSchoolCode, setLinkSchoolCode] = useState("");
   const [linkStudentId, setLinkStudentId] = useState("");
   const [linkingSchool, setLinkingSchool] = useState(false);
   const [linkSchoolError, setLinkSchoolError] = useState<string | null>(null);
+=======
+  // Read user's org branding (name/logo/color) from the persistent session.
+  const [branding, setBranding] = useState<any | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("judmi_user");
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      return u?.branding || null;
+    } catch {
+      return null;
+    }
+  });
+>>>>>>> origin/main
 
   useEffect(() => {
     fetchHistory();
@@ -243,10 +259,22 @@ export default function StudentDashboardPage() {
       <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-5 sm:p-8 text-white shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-bold uppercase tracking-wider">
-              <GraduationCap className="w-4 h-4" />
-              <span>Student Examination & Academic Hub</span>
-            </div>
+            {branding?.brandName ? (
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "#e0e7ff" }}>
+                {branding.logoData ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={branding.logoData} alt={branding.brandName} className="w-4 h-4 object-contain bg-white rounded" />
+                ) : (
+                  <Building2 className="w-3.5 h-3.5" />
+                )}
+                <span>{branding.brandName} · School Portal</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                <GraduationCap className="w-4 h-4" />
+                <span>Student Examination & Academic Hub</span>
+              </div>
+            )}
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               {student.name}
             </h1>
@@ -321,6 +349,26 @@ export default function StudentDashboardPage() {
             </button>
           </form>
         </div>
+
+        {/* AUTHENTICITY CHECKER TOOL */}
+        <Link
+          href="/student/plagiarism"
+          className="group flex items-center gap-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm p-3 sm:p-4 hover:bg-white/20 transition-all"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/90 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white flex items-center gap-1.5">
+              Plagiarism & Authenticity Checker
+              <span className="text-[9px] font-extrabold bg-emerald-400/90 text-emerald-950 px-1.5 py-0.5 rounded-full">NEW</span>
+            </p>
+            <p className="text-[11px] text-indigo-100/80">
+              Check your work for copied or AI-sounding content, get a verification code, and share it with your teacher.
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-indigo-100 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
 
       {/* Main Navigation Tabs */}

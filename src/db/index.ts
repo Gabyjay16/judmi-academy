@@ -35,6 +35,14 @@ export async function initDatabase() {
       );
     `);
 
+    // Safe column additions for organizations (branded school page / private access link)
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN access_key TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN brand_name TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN logo_data TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN brand_color TEXT;`); } catch {}
+    // Per-service access control (JSON string[]; NULL = full access/all services allowed)
+    try { await client.execute(`ALTER TABLE organizations ADD COLUMN allowed_services TEXT;`); } catch {}
+
     // 2. Users table
     await client.execute(`
       CREATE TABLE IF NOT EXISTS users (
@@ -60,6 +68,9 @@ export async function initDatabase() {
     try { await client.execute(`ALTER TABLE users ADD COLUMN exam_generations_used INTEGER DEFAULT 0;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN script_scans_used INTEGER DEFAULT 0;`); } catch {}
     try { await client.execute(`ALTER TABLE users ADD COLUMN essay_gradings_used INTEGER DEFAULT 0;`); } catch {}
+    try { await client.execute(`ALTER TABLE users ADD COLUMN allowed_services TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE users ADD COLUMN year TEXT;`); } catch {}
+    try { await client.execute(`ALTER TABLE users ADD COLUMN username TEXT;`); } catch {}
 
     // 3. Password Reset Requests table
     await client.execute(`
@@ -171,7 +182,26 @@ export async function initDatabase() {
       );
     `);
 
-    // 8. System Settings table (Global Admin switches)
+    // 8. Extract Info Documents table (AI field extraction & export records)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS extract_documents (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        field_definitions_json TEXT NOT NULL,
+        extracted_rows_json TEXT NOT NULL,
+        page_count INTEGER NOT NULL DEFAULT 1,
+        source_images_json TEXT,
+        export_format TEXT NOT NULL DEFAULT 'xlsx',
+        status TEXT NOT NULL DEFAULT 'ready',
+        error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // 9. System Settings table (Global Admin switches)
     await client.execute(`
       CREATE TABLE IF NOT EXISTS system_settings (
         key TEXT PRIMARY KEY,
@@ -246,6 +276,107 @@ export async function initDatabase() {
         assigned_reviewer_name TEXT,
         resolution_note TEXT,
         resolved_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // 12. Meetings table (Take Minutes — AI meeting transcription & minutes)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS meetings (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        meeting_date TEXT,
+        audio_name TEXT,
+        audio_url TEXT,
+        audio_chunks_json TEXT,
+        audio_duration_seconds INTEGER,
+        transcript_json TEXT,
+        speakers_json TEXT,
+        summary_json TEXT,
+        status TEXT NOT NULL DEFAULT 'recording',
+        error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+
+    // Safe column additions for meetings (chunked recordings)
+    try { await client.execute(`ALTER TABLE meetings ADD COLUMN audio_chunks_json TEXT;`); } catch {}
+
+    // 13. Plagiarism Checks table (student-run authenticity checks, verified by teachers via a code)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS plagiarism_checks (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        text_hash TEXT,
+        text_excerpt TEXT NOT NULL,
+        word_count INTEGER NOT NULL DEFAULT 0,
+        similarity_percent INTEGER NOT NULL DEFAULT 0,
+        ai_percent INTEGER NOT NULL DEFAULT 0,
+        combined_score INTEGER NOT NULL DEFAULT 0,
+        verdict TEXT NOT NULL DEFAULT 'approved',
+        analysis_json TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    // 14. Inverse Marking exercises + submissions (students mark the teacher's own script)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS inverse_markings (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        org_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        instruction TEXT,
+        questions_json TEXT NOT NULL,
+        tolerance INTEGER NOT NULL DEFAULT 1,
+        pass_threshold INTEGER NOT NULL DEFAULT 80,
+        duration_minutes INTEGER NOT NULL DEFAULT 0,
+        show_results_to_students INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    // Safe column additions for inverse_markings (time-limited marking)
+    try { await client.execute(`ALTER TABLE inverse_markings ADD COLUMN duration_minutes INTEGER DEFAULT 0;`); } catch {}
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS inverse_marking_submissions (
+        id TEXT PRIMARY KEY,
+        exercise_id TEXT NOT NULL REFERENCES inverse_markings(id) ON DELETE CASCADE,
+        student_name TEXT NOT NULL,
+        student_email TEXT,
+        marks_json TEXT NOT NULL,
+        total_teacher_marks INTEGER NOT NULL DEFAULT 0,
+        total_control_marks INTEGER NOT NULL DEFAULT 0,
+        total_max_marks INTEGER NOT NULL DEFAULT 0,
+        deviation_total INTEGER NOT NULL DEFAULT 0,
+        accuracy_score INTEGER NOT NULL DEFAULT 0,
+        passed INTEGER NOT NULL DEFAULT 0,
+        leniency INTEGER NOT NULL DEFAULT 0,
+        submitted_at TEXT NOT NULL
+      );
+    `);
+
+    // 15. Payments table (Fapshi subscriptions — plan granted only after SUCCESSFUL)
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        trans_id TEXT UNIQUE,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        email TEXT NOT NULL,
+        plan TEXT NOT NULL,
+        cycle TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'CREATED',
+        meta_json TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );

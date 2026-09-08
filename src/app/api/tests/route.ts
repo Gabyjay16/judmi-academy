@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { tests, questions, submissions } from "@/db/schema";
 import { generateId, generateTestCode } from "@/lib/utils";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { seedDemoData } from "@/db/seed";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
       subject,
       notesContent,
       durationMinutes,
-      isAutoDuration = false,
       distributionMode = "general", // "general" | "shuffled"
       questionsPerStudent = 10,
       passScorePercentage = 50,
@@ -34,7 +33,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "At least one question is required." }, { status: 400 });
     }
 
-    // Check user plan for shuffled mode permission
     const user = await getCurrentUser();
     const isPaid = user?.planType === "individual" || user?.planType === "school_pro" || user?.role === "admin";
     const finalDistributionMode = (distributionMode === "shuffled" && isPaid && questionsList.length >= 20) ? "shuffled" : "general";
@@ -43,13 +41,14 @@ export async function POST(req: NextRequest) {
       ? Math.min(Number(questionsPerStudent) || questionsList.length, questionsList.length)
       : questionsList.length;
 
-    // Time calculation: If teacher didn't set a time or selected auto, calculate 1 min per question to be answered
-    let finalDurationMinutes: number;
-    if (isAutoDuration || !durationMinutes || Number(durationMinutes) <= 0) {
-      finalDurationMinutes = actualQuestionsPerStudent; // 1 min per question
-    } else {
-      finalDurationMinutes = Number(durationMinutes);
+    // The exam time is set manually by the teacher in minutes (no auto-computed duration).
+    if (!durationMinutes || Number(durationMinutes) <= 0) {
+      return NextResponse.json(
+        { error: "Exam duration is required. Please set the time limit in minutes." },
+        { status: 400 }
+      );
     }
+    const finalDurationMinutes = Math.min(300, Math.max(1, Math.round(Number(durationMinutes))));
 
     const testId = generateId();
     let code = generateTestCode();
@@ -79,6 +78,8 @@ export async function POST(req: NextRequest) {
       shuffleOptions: shuffleOptions ? 1 : 0,
       showCorrectionsImmediately: showCorrectionsImmediately ? 1 : 0,
       allowRetake: allowRetake ? 1 : 0,
+      teacherUserId: (user as any)?.id || null,
+      orgId: (user as any)?.orgId || null,
       status: "active",
       createdAt: now,
       updatedAt: now,
@@ -123,20 +124,31 @@ export async function GET(req: NextRequest) {
     await initDatabase();
     await seedDemoData();
 
+    // Scope exams to the logged-in user. Admins see everything, org admins see
+    // their whole school, and teachers (including school-registered teachers)
+    // see ONLY the exams they created themselves — so the delete action on
+    // their dashboard always applies to an exam they own.
     const user = await getCurrentUser();
     let allTests;
-    if (user?.role === "admin") {
+    if (!user || user.role === "admin" || user.role === "super_admin") {
       allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
-    } else if (user?.orgId) {
-      allTests = await db.select().from(tests).where(
-        sql`${tests.orgId} = ${user.orgId} OR ${tests.teacherUserId} = ${user.id} OR ${tests.teacherUserId} IS NULL`
-      ).orderBy(desc(tests.createdAt));
-    } else if (user) {
-      allTests = await db.select().from(tests).where(
-        sql`${tests.teacherUserId} = ${user.id} OR ${tests.teacherUserId} IS NULL`
-      ).orderBy(desc(tests.createdAt));
+    } else if (user.role === "org_admin") {
+      const orgId = (user as any).orgId;
+      const own = eq(tests.teacherUserId, user.id);
+      const byOrg = orgId ? or(eq(tests.orgId, orgId), own) : own;
+      const legacy = and(isNull(tests.orgId), isNull(tests.teacherUserId));
+      allTests = await db
+        .select()
+        .from(tests)
+        .where(or(byOrg, legacy))
+        .orderBy(desc(tests.createdAt));
     } else {
-      allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
+      // Teachers (with or without a school): their own exams plus demo exams
+      allTests = await db
+        .select()
+        .from(tests)
+        .where(or(eq(tests.teacherUserId, user.id), isNull(tests.teacherUserId)))
+        .orderBy(desc(tests.createdAt));
     }
 
     // Get question count and submission count for each test

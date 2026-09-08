@@ -31,8 +31,9 @@ export async function seedDemoData() {
   const demoUsers = [
     {
       id: "user-admin-001",
-      name: "System Super Admin",
+      name: "Brandon Judmi",
       email: "admin@evalai.com",
+      username: "brandonjudmi",
       passwordHash: adminPasswordHash,
       role: "admin",
       orgId: null,
@@ -91,6 +92,13 @@ export async function seedDemoData() {
     if (existing.length === 0) {
       await db.insert(users).values(u);
     }
+  }
+
+  // Ensure the super admin login username is set (covers DBs seeded before the username column existed)
+  try {
+    await db.update(users).set({ username: "brandonjudmi", name: "Brandon Judmi" }).where(eq(users.id, "user-admin-001"));
+  } catch (e) {
+    console.error("Failed to set admin username:", e);
   }
 
   // 3. Seed Demo Test (BIO101)
@@ -253,11 +261,14 @@ export async function seedDemoData() {
   }
 
   // 4. Seed a completed test submission for Student Sarah Williams for instant history display
-  const existingSub = await db.select().from(submissions).where(eq(submissions.studentUserId, "user-student-001")).limit(1);
+  const existingSub = await db.select().from(submissions).where(eq(submissions.id, "demo-sub-sarah-001")).limit(1);
   if (existingSub.length === 0) {
+    // Resolve the real BIO101 test id (production may use a legacy id) so the FK reference is valid.
+    const bioTestRows = await db.select().from(tests).where(eq(tests.code, "BIO101")).limit(1);
+    const demoTestId = bioTestRows[0]?.id || testId;
     await db.insert(submissions).values({
       id: "demo-sub-sarah-001",
-      testId: testId,
+      testId: demoTestId,
       studentUserId: "user-student-001",
       studentName: "Sarah Williams",
       studentId: "STU-2026-001",

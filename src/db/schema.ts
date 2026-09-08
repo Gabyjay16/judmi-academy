@@ -8,6 +8,13 @@ export const organizations = sqliteTable("organizations", {
   seatLimit: integer("seat_limit").notNull().default(50),
   ownerEmail: text("owner_email").notNull(),
   status: text("status").notNull().default("active"), // "active" | "trial" | "past_due"
+  // Branded school page / private access link
+  accessKey: text("access_key"), // Secret required to open the branded /school/[slug] page
+  brandName: text("brand_name"), // Display name shown instead of "Judmi Academy"
+  logoData: text("logo_data"), // base64 PNG/JPEG/WebP logo, or URL
+  brandColor: text("brand_color"), // Theme color hex e.g. #4f46e5
+  // Per-service access control (set by super admin). NULL = full access (all services allowed).
+  allowedServices: text("allowed_services"), // JSON: string[] e.g. ["generateQuestions","scanScripts"]
   createdAt: text("created_at").notNull(),
 });
 
@@ -23,10 +30,12 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
+  username: text("username"), // Optional login username (e.g. super admin "brandonjudmi")
   passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("student"), // "admin" | "org_admin" | "teacher" | "student"
   orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
   departmentId: text("department_id").references(() => departments.id, { onDelete: "set null" }),
+  year: text("year"), // Student academic year / level (e.g. "Year 1", "Level 300")
   studentId: text("student_id"), // Matriculation / Student ID number
   avatarUrl: text("avatar_url"),
   planType: text("plan_type").notNull().default("free"), // "free" | "individual" | "school_pro" | "enterprise"
@@ -34,6 +43,8 @@ export const users = sqliteTable("users", {
   scriptScansUsed: integer("script_scans_used").notNull().default(0),
   essayGradingsUsed: integer("essay_gradings_used").notNull().default(0),
   canManageComplaints: integer("can_manage_complaints").notNull().default(0), // 1 = delegated review access
+  // Per-service access control (set by super admin). NULL = full access (all services allowed).
+  allowedServices: text("allowed_services"), // JSON: string[]
   status: text("status").notNull().default("active"), // "active" | "suspended" | "pending"
   createdAt: text("created_at").notNull(),
 });
@@ -162,11 +173,64 @@ export const complaints = sqliteTable("complaints", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const extractDocuments = sqliteTable("extract_documents", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  fieldDefinitionsJson: text("field_definitions_json").notNull(), // JSON: [{ name, type }]
+  extractedRowsJson: text("extracted_rows_json").notNull(), // JSON: Array<Record<fieldName, value>>
+  pageCount: integer("page_count").notNull().default(1),
+  sourceImagesJson: text("source_images_json"), // JSON: string[] (base64 snapshots)
+  exportFormat: text("export_format").notNull().default("xlsx"), // "xlsx" | "docx" | "csv" | "pdf"
+  status: text("status").notNull().default("ready"), // "processing" | "ready" | "error"
+  error: text("error"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const systemSettings = sqliteTable("system_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(), // "true" | "false" | string
   description: text("description"),
   updatedAt: text("updated_at").notNull(),
+});
+
+export const meetings = sqliteTable("meetings", {
+  id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  meetingDate: text("meeting_date"),
+  audioName: text("audio_name"),
+  audioUrl: text("audio_url"), // Vercel Blob public URL for the meeting recording
+  audioChunksJson: text("audio_chunks_json"), // JSON: { url, name, durationSeconds }[] for chunked recordings
+  audioDurationSeconds: integer("audio_duration_seconds"),
+  transcriptJson: text("transcript_json"), // JSON: TranscriptSegment[]
+  speakersJson: text("speakers_json"), // JSON: Speaker[] with optional user-renamed labels + clip start time
+  summaryJson: text("summary_json"), // JSON: MeetingSummary
+  status: text("status").notNull().default("recording"), // "recording" | "processing" | "ready" | "failed"
+  error: text("error"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Student-run authenticity/plagiarism checks verified by teachers via a code.
+export const plagiarismChecks = sqliteTable("plagiarism_checks", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  textHash: text("text_hash"), // sha256 of the checked text (integrity check)
+  textExcerpt: text("text_excerpt").notNull(), // preview shown to the teacher
+  wordCount: integer("word_count").notNull().default(0),
+  similarityPercent: integer("similarity_percent").notNull().default(0),
+  aiPercent: integer("ai_percent").notNull().default(0),
+  combinedScore: integer("combined_score").notNull().default(0),
+  verdict: text("verdict").notNull().default("approved"), // "approved" | "flagged"
+  analysisJson: text("analysis_json"), // JSON: { summary, flags: [{ sample, reason }] }
+  createdAt: text("created_at").notNull(),
 });
 
 export type Organization = typeof organizations.$inferSelect;
@@ -189,5 +253,69 @@ export type ComplaintForm = typeof complaintForms.$inferSelect;
 export type NewComplaintForm = typeof complaintForms.$inferInsert;
 export type Complaint = typeof complaints.$inferSelect;
 export type NewComplaint = typeof complaints.$inferInsert;
+export type PlagiarismCheck = typeof plagiarismChecks.$inferSelect;
+export type NewPlagiarismCheck = typeof plagiarismChecks.$inferInsert;
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type NewSystemSetting = typeof systemSettings.$inferInsert;
+export type ExtractDocument = typeof extractDocuments.$inferSelect;
+export type NewExtractDocument = typeof extractDocuments.$inferInsert;
+// Teacher-built "inverse marking" exercises: students mark the TEACHER's own
+// script against the per-question marks, and are graded on how closely their
+// marks match the teacher's control marks.
+export const inverseMarkings = sqliteTable("inverse_markings", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  ownerUserId: text("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  orgId: text("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  instruction: text("instruction"), // Note shown to students before they mark
+  questionsJson: text("questions_json").notNull(), // JSON: [{ id, prompt, maxMarks, markScheme, answer, controlMark, isTrap }]
+  tolerance: integer("tolerance").notNull().default(1), // agreement band (marks)
+  passThreshold: integer("pass_threshold").notNull().default(80), // accuracy % required to pass
+  durationMinutes: integer("duration_minutes").notNull().default(0), // 0 = no time limit
+  showResultsToStudents: integer("show_results_to_students").notNull().default(1), // reveal comparison to students after submit
+  status: text("status").notNull().default("active"), // "active" | "ended"
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const inverseMarkingSubmissions = sqliteTable("inverse_marking_submissions", {
+  id: text("id").primaryKey(),
+  exerciseId: text("exercise_id").notNull().references(() => inverseMarkings.id, { onDelete: "cascade" }),
+  studentName: text("student_name").notNull(),
+  studentEmail: text("student_email"),
+  marksJson: text("marks_json").notNull(), // JSON: [{ qId, marks, justification }]
+  totalTeacherMarks: integer("total_teacher_marks").notNull().default(0), // marks the student awarded
+  totalControlMarks: integer("total_control_marks").notNull().default(0), // teacher's own marks
+  totalMaxMarks: integer("total_max_marks").notNull().default(0),
+  deviationTotal: integer("deviation_total").notNull().default(0),
+  accuracyScore: integer("accuracy_score").notNull().default(0), // 0-100
+  passed: integer("passed").notNull().default(0), // 1 = true
+  leniency: integer("leniency").notNull().default(0), // signed avg deviation (+) over-marking
+  submittedAt: text("submitted_at").notNull(),
+});
+
+// Payment transactions with Fapshi (MTN Mobile Money / Orange Money). A user
+// only receives their paid plan after a webhook/status confirms SUCCESSFUL.
+export const payments = sqliteTable("payments", {
+  id: text("id").primaryKey(), // internal payment id, also used as Fapshi externalId
+  transId: text("trans_id").unique(), // Fapshi transaction id
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  email: text("email").notNull(),
+  plan: text("plan").notNull(), // "individual" | "school_pro"
+  cycle: text("cycle").notNull(), // "monthly" | "yearly"
+  amount: integer("amount").notNull(), // XAF, must match PRICING
+  status: text("status").notNull().default("CREATED"), // CREATED | PENDING | SUCCESSFUL | FAILED | EXPIRED
+  metaJson: text("meta_json"), // JSON: { orgName, role, name }
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export type Meeting = typeof meetings.$inferSelect;
+export type NewMeeting = typeof meetings.$inferInsert;
+export type InverseMarking = typeof inverseMarkings.$inferSelect;
+export type NewInverseMarking = typeof inverseMarkings.$inferInsert;
+export type InverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferSelect;
+export type NewInverseMarkingSubmission = typeof inverseMarkingSubmissions.$inferInsert;
+export type Payment = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;

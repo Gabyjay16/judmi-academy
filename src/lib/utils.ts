@@ -32,3 +32,24 @@ export function getGradeLetter(percentage: number): { letter: string; color: str
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 }
+
+/**
+ * Resolve the user's own dashboard (home) route from the cached user, so
+ * "Back to Home" after taking an exam returns to their dashboard instead of
+ * the public marketing homepage (which looks logged out). Falls back to "/".
+ */
+export function getHomePathFromStorage(): string {
+  if (typeof window === "undefined") return "/";
+  try {
+    const cached = localStorage.getItem("judmi_user");
+    if (!cached) return "/";
+    const role = JSON.parse(cached)?.role || "";
+    if (role === "student") return "/student/dashboard";
+    if (role === "org_admin") return "/org/dashboard";
+    if (role === "admin" || role === "super_admin") return "/admin";
+    if (role === "teacher") return "/dashboard";
+    return "/";
+  } catch {
+    return "/";
+  }
+}

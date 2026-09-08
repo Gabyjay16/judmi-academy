@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
 import { users, organizations } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { hashPassword, verifyPassword, generateSessionToken, getCurrentUser, AUTH_COOKIE_NAME } from "@/lib/auth";
 import { generateId } from "@/lib/utils";
 import { seedDemoData } from "@/db/seed";
+
+// Persistent login: keep users signed in until they explicitly log out.
+const SESSION_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,10 +41,18 @@ export async function GET(req: NextRequest) {
         id: user.id,
         name: user.name,
         email: user.email,
+        username: user.username || null,
         role: user.role,
         studentId: user.studentId,
         orgId: user.orgId,
         organizationName: organization?.name || null,
+        branding: organization
+          ? {
+              brandName: organization.brandName || organization.name,
+              brandColor: organization.brandColor || "#4f46e5",
+              logoData: organization.logoData || null,
+            }
+          : null,
         planType: isProOverride && user.planType === "free" ? "individual" : (user.planType || "free"),
         actualPlanType: user.planType || "free",
         isPro: isProOverride,
@@ -56,11 +67,11 @@ export async function GET(req: NextRequest) {
       globalSettings,
     });
 
-    // Ensure session cookie is refreshed and persistent for 30 days
+    // Ensure session cookie is refreshed and persistent (users stay logged in until they log out)
     response.cookies.set(AUTH_COOKIE_NAME, token, {
       path: "/",
       httpOnly: true,
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: SESSION_MAX_AGE, // persistent login
       sameSite: "lax",
     });
 
@@ -98,22 +109,53 @@ export async function POST(req: NextRequest) {
       const identifier = (body.phone || body.email || "").trim().toLowerCase();
       const { password } = body;
       if (!identifier || !password) {
-        return NextResponse.json({ error: "Phone number / email and password are required" }, { status: 400 });
+        return NextResponse.json({ error: "Username, phone number or email and password are required" }, { status: 400 });
       }
 
-      const userRows = await db.select().from(users).where(eq(users.email, identifier)).limit(1);
+      // Match by email OR username (usernames are stored lowercase, e.g. "brandonjudmi")
+      const userRows = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.email, identifier), eq(users.username, identifier)))
+        .limit(1);
       if (userRows.length === 0) {
-        return NextResponse.json({ error: "Invalid phone number / email or password" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid username / phone / email or password" }, { status: 401 });
       }
 
       const user = userRows[0];
+
+      // Branded school login: if an orgId/orgSlug is provided, the account must belong to that organization.
+      if (body.orgId || body.orgSlug) {
+        let scopedOrgId: string | null = body.orgId || null;
+        if (body.orgSlug && !scopedOrgId) {
+          const orgRows = await db.select().from(organizations).where(eq(organizations.slug, String(body.orgSlug).toLowerCase())).limit(1);
+          if (orgRows.length > 0) scopedOrgId = orgRows[0].id;
+        }
+        if (!user.orgId || user.orgId !== scopedOrgId) {
+          return NextResponse.json({ error: "This account does not belong to this school." }, { status: 403 });
+        }
+      }
+
       const isValid = await verifyPassword(password, user.passwordHash);
       if (!isValid) {
-        return NextResponse.json({ error: "Invalid phone number / email or password" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid username / phone / email or password" }, { status: 401 });
       }
 
       if (user.status === "suspended") {
         return NextResponse.json({ error: "Your account is suspended. Please contact the administrator." }, { status: 403 });
+      }
+
+      // Admin-switch login (used by the header logo popup): the account must be a
+      // school administrator, and when a school is supplied it must be the same one.
+      if (body.adminLogin) {
+        const isSchoolAdmin = user.role === "org_admin" || user.role === "admin";
+        if (!isSchoolAdmin) {
+          return NextResponse.json({ error: "Only a school administrator can sign in here." }, { status: 403 });
+        }
+        const requireOrgId = body.requireOrgId ? String(body.requireOrgId) : null;
+        if (requireOrgId && user.orgId !== requireOrgId) {
+          return NextResponse.json({ error: "This account is not an administrator of this school." }, { status: 403 });
+        }
       }
 
       let organization = null;
@@ -130,10 +172,18 @@ export async function POST(req: NextRequest) {
           id: user.id,
           name: user.name,
           email: user.email,
+          username: user.username || null,
           role: user.role,
           studentId: user.studentId,
           orgId: user.orgId,
           organizationName: organization?.name || null,
+          branding: organization
+            ? {
+                brandName: organization.brandName || organization.name,
+                brandColor: organization.brandColor || "#4f46e5",
+                logoData: organization.logoData || null,
+              }
+            : null,
           planType: user.planType || "free",
         },
       });
@@ -141,7 +191,7 @@ export async function POST(req: NextRequest) {
       response.cookies.set(AUTH_COOKIE_NAME, token, {
         path: "/",
         httpOnly: true,
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: SESSION_MAX_AGE, // persistent login
         sameSite: "lax",
       });
 
@@ -150,8 +200,18 @@ export async function POST(req: NextRequest) {
 
     // 3. SIGNUP
     if (action === "signup") {
-      const { name, password, role = "student", organizationName, studentId, schoolCode, departmentId } = body;
+      const { name, password, role = "student", organizationName, studentId, schoolCode, departmentId, year } = body;
       const cleanEmail = (body.phone || body.email || "").trim().toLowerCase();
+
+      // Teacher accounts must be created by an admin — except when the account
+      // is created as part of the paid checkout flow (paywall=true). Such an
+      // account starts on the free plan and is upgraded only after Fapshi
+      // confirms payment SUCCESSFUL.
+      if (role === "teacher" && body.paywall !== true) {
+        return NextResponse.json({
+          error: "Teacher accounts are created by your school administrator only. Please contact them to get your login credentials."
+        }, { status: 403 });
+      }
 
       if (!name || !cleanEmail || !password) {
         return NextResponse.json({ error: "Name, phone number / email, and password are required" }, { status: 400 });
@@ -208,6 +268,33 @@ export async function POST(req: NextRequest) {
 
         createdOrgId = orgMatch.id;
         linkedOrgName = orgMatch.name;
+      } else if (body.orgId || body.orgSlug) {
+        // Signing up via a school's branded page: link directly to that organization.
+        if (role === "student" && (!studentId || !studentId.trim())) {
+          return NextResponse.json({
+            error: "Student Matricule is required when registering under a School."
+          }, { status: 400 });
+        }
+        let directOrgId: string | null = body.orgId || null;
+        if (body.orgSlug && !directOrgId) {
+          const orgRows = await db.select().from(organizations).where(eq(organizations.slug, String(body.orgSlug).toLowerCase())).limit(1);
+          if (orgRows.length > 0) directOrgId = orgRows[0].id;
+        }
+        if (!directOrgId) {
+          return NextResponse.json({ error: "Invalid school link." }, { status: 400 });
+        }
+        const orgRows = await db.select().from(organizations).where(eq(organizations.id, directOrgId)).limit(1);
+        if (orgRows.length === 0) {
+          return NextResponse.json({ error: "School not found." }, { status: 404 });
+        }
+        const currentMembers = await db.select().from(users).where(eq(users.orgId, directOrgId));
+        if (currentMembers.length >= orgRows[0].seatLimit) {
+          return NextResponse.json({
+            error: `School organization '${orgRows[0].name}' has reached its member limit (${orgRows[0].seatLimit} seats). Please contact your administrator.`
+          }, { status: 403 });
+        }
+        createdOrgId = directOrgId;
+        linkedOrgName = orgRows[0].name;
       }
 
       const userId = generateId();
@@ -222,6 +309,7 @@ export async function POST(req: NextRequest) {
         role: role as any,
         orgId: createdOrgId,
         departmentId: departmentId || null,
+        year: role === "student" ? year || null : null,
         studentId: role === "student" ? studentId || null : null,
         planType,
         status: "active",
@@ -229,6 +317,21 @@ export async function POST(req: NextRequest) {
       });
 
       const token = generateSessionToken(userId);
+
+      let signupBranding: any = null;
+      let signupOrgName = linkedOrgName;
+      if (createdOrgId) {
+        const orgRows2 = await db.select().from(organizations).where(eq(organizations.id, createdOrgId)).limit(1);
+        if (orgRows2.length > 0) {
+          signupBranding = {
+            brandName: orgRows2[0].brandName || orgRows2[0].name,
+            brandColor: orgRows2[0].brandColor || "#4f46e5",
+            logoData: orgRows2[0].logoData || null,
+          };
+          signupOrgName = orgRows2[0].name;
+        }
+      }
+
       const response = NextResponse.json({
         success: true,
         token,
@@ -238,8 +341,11 @@ export async function POST(req: NextRequest) {
           email: cleanEmail,
           role,
           studentId: studentId || null,
+          departmentId: departmentId || null,
+          year: role === "student" ? year || null : null,
           orgId: createdOrgId,
-          organizationName: linkedOrgName,
+          organizationName: signupOrgName,
+          branding: signupBranding,
           planType,
         },
       });
@@ -247,7 +353,7 @@ export async function POST(req: NextRequest) {
       response.cookies.set(AUTH_COOKIE_NAME, token, {
         path: "/",
         httpOnly: true,
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: SESSION_MAX_AGE, // persistent login
         sameSite: "lax",
       });
 
@@ -311,7 +417,7 @@ export async function POST(req: NextRequest) {
       response.cookies.set(AUTH_COOKIE_NAME, token, {
         path: "/",
         httpOnly: true,
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge: SESSION_MAX_AGE,
         sameSite: "lax",
       });
 

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { ScoreCard } from "@/components/ScoreCard";
 import { CorrectionReview } from "@/components/CorrectionReview";
+import { getHomePathFromStorage } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ submissionId: string }>;
@@ -64,7 +65,7 @@ export default function TestResultPage({ params }: PageProps) {
         <h2 className="text-xl font-bold text-slate-900">Score Report Not Found</h2>
         <p className="text-xs text-slate-500">{error}</p>
         <Link
-          href="/"
+          href={getHomePathFromStorage()}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -81,7 +82,7 @@ export default function TestResultPage({ params }: PageProps) {
       {/* Top Breadcrumb */}
       <div className="flex items-center justify-between">
         <Link
-          href="/"
+          href={getHomePathFromStorage()}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
