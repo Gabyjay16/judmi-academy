@@ -115,7 +115,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const list = await db.select().from(essayGradings).orderBy(desc(essayGradings.createdAt)).limit(30);
+    const currentUser = await getCurrentUser();
+    let list;
+    if (currentUser && currentUser.role !== "admin") {
+      list = await db.select().from(essayGradings).where(eq(essayGradings.teacherUserId, currentUser.id)).orderBy(desc(essayGradings.createdAt)).limit(30);
+    } else {
+      list = await db.select().from(essayGradings).orderBy(desc(essayGradings.createdAt)).limit(30);
+    }
     return NextResponse.json({ gradings: list });
   } catch (error: any) {
     console.error("Fetch essays error:", error);

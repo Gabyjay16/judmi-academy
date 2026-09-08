@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, initDatabase } from "@/db";
-import { tests, submissions, users } from "@/db/schema";
+import { tests, submissions, users, organizations, departments } from "@/db/schema";
 import { eq, desc, or, and } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { seedDemoData } from "@/db/seed";
@@ -71,12 +71,36 @@ export async function GET() {
       .orderBy(desc(tests.createdAt))
       .limit(6);
 
+    let organizationName = null;
+    let organizationSlug = null;
+    let departmentName = null;
+
+    if (currentUser.orgId) {
+      const orgRows = await db.select().from(organizations).where(eq(organizations.id, currentUser.orgId)).limit(1);
+      if (orgRows.length > 0) {
+        organizationName = orgRows[0].name;
+        organizationSlug = orgRows[0].slug;
+      }
+    }
+
+    if ((currentUser as any).departmentId) {
+      const deptRows = await db.select().from(departments).where(eq(departments.id, (currentUser as any).departmentId)).limit(1);
+      if (deptRows.length > 0) {
+        departmentName = deptRows[0].name;
+      }
+    }
+
     return NextResponse.json({
       student: {
         id: currentUser.id,
         name: currentUser.name,
         email: currentUser.email,
         studentId: currentUser.studentId,
+        orgId: currentUser.orgId,
+        organizationName,
+        organizationSlug,
+        departmentId: (currentUser as any).departmentId,
+        departmentName,
       },
       stats: {
         totalTaken,

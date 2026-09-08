@@ -58,6 +58,13 @@ export default function StudentDashboardPage() {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentName, setDocumentName] = useState<string | null>(null);
 
+  // Link School State
+  const [showLinkSchoolModal, setShowLinkSchoolModal] = useState(false);
+  const [linkSchoolCode, setLinkSchoolCode] = useState("");
+  const [linkStudentId, setLinkStudentId] = useState("");
+  const [linkingSchool, setLinkingSchool] = useState(false);
+  const [linkSchoolError, setLinkSchoolError] = useState<string | null>(null);
+
   useEffect(() => {
     fetchHistory();
     fetchComplaints();
@@ -133,6 +140,38 @@ export default function StudentDashboardPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleLinkSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLinkSchoolError(null);
+    setLinkingSchool(true);
+
+    try {
+      const res = await fetch("/api/student/link-school", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolCode: linkSchoolCode.trim(),
+          studentId: linkStudentId.trim(),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setLinkSchoolError(json.error || "Failed to link school.");
+      } else {
+        setShowLinkSchoolModal(false);
+        setLinkSchoolCode("");
+        setLinkStudentId("");
+        fetchHistory();
+        fetchComplaints();
+      }
+    } catch (err: any) {
+      setLinkSchoolError(err.message || "Failed to link school.");
+    } finally {
+      setLinkingSchool(false);
+    }
+  };
+
   const handleSubmitComplaint = async (e: React.FormEvent) => {
     e.preventDefault();
     setComplaintError(null);
@@ -203,7 +242,7 @@ export default function StudentDashboardPage() {
       {/* Mobile-First Primary Hero & Exam Code Bar */}
       <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-5 sm:p-8 text-white shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-bold uppercase tracking-wider">
               <GraduationCap className="w-4 h-4" />
               <span>Student Examination & Academic Hub</span>
@@ -211,13 +250,39 @@ export default function StudentDashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               {student.name}
             </h1>
-            <p className="text-xs text-indigo-200">
-              {student.studentId ? `Student Matricule: ${student.studentId} • ` : ""}
-              {student.email}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap text-xs text-indigo-200">
+              {student.studentId && (
+                <span className="font-mono font-bold bg-white/10 px-2 py-0.5 rounded border border-white/15">
+                  Matricule: {student.studentId}
+                </span>
+              )}
+              {student.organizationName && (
+                <span className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-0.5 rounded-full text-[11px] font-bold border border-white/25">
+                  <Building2 className="w-3 h-3 text-indigo-300" />
+                  <span>{student.organizationName}</span>
+                </span>
+              )}
+              {student.departmentName && (
+                <span className="inline-flex items-center gap-1 bg-indigo-500/40 text-indigo-100 px-2 py-0.5 rounded-full text-[11px] font-bold border border-indigo-400/30">
+                  <Network className="w-3 h-3 text-indigo-300" />
+                  <span>{student.departmentName}</span>
+                </span>
+              )}
+              <span>• {student.email}</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {!student.organizationName && (
+              <button
+                onClick={() => setShowLinkSchoolModal(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-indigo-500/40 hover:bg-indigo-500/60 border border-indigo-400/40 text-white font-bold text-xs shadow-xs transition-colors"
+              >
+                <Building2 className="w-3.5 h-3.5 text-indigo-200" />
+                <span>Link to School</span>
+              </button>
+            )}
+
             <button
               onClick={handleDownloadPDF}
               disabled={history.length === 0}
@@ -790,6 +855,78 @@ export default function StudentDashboardPage() {
                 </button>
               </div>
 
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LINK TO SCHOOL MODAL */}
+      {showLinkSchoolModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border border-slate-200">
+            <div className="space-y-1">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Link to School Organization</h3>
+              <p className="text-xs text-slate-500">
+                Connect your account to your school or university to take institutional exams and submit petitions.
+              </p>
+            </div>
+
+            {linkSchoolError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{linkSchoolError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLinkSchool} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  School Code <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={linkSchoolCode}
+                  onChange={(e) => setLinkSchoolCode(e.target.value.toLowerCase())}
+                  placeholder="e.g. springfield-academy"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Student Matricule Number <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={linkStudentId}
+                  onChange={(e) => setLinkStudentId(e.target.value.toUpperCase())}
+                  placeholder="e.g. MAT-2026-001"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkSchoolModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={linkingSchool || !linkSchoolCode || !linkStudentId}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20"
+                >
+                  {linkingSchool ? "Linking..." : "Confirm Link"}
+                </button>
+              </div>
             </form>
           </div>
         </div>

@@ -226,14 +226,31 @@ export default function Navbar() {
             {/* If Authenticated: Show Upgrade & Profile with Logout */}
             {isUserAuthenticated ? (
               <div className="flex items-center gap-2">
-                {/* Upgrade Button */}
-                <Link
-                  href="/checkout?plan=individual"
-                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
-                >
-                  <Zap className="w-3.5 h-3.5 fill-slate-950" />
-                  <span>Upgrade</span>
-                </Link>
+                {/* Upgrade / Plan Status */}
+                {currentUser?.role !== "student" && (
+                  currentUser?.planType === "individual" ? (
+                    <span className="px-2.5 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-extrabold text-[11px] flex items-center gap-1">
+                      <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                      <span>PRO</span>
+                    </span>
+                  ) : currentUser?.planType === "school_pro" ? (
+                    <Link
+                      href="/org/dashboard"
+                      className="px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-[11px] flex items-center gap-1 hover:bg-emerald-100 transition-colors"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>School Pro</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href={currentUser?.role === "org_admin" ? "/checkout?plan=school_pro" : "/checkout?plan=individual"}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+                    >
+                      <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                      <span>Upgrade</span>
+                    </Link>
+                  )
+                )}
 
                 {/* Profile Dropdown */}
                 <div className="relative">
@@ -383,14 +400,32 @@ export default function Navbar() {
             {isUserAuthenticated ? (
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 {/* Upgrade Account Button */}
-                <Link
-                  href="/checkout?plan=individual"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
-                >
-                  <Zap className="w-4 h-4 fill-slate-950" />
-                  <span>Upgrade Account</span>
-                </Link>
+                {currentUser?.role !== "student" && (
+                  currentUser?.planType === "individual" ? (
+                    <div className="w-full py-2.5 px-4 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-extrabold text-xs flex items-center justify-center gap-2">
+                      <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      <span>Individual Pro Account Active</span>
+                    </div>
+                  ) : currentUser?.planType === "school_pro" ? (
+                    <Link
+                      href="/org/dashboard"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-xs flex items-center justify-center gap-2"
+                    >
+                      <Building2 className="w-4 h-4 text-emerald-600" />
+                      <span>School Pro Hub</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href={currentUser?.role === "org_admin" ? "/checkout?plan=school_pro" : "/checkout?plan=individual"}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                    >
+                      <Zap className="w-4 h-4 fill-slate-950" />
+                      <span>Upgrade Account</span>
+                    </Link>
+                  )
+                )}
 
                 {/* Logout Button */}
                 <button

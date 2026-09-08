@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
     await db.insert(tests).values({
       id: testId,
       code,
+      teacherUserId: user?.id || null,
+      orgId: user?.orgId || null,
       title: title.trim(),
       description: description || null,
       subject: subject || null,
@@ -121,7 +123,21 @@ export async function GET(req: NextRequest) {
     await initDatabase();
     await seedDemoData();
 
-    const allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
+    const user = await getCurrentUser();
+    let allTests;
+    if (user?.role === "admin") {
+      allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
+    } else if (user?.orgId) {
+      allTests = await db.select().from(tests).where(
+        sql`${tests.orgId} = ${user.orgId} OR ${tests.teacherUserId} = ${user.id} OR ${tests.teacherUserId} IS NULL`
+      ).orderBy(desc(tests.createdAt));
+    } else if (user) {
+      allTests = await db.select().from(tests).where(
+        sql`${tests.teacherUserId} = ${user.id} OR ${tests.teacherUserId} IS NULL`
+      ).orderBy(desc(tests.createdAt));
+    } else {
+      allTests = await db.select().from(tests).orderBy(desc(tests.createdAt));
+    }
 
     // Get question count and submission count for each test
     const enrichedTests = await Promise.all(
