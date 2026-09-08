@@ -11,7 +11,6 @@ import {
   BookOpen, 
   Camera, 
   ShieldCheck,
-  Building2,
   Smartphone
 } from "lucide-react";
 
@@ -132,15 +131,7 @@ export function UpgradeModal({
             <ArrowRight className="w-4 h-4" />
           </Link>
 
-          <div className="flex items-center justify-between text-xs pt-1 px-1">
-            <Link
-              href="/checkout?plan=school_pro"
-              className="text-slate-600 hover:text-indigo-600 font-semibold inline-flex items-center gap-1"
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>School Plan (25,000 FCFA/mo) →</span>
-            </Link>
-
+          <div className="flex items-center justify-center text-xs pt-1 px-1">
             <button
               type="button"
               onClick={onClose}

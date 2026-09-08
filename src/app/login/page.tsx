@@ -11,6 +11,7 @@ import {
   GraduationCap, 
   BookOpen, 
   Building2, 
+  HeartHandshake,
   CheckCircle2, 
   AlertCircle
 } from "lucide-react";
@@ -19,7 +20,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "org_admin" | "admin">("student");
+  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "org_admin" | "parent">("student");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +33,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", email, password }),
+        body: JSON.stringify({ action: "login", email, password, intendedRole: selectedRole }),
       });
 
       let data: any = null;
@@ -75,7 +76,7 @@ export default function LoginPage() {
 
   // Role selector: highlights the chosen account type without filling the form.
   // Fields stay empty so the user types their own credentials.
-  const handleSelectRole = (role: "student" | "teacher" | "org_admin") => {
+  const handleSelectRole = (role: "student" | "teacher" | "org_admin" | "parent") => {
     setSelectedRole(role);
     setEmail("");
     setPassword("");
@@ -105,7 +106,7 @@ export default function LoginPage() {
             <span>Who are you signing in as?</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-[11px] font-semibold">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-semibold">
             <button
               type="button"
               onClick={() => handleSelectRole("student")}
@@ -122,6 +123,15 @@ export default function LoginPage() {
             >
               <BookOpen className="w-4 h-4 shrink-0" />
               <span>Teacher</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSelectRole("parent")}
+              className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-colors shadow-xs text-center ${selectedRole === "parent" ? "bg-emerald-600 border-emerald-600 text-white" : "bg-white border-emerald-200/80 text-emerald-700 hover:bg-emerald-50"}`}
+            >
+              <HeartHandshake className="w-4 h-4 shrink-0" />
+              <span>Parent</span>
             </button>
 
             <button

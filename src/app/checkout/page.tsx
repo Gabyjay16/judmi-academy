@@ -86,6 +86,22 @@ export default function CheckoutPage() {
   const [submittingManual, setSubmittingManual] = useState(false);
   const [manualPending, setManualPending] = useState<any | null>(null);
 
+  // Billing separation: a logged-in solo teacher must only ever see the
+  // Solo Teacher billing place; a logged-in org admin only the School plan.
+  const lockedPlan: "individual" | "school_pro" | null =
+    currentUser?.role === "org_admin"
+      ? "school_pro"
+      : currentUser && currentUser.role !== "org_admin"
+      ? "individual"
+      : null;
+
+  useEffect(() => {
+    if (lockedPlan && plan !== lockedPlan) {
+      setPlan(lockedPlan);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockedPlan]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -458,33 +474,48 @@ export default function CheckoutPage() {
       {/* Plan & Cycle Selectors */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {/* Plan Selector */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setPlan("individual")}
-            className={`px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
-              plan === "individual"
-                ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Solo Teacher</span>
-          </button>
+        {lockedPlan ? (
+          <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-full sm:w-auto">
+            <span className="px-4 py-2.5 rounded-xl flex items-center gap-2 text-xs font-bold bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200">
+              {lockedPlan === "individual" ? (
+                <><BookOpen className="w-4 h-4" /><span>Solo Teacher</span></>
+              ) : (
+                <><Building2 className="w-4 h-4" /><span>School / Org</span></>
+              )}
+            </span>
+            <span className="pr-1 text-[10px] text-slate-500 font-semibold">
+              {lockedPlan === "individual" ? "Locked to your account plan" : "School account billing"}
+            </span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setPlan("individual")}
+              className={`px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
+                plan === "individual"
+                  ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Solo Teacher</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setPlan("school_pro")}
-            className={`px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
-              plan === "school_pro"
-                ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            <span>School / Org</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setPlan("school_pro")}
+              className={`px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
+                plan === "school_pro"
+                  ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>School / Org</span>
+            </button>
+          </div>
+        )}
 
         {/* Billing Cycle Toggle */}
         <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-full sm:w-auto">

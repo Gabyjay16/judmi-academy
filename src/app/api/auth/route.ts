@@ -149,6 +149,32 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Your account is suspended. Please contact the administrator." }, { status: 403 });
       }
 
+      // Role-gated sign-in sections: the login page sends which section the user
+      // picked (Student / Teacher / School / Parent). The account's actual role
+      // must match that section so e.g. a teacher cannot use the Student section.
+      if (!body.adminLogin) {
+        const section = String(body.intendedRole || body.role || "").toLowerCase();
+        const sectionRoles: Record<string, string> = {
+          student: "Student",
+          teacher: "Teacher",
+          org_admin: "School / Organization",
+          parent: "Parent / Guardian",
+          admin: "Administrator",
+        };
+        if (sectionRoles[section] && user.role !== section) {
+          const wrongAccount = user.role === "org_admin" || user.role === "admin"
+            ? "an administrative account"
+            : user.role === "parent"
+            ? "a Parent / Guardian account"
+            : user.role === "teacher"
+            ? "a Teacher account"
+            : "a Student account";
+          return NextResponse.json({
+            error: `Wrong sign-in section — this is ${wrongAccount}. Please sign in from the ${sectionRoles[section]} section instead.`,
+          }, { status: 403 });
+        }
+      }
+
       // Admin-switch login (used by the header logo popup): the account must be a
       // school administrator, and when a school is supplied it must be the same one.
       if (body.adminLogin) {

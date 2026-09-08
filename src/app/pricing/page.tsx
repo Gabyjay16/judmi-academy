@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   Sparkles, 
@@ -18,6 +18,25 @@ import {
 
 export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+
+  // Role-aware pricing: a logged-in solo teacher must be taken straight to their
+  // own billing place and must not see the organisation payment place.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/auth");
+        const data = await res.json();
+        if (data?.user) setCurrentUser(data.user);
+      } catch {}
+    })();
+  }, []);
+
+  const isLoggedInTeacher = currentUser?.role === "teacher";
+  const isLoggedInOrgAdmin = currentUser?.role === "org_admin" || currentUser?.role === "admin";
+  const showSoloCard = !isLoggedInOrgAdmin || isLoggedInTeacher;
+  const showSchoolCard = !isLoggedInTeacher;
+  const showSeatExpansion = !isLoggedInTeacher;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-10 sm:space-y-12">
@@ -79,7 +98,7 @@ export default function PricingPage() {
       </div>
 
       {/* Pricing Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 items-stretch">
+      <div className={`grid grid-cols-1 ${showSoloCard && showSchoolCard ? "md:grid-cols-3" : "md:grid-cols-2"} gap-6 sm:gap-8 items-stretch`}>
         
         {/* Tier 1: Free Trial / Starter */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col justify-between space-y-6">
@@ -126,7 +145,8 @@ export default function PricingPage() {
           </Link>
         </div>
 
-        {/* Tier 2: Individual Teacher Pro */}
+        {(showSoloCard && (
+        /* Tier 2: Individual Teacher Pro */
         <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-amber-500 shadow-xl shadow-amber-100/50 flex flex-col justify-between space-y-6 relative">
           <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[11px] font-bold uppercase tracking-wider shadow-sm flex items-center gap-1">
             <Smartphone className="w-3 h-3" />
@@ -194,8 +214,10 @@ export default function PricingPage() {
             Pay {billingCycle === "monthly" ? "5,000 FCFA" : "36,000 FCFA"} via Mobile Money
           </Link>
         </div>
+        ))}
 
-        {/* Tier 3: School & Organization */}
+        {(showSchoolCard && (
+        /* Tier 3: School & Organization */
         <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl flex flex-col justify-between space-y-6">
           <div className="space-y-4">
             <div>
@@ -258,10 +280,12 @@ export default function PricingPage() {
             Pay {billingCycle === "monthly" ? "25,000 FCFA" : "236,000 FCFA"} via Mobile Money
           </Link>
         </div>
+        ))}
 
       </div>
 
-      {/* Seat Expansion Info Card */}
+      {(showSeatExpansion && (
+      /* Seat Expansion Info Card */
       <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-3xl p-6 sm:p-8 border border-indigo-100 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -289,6 +313,7 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+      ))}
 
       {/* FAQ Section */}
       <div className="bg-slate-50 rounded-3xl p-6 sm:p-8 border border-slate-200/80 space-y-4">
