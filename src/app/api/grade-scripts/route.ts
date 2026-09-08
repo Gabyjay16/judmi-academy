@@ -139,7 +139,6 @@ Tasks:
             });
             continue;
           }
-          }
         } catch (visionErr) {
           console.error("AI Vision processing error:", visionErr);
         }

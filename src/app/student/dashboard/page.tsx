@@ -59,14 +59,13 @@ export default function StudentDashboardPage() {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentName, setDocumentName] = useState<string | null>(null);
 
-<<<<<<< HEAD
   // Link School State
   const [showLinkSchoolModal, setShowLinkSchoolModal] = useState(false);
   const [linkSchoolCode, setLinkSchoolCode] = useState("");
   const [linkStudentId, setLinkStudentId] = useState("");
   const [linkingSchool, setLinkingSchool] = useState(false);
   const [linkSchoolError, setLinkSchoolError] = useState<string | null>(null);
-=======
+
   // Read user's org branding (name/logo/color) from the persistent session.
   const [branding, setBranding] = useState<any | null>(() => {
     if (typeof window === "undefined") return null;
@@ -79,7 +78,6 @@ export default function StudentDashboardPage() {
       return null;
     }
   });
->>>>>>> origin/main
 
   useEffect(() => {
     fetchHistory();

@@ -78,8 +78,6 @@ export async function POST(req: NextRequest) {
       shuffleOptions: shuffleOptions ? 1 : 0,
       showCorrectionsImmediately: showCorrectionsImmediately ? 1 : 0,
       allowRetake: allowRetake ? 1 : 0,
-      teacherUserId: (user as any)?.id || null,
-      orgId: (user as any)?.orgId || null,
       status: "active",
       createdAt: now,
       updatedAt: now,
