@@ -7,6 +7,7 @@ interface OpenRouterOptions {
   temperature?: number;
   topP?: number;
   responseFormat?: "text" | "json";
+  forceProvider?: "meta" | "openrouter";
 }
 
 const REQUIRED_ROLE_KEY = "sk-or-v1-";
@@ -74,8 +75,9 @@ async function chatComplete(
       temperature: options.temperature ?? 0.4,
       top_p: options.topP ?? 0.95,
       ...(url === META_AI_URL ? { reasoning_effort: "minimal" } : {}),
-      response_format:
-        options.responseFormat === "json" ? { type: "json_object" } : undefined,
+      ...(url !== META_AI_URL && options.responseFormat === "json"
+        ? { response_format: { type: "json_object" } }
+        : {}),
     }),
   });
 
@@ -92,7 +94,11 @@ async function chatComplete(
   }
 
   const data = await response.json();
-  return data?.choices?.[0]?.message?.content || "";
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || content.trim() === "") {
+    throw new Error("AI API returned an empty response.");
+  }
+  return content;
 }
 
 /**
@@ -114,6 +120,17 @@ export async function callOpenRouter(
   parts.push({ type: "text", text: prompt });
 
   const metaKey = getMetaAIKey();
+  const openRouterKey = getOpenRouterKey();
+  const force = options.forceProvider;
+
+  if (force === "openrouter" || (!force && !metaKey)) {
+    if (!openRouterKey) {
+      throw new Error("AI API key is not configured. Set META_AI_API_KEY or OPENROUTER_API_KEY.");
+    }
+    const model = options.model || "google/gemini-2.5-flash";
+    return chatComplete("https://openrouter.ai/api/v1/chat/completions", openRouterKey, model, parts, options);
+  }
+
   if (metaKey) {
     try {
       const metaModel = options.model?.startsWith("meta/")
@@ -121,20 +138,16 @@ export async function callOpenRouter(
         : META_AI_MODEL;
       return await chatComplete(META_AI_URL, metaKey, metaModel, parts, options);
     } catch (error) {
-      const openRouterKey = getOpenRouterKey();
-      if (openRouterKey) {
-        console.warn("Meta AI call failed, falling back to OpenRouter:", error);
-      } else {
+      if (force === "meta" || !openRouterKey) {
         throw error;
       }
+      console.warn("Meta AI call failed, falling back to OpenRouter:", error);
     }
-  }
-
-  const apiKey = getOpenRouterKey();
-  if (!apiKey) {
+  } else if (!openRouterKey) {
     throw new Error("AI API key is not configured. Set META_AI_API_KEY or OPENROUTER_API_KEY.");
   }
 
+  const apiKey = openRouterKey;
   const model = options.model || "google/gemini-2.5-flash";
   return chatComplete("https://openrouter.ai/api/v1/chat/completions", apiKey, model, parts, options);
 }
@@ -213,15 +226,63 @@ Respond with ONLY a valid JSON array, no markdown code fences, no extra text:
   { "${fields[0]?.name || "field"}": "value", ... }
 ]`;
 
-  const raw = await callOpenRouter(prompt, {
-    model: "google/gemini-2.5-flash",
-    temperature: 0.1,
-    responseFormat: "json",
-  }, images);
+  const parseRows = (raw: string): Array<Record<string, string>> | null => {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    let value: unknown;
+    try {
+      value = JSON.parse(cleaned);
+    } catch {
+      // Some providers wrap the payload (e.g. {"text": "..."}), try unwrapping.
+    }
+    if (typeof value === "string") {
+      try {
+        value = JSON.parse(value);
+      } catch {
+        return null;
+      }
+    }
+    if (Array.isArray(value)) return value as Array<Record<string, string>>;
+    if (value && typeof value === "object") {
+      const outer = value as Record<string, unknown>;
+      for (const key of ["text", "content", "response", "data", "records", "rows"]) {
+        const nested = outer[key];
+        if (typeof nested === "string") {
+          try {
+            const parsedNested = JSON.parse(nested);
+            if (Array.isArray(parsedNested)) return parsedNested as Array<Record<string, string>>;
+          } catch {
+            // ignore
+          }
+        }
+        if (Array.isArray(nested)) return nested as Array<Record<string, string>>;
+      }
+    }
+    return null;
+  };
 
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-  const parsed = JSON.parse(cleaned) as Array<Record<string, string>>;
-  if (!Array.isArray(parsed)) {
+  const attempt = async (provider: "meta" | "openrouter" | undefined) => {
+    const raw = await callOpenRouter(
+      prompt,
+      {
+        model: "google/gemini-2.5-flash",
+        temperature: 0.1,
+        responseFormat: "json",
+        forceProvider: provider,
+      },
+      images
+    );
+    return parseRows(raw);
+  };
+
+  // Primary attempt: default provider order (Meta first, OpenRouter fallback).
+  let parsed = await attempt(undefined);
+  // If the default path produced no usable rows and Meta was configured as the
+  // primary provider, retry the extraction directly against OpenRouter — its
+  // vision models reliably return a raw JSON array for this task.
+  if (!parsed && getMetaAIKey()) {
+    parsed = await attempt("openrouter");
+  }
+  if (!parsed || !Array.isArray(parsed)) {
     throw new Error("AI did not return a valid list of extracted records.");
   }
 
