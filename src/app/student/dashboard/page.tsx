@@ -1,76 +1,49 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  CheckCircle2,
-  ArrowRight,
-  KeyRound,
+import { 
+  GraduationCap, 
+  BookOpen, 
+  Timer, 
+  CheckCircle2, 
+  XCircle, 
+  Award, 
+  History, 
+  Play, 
+  ArrowRight, 
+  ExternalLink, 
+  KeyRound, 
+  FileCheck2,
+  TrendingUp,
+  Clock,
+  Sparkles,
+  Download,
   MessageSquare,
   AlertCircle,
   Upload,
   FileText,
-  ShieldCheck,
-  ChevronDown,
-  GraduationCap,
-  Megaphone,
+  Building2,
+  Check,
+  Send,
+  HelpCircle,
+  Network,
+  ShieldCheck
 } from "lucide-react";
-
-function RecentAnnouncements() {
-  const [items, setItems] = useState<any[]>([]);
-  useEffect(() => {
-    fetch("/api/org/announcements")
-      .then((r) => r.json())
-      .then((data) => setItems((data.announcements || []).slice(0, 3)))
-      .catch(() => {});
-  }, []);
-  if (items.length === 0) return null;
-  return (
-    <section className="animate-slide-up" style={{ animationDelay: "60ms" }}>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-          <Megaphone className="w-4 h-4 text-navy-700" /> Latest Announcements
-        </h2>
-        <Link href="/student/announcements" className="text-[11px] font-bold text-navy-700 hover:underline">View all</Link>
-      </div>
-      <div className="space-y-2">
-        {items.map((a) => (
-          <Link key={a.id} href="/student/announcements" className="surface card-hover px-4 py-3 flex items-start gap-3 transition-all">
-            <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${a.pinned ? "bg-amber-50 text-amber-600" : "bg-navy-50 text-navy-700"}`}>
-              <Megaphone className="w-4 h-4" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-sm font-bold text-slate-900 truncate">{a.title}</div>
-              {a.body && <div className="text-[11px] text-slate-500 truncate">{a.body}</div>}
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0 mt-0.5 ml-auto" />
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
+import { formatTime } from "@/lib/utils";
+import { exportStudentTranscriptPDF } from "@/lib/pdf-export";
 
 export default function StudentDashboardPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"exams" | "complaints">("exams");
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   const [examCode, setExamCode] = useState("");
-  const [showExamCode, setShowExamCode] = useState(false);
-  const [user, setUser] = useState<any | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("judmi_user");
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  });
 
   // Complaints State
   const [complaintsData, setComplaintsData] = useState<any | null>(null);
   const [complaintsLoading, setComplaintsLoading] = useState(false);
-  const [showComplaints, setShowComplaints] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [submittingComplaint, setSubmittingComplaint] = useState(false);
   const [complaintError, setComplaintError] = useState<string | null>(null);
@@ -86,19 +59,46 @@ export default function StudentDashboardPage() {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentName, setDocumentName] = useState<string | null>(null);
 
+  // Link School State
+  const [showLinkSchoolModal, setShowLinkSchoolModal] = useState(false);
+  const [linkSchoolCode, setLinkSchoolCode] = useState("");
+  const [linkStudentId, setLinkStudentId] = useState("");
+  const [linkingSchool, setLinkingSchool] = useState(false);
+  const [linkSchoolError, setLinkSchoolError] = useState<string | null>(null);
+
+  // Read user's org branding (name/logo/color) from the persistent session.
+  const [branding, setBranding] = useState<any | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("judmi_user");
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      return u?.branding || null;
+    } catch {
+      return null;
+    }
+  });
+
   useEffect(() => {
-    fetchUser();
+    fetchHistory();
     fetchComplaints();
   }, []);
 
-  const fetchUser = async () => {
+  const fetchHistory = async () => {
     try {
-      const res = await fetch("/api/auth");
-      const data = await res.json();
-      if (data.user) {
-        setUser(data.user);
+      setLoading(true);
+      const res = await fetch("/api/student/history");
+      if (res.status === 401) {
+        router.push("/login");
+        return;
       }
-    } catch {}
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      console.error("Failed to load student history:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchComplaints = async () => {
@@ -127,6 +127,15 @@ export default function StudentDashboardPage() {
     }
   };
 
+  const handleDownloadPDF = () => {
+    if (!data) return;
+    exportStudentTranscriptPDF({
+      student: data.student,
+      stats: data.stats,
+      history: data.history,
+    });
+  };
+
   // Handle document file upload (convert to Base64 data URL)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,6 +152,38 @@ export default function StudentDashboardPage() {
       setDocumentUrl(event.target?.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleLinkSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLinkSchoolError(null);
+    setLinkingSchool(true);
+
+    try {
+      const res = await fetch("/api/student/link-school", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolCode: linkSchoolCode.trim(),
+          studentId: linkStudentId.trim(),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setLinkSchoolError(json.error || "Failed to link school.");
+      } else {
+        setShowLinkSchoolModal(false);
+        setLinkSchoolCode("");
+        setLinkStudentId("");
+        fetchHistory();
+        fetchComplaints();
+      }
+    } catch (err: any) {
+      setLinkSchoolError(err.message || "Failed to link school.");
+    } finally {
+      setLinkingSchool(false);
+    }
   };
 
   const handleSubmitComplaint = async (e: React.FormEvent) => {
@@ -184,7 +225,6 @@ export default function StudentDashboardPage() {
       setDocumentUrl(null);
       setDocumentName(null);
       setShowComplaintModal(false);
-      setShowComplaints(true);
       fetchComplaints();
     } catch (err: any) {
       setComplaintError(err.message || "Failed to submit complaint.");
@@ -193,324 +233,512 @@ export default function StudentDashboardPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center text-slate-500 space-y-3">
+        <div className="w-10 h-10 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm font-semibold">Loading student portal & examination transcripts...</p>
+      </div>
+    );
+  }
+
+  const student = data?.student || { name: "Student", studentId: "" };
+  const stats = data?.stats || { totalTaken: 0, avgPercentage: 0, passRate: 0, highestScore: 0 };
+  const history = data?.history || [];
+  const availableExams = data?.availableExams || [];
   const complaintsList = complaintsData?.complaints || [];
   const formAvailable = complaintsData?.formAvailable === true;
   const formConfig = complaintsData?.formConfig;
-  const firstName = user?.name?.split(" ")[0] || "there";
-
-  const statusBadge = (status: string) => {
-    if (status === "pending") return <span className="badge badge-warning">Pending Review</span>;
-    if (status === "under_review") return <span className="badge badge-primary">Under Review</span>;
-    if (status === "resolved") return <span className="badge badge-success">Resolved</span>;
-    if (status === "rejected") return <span className="badge badge-danger">Rejected</span>;
-    return <span className="badge badge-neutral">{status}</span>;
-  };
-
-  const quickActions = [
-    {
-      href: "/student/forum",
-      icon: MessageSquare,
-      title: "Chat Forum",
-      desc: "Talk with your classmates and teachers in the General and Department forums",
-      color: "indigo",
-      bg: "bg-indigo-50",
-      border: "border-indigo-200",
-      iconColor: "text-indigo-600",
-    },
-    {
-      href: "/student/plagiarism",
-      icon: ShieldCheck,
-      title: "Plagiarism Checker",
-      desc: "Check your work for copied or AI-sounding content, get a verification code to share with your teacher",
-      color: "emerald",
-      bg: "bg-emerald-50",
-      border: "border-emerald-200",
-      iconColor: "text-emerald-600",
-    },
-    {
-      href: "#complaints",
-      onClick: () => {
-        setShowComplaints(true);
-        setShowComplaintModal(formAvailable);
-      },
-      icon: MessageSquare,
-      title: "Academic Complaints",
-      desc: "Submit formal requests about missing marks, grade discrepancies, or course records",
-      color: "amber",
-      bg: "bg-amber-50",
-      border: "border-amber-200",
-      iconColor: "text-amber-600",
-    },
-  ];
 
   return (
-    <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 sm:space-y-10 animate-fade-in">
-
-      {/* Welcome Hero Banner */}
-      <section className="relative overflow-hidden rounded-2xl border border-slate-200 shadow-lg shadow-navy-900/5 animate-slide-up">
-        <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-indigo-900" />
-        <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-amber-500/25 blur-3xl" />
-        <div className="absolute -bottom-28 -left-20 w-64 h-64 rounded-full bg-indigo-400/20 blur-3xl" />
-        <div className="relative px-5 sm:px-7 py-6 sm:py-8">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300">
-              Student Portal
-            </span>
-          </div>
-          <h1 className="mt-3 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Hello {firstName}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-navy-100/90 leading-relaxed">
-            {user?.studentId ? (
-              <span className="inline-flex items-center gap-1.5 font-semibold text-amber-300 mr-2">
-                <FileText className="w-4 h-4" />
-                Matricule: {user.studentId}
-              </span>
-            ) : null}
-            Start an assessment with your teacher&apos;s access code, check your work for authenticity, and manage academic requests.
-          </p>
-        </div>
-      </section>
-
-      {/* Incomplete Profile Banner */}
-      {user && (!user.departmentId || !user.year) && (
-        <section className="bg-amber-50 border border-amber-100 rounded-2xl px-5 py-4 flex items-center gap-4 animate-slide-up" style={{ animationDelay: "40ms" }}>
-          <span className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
-            <AlertCircle className="w-5 h-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-extrabold text-amber-900">Complete your profile</div>
-            <div className="text-xs text-amber-700 mt-0.5">Select your department and level so your school can see you in their records.</div>
-          </div>
-          <Link href="/student/profile/setup" className="btn-primary text-xs px-4 py-2 rounded-xl shrink-0 flex items-center gap-1.5">
-            Setup <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </section>
-      )}
-
-      {/* Start an Assessment (exam access code) accordion */}
-      <section className="animate-slide-up" style={{ animationDelay: "60ms" }}>
-        <button
-          type="button"
-          onClick={() => setShowExamCode(!showExamCode)}
-          className="w-full surface card-hover p-5 sm:p-6 flex items-center justify-between gap-4 transition-all text-left"
-        >
-          <span className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <span className="w-12 h-12 shrink-0 rounded-xl bg-navy-900 text-amber-500 border border-navy-800 flex items-center justify-center">
-              <GraduationCap className="w-5 h-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-base sm:text-lg font-bold text-slate-900 leading-tight">Start an Assessment</span>
-              <span className="block mt-1 text-[13px] sm:text-sm text-slate-500">Enter the exam access code your teacher gave you</span>
-            </span>
-          </span>
-          <ChevronDown className={`w-5 h-5 text-amber-500 shrink-0 transition-transform ${showExamCode ? "rotate-180" : ""}`} />
-        </button>
-
-        {showExamCode && (
-          <div className="surface-elevated mt-4 p-5 sm:p-6 rounded-2xl animate-fade-in">
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
-              <span>Have an Exam Access Code from your Teacher?</span>
-            </label>
-            <form onSubmit={handleJoinByCode} className="flex flex-col sm:flex-row items-center gap-2">
-              <input
-                type="text"
-                required
-                placeholder="ENTER 6-CHAR EXAM CODE (e.g. BIO101)"
-                value={examCode}
-                onChange={(e) => setExamCode(e.target.value.toUpperCase())}
-                maxLength={8}
-                className="w-full px-4 py-3 bg-white text-slate-900 rounded-xl border border-slate-200 text-sm font-mono font-extrabold tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:normal-case placeholder:font-sans placeholder:tracking-normal placeholder:text-slate-400"
-              />
-              <button
-                type="submit"
-                disabled={!examCode.trim()}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-1.5 shrink-0"
-              >
-                <span>Start Assessment</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        )}
-      </section>
-
-      {/* Quick Actions Grid */}
-      <section className="animate-slide-up" style={{ animationDelay: "120ms" }}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          {quickActions.map((action) => (
-            <Link
-              key={action.title}
-              href={action.href || "#complaints"}
-              onClick={action.onClick}
-              className="group surface card-hover p-4 sm:p-5 flex items-center gap-3 sm:gap-4 transition-all"
-            >
-              <span className={`w-11 h-11 shrink-0 rounded-xl border flex items-center justify-center group-hover:scale-105 transition-transform ${action.bg} ${action.border} ${action.iconColor}`}>
-                <action.icon className="w-5 h-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-base sm:text-lg font-bold text-slate-900 leading-tight">{action.title}</span>
-                <span className="block mt-0.5 text-[13px] leading-snug text-slate-500">{action.desc}</span>
-              </span>
-              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0 ml-auto" />
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Recent Announcements */}
-      <RecentAnnouncements />
-
-      {/* Academic Complaints */}
-      <section className="animate-slide-up" style={{ animationDelay: "180ms" }} id="complaints">
-        <button
-          type="button"
-          onClick={() => setShowComplaints(!showComplaints)}
-          className="w-full surface card-hover p-5 sm:p-6 flex items-center justify-between gap-4 transition-all text-left"
-        >
-          <span className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <span className="w-12 h-12 shrink-0 rounded-xl bg-navy-50 text-amber-600 border border-navy-100 flex items-center justify-center">
-              <MessageSquare className="w-5 h-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                {showComplaints ? "Hide Academic Complaints" : "Academic Complaints & Petitions"}
-              </span>
-              <span className="block mt-1 text-[13px] sm:text-sm text-slate-500">
-                {complaintsList.length} submitted petition{complaintsList.length === 1 ? "" : "s"}
-              </span>
-            </span>
-          </span>
-          <ChevronDown className={`w-5 h-5 text-amber-500 shrink-0 transition-transform ${showComplaints ? "rotate-180" : ""}`} />
-        </button>
-
-        {showComplaints && (
-          <div className="mt-4 space-y-6 animate-fade-in">
-
-            {complaintSuccess && (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between animate-fade-in">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{complaintSuccess}</span>
-                </div>
-                <button onClick={() => setComplaintSuccess(null)} className="text-emerald-600 hover:text-emerald-800">✕</button>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      
+      {/* Mobile-First Primary Hero & Exam Code Bar */}
+      <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-5 sm:p-8 text-white shadow-xl space-y-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            {branding?.brandName ? (
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "#e0e7ff" }}>
+                {branding.logoData ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={branding.logoData} alt={branding.brandName} className="w-4 h-4 object-contain bg-white rounded" />
+                ) : (
+                  <Building2 className="w-3.5 h-3.5" />
+                )}
+                <span>{branding.brandName} · School Portal</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                <GraduationCap className="w-4 h-4" />
+                <span>Student Examination & Academic Hub</span>
               </div>
             )}
-
-            <div className="surface-elevated overflow-hidden">
-              <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100">
-                <div className="space-y-1">
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-navy-700" />
-                    <span>Academic Complaints & Petitions</span>
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Submit formal requests about missing marks, grade discrepancies, or course record issues.
-                  </p>
-                </div>
-
-                {formAvailable ? (
-                  <button
-                    onClick={() => setShowComplaintModal(true)}
-                    className="btn-primary w-full sm:w-auto text-xs shrink-0"
-                  >
-                    <span>+ Submit Complaint</span>
-                  </button>
-                ) : (
-                  <div className="px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200 inline-flex items-center gap-1.5 shrink-0">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>Submission Disabled by Admin</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="px-4 sm:px-6 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Your Submitted Petitions</span>
-                <span className="text-xs text-slate-500 font-semibold">{complaintsList.length} Total</span>
-              </div>
-
-              {complaintsList.length === 0 ? (
-                <div className="p-8 sm:p-12 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-navy-50 text-navy-700 border border-navy-100 flex items-center justify-center mx-auto">
-                    <MessageSquare className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900">No complaints filed yet</h3>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    If you notice an error with your Continuous Assessment or Final Exam mark, click &quot;+ Submit Complaint&quot; above.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {complaintsList.map((comp: any) => (
-                    <div key={comp.id} className="p-5 sm:p-6 space-y-3 hover:bg-slate-50/50 transition-colors">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-extrabold text-slate-900">{comp.subject}</span>
-                            {comp.courseCode && (
-                              <span className="font-mono text-[10px] font-extrabold text-navy-800 bg-navy-50 px-2 py-0.5 rounded border border-navy-100">
-                                {comp.courseCode}
-                              </span>
-                            )}
-                            <span className="badge badge-neutral">
-                              {comp.nature}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            {comp.studentLevel} • {comp.departmentName || "General Faculty"} • Submitted {new Date(comp.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-
-                        <div>{statusBadge(comp.status)}</div>
-                      </div>
-
-                      <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                        {comp.description}
-                      </p>
-
-                      {comp.documentUrl && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <FileText className="w-4 h-4 text-navy-700" />
-                          <span className="text-slate-500">Attachment:</span>
-                          <a
-                            href={comp.documentUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-navy-700 font-bold hover:underline truncate max-w-xs"
-                          >
-                            {comp.documentName || "View Evidence Document"}
-                          </a>
-                        </div>
-                      )}
-
-                      {comp.resolutionNote && (
-                        <div className="p-3.5 rounded-2xl bg-navy-50 border border-navy-100 text-xs space-y-1">
-                          <div className="font-bold text-navy-950 flex items-center justify-between">
-                            <span>Official Administrative Decision:</span>
-                            <span className="text-[10px] text-slate-400">
-                              Reviewed by {comp.assignedReviewerName || "School Administration"}
-                            </span>
-                          </div>
-                          <p className="text-navy-900 leading-relaxed font-medium">
-                            {comp.resolutionNote}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              {student.name}
+            </h1>
+            <div className="flex items-center gap-2 flex-wrap text-xs text-indigo-200">
+              {student.studentId && (
+                <span className="font-mono font-bold bg-white/10 px-2 py-0.5 rounded border border-white/15">
+                  Matricule: {student.studentId}
+                </span>
               )}
+              {student.organizationName && (
+                <span className="inline-flex items-center gap-1 bg-white/20 text-white px-2 py-0.5 rounded-full text-[11px] font-bold border border-white/25">
+                  <Building2 className="w-3 h-3 text-indigo-300" />
+                  <span>{student.organizationName}</span>
+                </span>
+              )}
+              {student.departmentName && (
+                <span className="inline-flex items-center gap-1 bg-indigo-500/40 text-indigo-100 px-2 py-0.5 rounded-full text-[11px] font-bold border border-indigo-400/30">
+                  <Network className="w-3 h-3 text-indigo-300" />
+                  <span>{student.departmentName}</span>
+                </span>
+              )}
+              <span>• {student.email}</span>
             </div>
           </div>
-        )}
-      </section>
 
-      {/* COMPLAINT MODAL */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {!student.organizationName && (
+              <button
+                onClick={() => setShowLinkSchoolModal(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-indigo-500/40 hover:bg-indigo-500/60 border border-indigo-400/40 text-white font-bold text-xs shadow-xs transition-colors"
+              >
+                <Building2 className="w-3.5 h-3.5 text-indigo-200" />
+                <span>Link to School</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleDownloadPDF}
+              disabled={history.length === 0}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold text-xs shadow-xs transition-colors"
+            >
+              <Download className="w-4 h-4 text-indigo-200" />
+              <span>Download Transcript</span>
+            </button>
+          </div>
+        </div>
+
+        {/* PROMINENT MOBILE EXAM CODE BAR */}
+        <div className="bg-white/10 p-3 sm:p-4 rounded-2xl border border-white/15 backdrop-blur-sm space-y-2">
+          <label className="block text-xs font-bold text-indigo-200 flex items-center gap-1.5">
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Have an Exam Access Code from your Teacher?</span>
+          </label>
+          
+          <form onSubmit={handleJoinByCode} className="flex flex-col sm:flex-row items-center gap-2">
+            <input
+              type="text"
+              required
+              placeholder="ENTER 6-CHAR EXAM CODE (e.g. BIO101)"
+              value={examCode}
+              onChange={(e) => setExamCode(e.target.value.toUpperCase())}
+              maxLength={8}
+              className="w-full px-4 py-3 bg-white text-slate-900 rounded-xl text-sm font-mono font-extrabold tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:normal-case placeholder:font-sans placeholder:tracking-normal placeholder:text-slate-400"
+            />
+            <button
+              type="submit"
+              disabled={!examCode.trim()}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white font-bold text-xs tracking-wide shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <span>Start Assessment</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+
+        {/* AUTHENTICITY CHECKER TOOL */}
+        <Link
+          href="/student/plagiarism"
+          className="group flex items-center gap-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm p-3 sm:p-4 hover:bg-white/20 transition-all"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/90 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white flex items-center gap-1.5">
+              Plagiarism & Authenticity Checker
+              <span className="text-[9px] font-extrabold bg-emerald-400/90 text-emerald-950 px-1.5 py-0.5 rounded-full">NEW</span>
+            </p>
+            <p className="text-[11px] text-indigo-100/80">
+              Check your work for copied or AI-sounding content, get a verification code, and share it with your teacher.
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-indigo-100 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
+
+      {/* Main Navigation Tabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-full sm:w-auto overflow-x-auto text-xs font-bold">
+        <button
+          onClick={() => setActiveTab("exams")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+            activeTab === "exams"
+              ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <History className="w-4 h-4" />
+          <span>Assessments & Gradebook ({stats.totalTaken})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("complaints")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+            activeTab === "complaints"
+              ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Academic Complaints & Petitions ({complaintsList.length})</span>
+        </button>
+      </div>
+
+      {complaintSuccess && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between animate-fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{complaintSuccess}</span>
+          </div>
+          <button onClick={() => setComplaintSuccess(null)} className="text-emerald-600 hover:text-emerald-800">✕</button>
+        </div>
+      )}
+
+      {/* TAB 1: ASSESSMENTS & GRADEBOOK */}
+      {activeTab === "exams" && (
+        <div className="space-y-6">
+          {/* Summary Metrics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Tests Completed</span>
+              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+                {stats.totalTaken}
+              </div>
+              <span className="text-[10px] sm:text-[11px] text-slate-400">Total transcripts</span>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Average Score</span>
+              <div className="text-xl sm:text-3xl font-extrabold text-indigo-600 mt-1">
+                {stats.avgPercentage}%
+              </div>
+              <span className="text-[10px] sm:text-[11px] text-slate-400">Across all exams</span>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Pass Rate</span>
+              <div className="text-xl sm:text-3xl font-extrabold text-emerald-600 mt-1">
+                {stats.passRate}%
+              </div>
+              <span className="text-[10px] sm:text-[11px] text-slate-400">Success percentage</span>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
+              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Highest Mark</span>
+              <div className="text-xl sm:text-3xl font-extrabold text-amber-600 mt-1">
+                {stats.highestScore}%
+              </div>
+              <span className="text-[10px] sm:text-[11px] text-slate-400">Peak performance</span>
+            </div>
+          </div>
+
+          {/* Test History Table */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                  Examination Transcripts & Submissions
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Review test results, instant answer keys, and teacher feedback.
+                </p>
+              </div>
+            </div>
+
+            {history.length === 0 ? (
+              <div className="p-8 sm:p-12 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">No examination attempts yet</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Enter an exam access code in the box above or launch one of the available assessments below.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="px-4 sm:px-5 py-3">Assessment Title</th>
+                      <th className="px-3 sm:px-4 py-3">Score</th>
+                      <th className="px-3 sm:px-4 py-3">Status</th>
+                      <th className="px-3 sm:px-4 py-3">Time Spent</th>
+                      <th className="px-4 sm:px-5 py-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {history.map((sub: any) => (
+                      <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-4 sm:px-5 py-3.5">
+                          <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                            {sub.testTitle || "Examination"}
+                          </div>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                            <span className="font-mono uppercase font-bold text-indigo-600">{sub.testCode}</span>
+                            {sub.testSubject && <span>• {sub.testSubject}</span>}
+                            <span>• {new Date(sub.submittedAt).toLocaleDateString()}</span>
+                          </div>
+                        </td>
+
+                        <td className="px-3 sm:px-4 py-3.5">
+                          <div className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                            {sub.score} / {sub.maxScore}
+                          </div>
+                          <div className="text-[11px] font-bold text-indigo-600">
+                            {sub.percentage}%
+                          </div>
+                        </td>
+
+                        <td className="px-3 sm:px-4 py-3.5">
+                          {sub.passed === 1 ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] sm:text-[11px] font-bold">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Passed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] sm:text-[11px] font-bold">
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              Failed
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-3 sm:px-4 py-3.5 text-slate-600 text-xs">
+                          {formatTime(sub.timeSpentSeconds)}
+                        </td>
+
+                        <td className="px-4 sm:px-5 py-3.5 text-right">
+                          <Link
+                            href={`/test/result/${sub.id}`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors"
+                          >
+                            <Sparkles className="w-3 h-3 text-indigo-600" />
+                            <span className="hidden sm:inline">Review Corrections</span>
+                            <span className="sm:hidden">Review</span>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Available School Exams */}
+          {availableExams.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-indigo-600" />
+                <span>Available Assessments</span>
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                {availableExams.map((exam: any) => (
+                  <div
+                    key={exam.id}
+                    className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-xs text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                          {exam.code}
+                        </span>
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <Timer className="w-3 h-3" /> {exam.durationMinutes} mins
+                        </span>
+                      </div>
+
+                      <h3 className="font-bold text-slate-900 text-sm sm:text-base mt-2.5">
+                        {exam.title}
+                      </h3>
+                      {exam.subject && (
+                        <p className="text-xs text-slate-500 mt-0.5">{exam.subject}</p>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">Pass Mark: {exam.passScorePercentage}%</span>
+                      <Link
+                        href={`/test/${exam.code}`}
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors"
+                      >
+                        <span>Launch Test</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: ACADEMIC COMPLAINTS & PETITIONS */}
+      {activeTab === "complaints" && (
+        <div className="space-y-6">
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-indigo-600" />
+                <span>Academic Grievance & Grade Petitions</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Submit formal requests regarding missing marks, grade discrepancies, and course record issues.
+              </p>
+            </div>
+
+            {formAvailable ? (
+              <button
+                onClick={() => setShowComplaintModal(true)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>+ Submit Complaint</span>
+              </button>
+            ) : (
+              <div className="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
+                Forms Disabled by Admin
+              </div>
+            )}
+          </div>
+
+          {/* If Form is Disabled by Admin */}
+          {!formAvailable && (
+            <div className="p-6 sm:p-8 rounded-3xl bg-amber-50/80 border border-amber-200 text-amber-950 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-amber-900 text-sm">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>Complaint Submission Not Available Yet</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Academic complaint and petition submission is currently disabled for {complaintsData?.schoolName || "your school"} until configured and activated by your school administrator.
+              </p>
+            </div>
+          )}
+
+          {/* List of Student's Submitted Complaints */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Your Submitted Petitions</h3>
+              <span className="text-xs text-slate-500 font-semibold">{complaintsList.length} Total</span>
+            </div>
+
+            {complaintsList.length === 0 ? (
+              <div className="p-8 sm:p-12 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">No complaints filed yet</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  If you notice an error with your Continuous Assessment or Final Exam mark, click "+ Submit Complaint" above.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {complaintsList.map((comp: any) => (
+                  <div key={comp.id} className="p-5 sm:p-6 space-y-3 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-extrabold text-slate-900">{comp.subject}</span>
+                          {comp.courseCode && (
+                            <span className="font-mono text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                              {comp.courseCode}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                            {comp.nature}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          {comp.studentLevel} • {comp.departmentName || "General Faculty"} • Submitted {new Date(comp.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div>
+                        {comp.status === "pending" && (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
+                            ⏳ Pending Review
+                          </span>
+                        )}
+                        {comp.status === "under_review" && (
+                          <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 text-[11px] font-bold">
+                            🔍 Under Review
+                          </span>
+                        )}
+                        {comp.status === "resolved" && (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold">
+                            ✓ Resolved
+                          </span>
+                        )}
+                        {comp.status === "rejected" && (
+                          <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-800 border border-rose-200 text-[11px] font-bold">
+                            ✕ Rejected
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                      {comp.description}
+                    </p>
+
+                    {/* Attached Evidence Document */}
+                    {comp.documentUrl && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <FileText className="w-4 h-4 text-indigo-600" />
+                        <span className="text-slate-500">Attachment:</span>
+                        <a
+                          href={comp.documentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 font-bold hover:underline truncate max-w-xs"
+                        >
+                          {comp.documentName || "View Evidence Document"}
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Administrative Resolution Decision */}
+                    {comp.resolutionNote && (
+                      <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-100 text-xs space-y-1">
+                        <div className="font-bold text-indigo-950 flex items-center justify-between">
+                          <span>Official Administrative Decision:</span>
+                          <span className="text-[10px] text-slate-400">
+                            Reviewed by {comp.assignedReviewerName || "School Administration"}
+                          </span>
+                        </div>
+                        <p className="text-indigo-900 leading-relaxed font-medium">
+                          {comp.resolutionNote}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* COMPLAINT SUBMISSION MODAL */}
       {showComplaintModal && formConfig && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-5 border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-slate-900">Submit Academic Complaint</h3>
               <p className="text-xs text-slate-500">
@@ -526,7 +754,8 @@ export default function StudentDashboardPage() {
             )}
 
             <form onSubmit={handleSubmitComplaint} className="space-y-4">
-
+              
+              {/* Level & Department Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -536,7 +765,7 @@ export default function StudentDashboardPage() {
                     required
                     value={studentLevel}
                     onChange={(e) => setStudentLevel(e.target.value)}
-                    className="input-field py-2.5 text-xs font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {formConfig.levels?.map((lvl: string) => (
                       <option key={lvl} value={lvl}>{lvl}</option>
@@ -552,7 +781,7 @@ export default function StudentDashboardPage() {
                     <select
                       value={departmentId}
                       onChange={(e) => setDepartmentId(e.target.value)}
-                      className="input-field py-2.5 text-xs font-bold"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="">Select department (Optional)...</option>
                       {complaintsData.departments.map((dept: any) => (
@@ -565,6 +794,7 @@ export default function StudentDashboardPage() {
                 )}
               </div>
 
+              {/* Course Code & Nature Category */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -575,7 +805,7 @@ export default function StudentDashboardPage() {
                     value={courseCode}
                     onChange={(e) => setCourseCode(e.target.value.toUpperCase())}
                     placeholder="e.g. MAT201, BIO101"
-                    className="input-field py-2.5 text-xs font-mono font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
@@ -587,7 +817,7 @@ export default function StudentDashboardPage() {
                     required
                     value={nature}
                     onChange={(e) => setNature(e.target.value)}
-                    className="input-field py-2.5 text-xs font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {formConfig.categories?.map((cat: string) => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -596,6 +826,7 @@ export default function StudentDashboardPage() {
                 </div>
               </div>
 
+              {/* Subject Title */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Subject / Summary <span className="text-rose-500">*</span>
@@ -606,10 +837,11 @@ export default function StudentDashboardPage() {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g. Continuous Assessment mark not reflecting on portal"
-                  className="input-field py-2.5 text-xs font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
+              {/* Detailed Description */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Detailed Statement & Reason <span className="text-rose-500">*</span>
@@ -620,18 +852,19 @@ export default function StudentDashboardPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the issue clearly, including dates, assignment titles, or test scores..."
-                  className="input-field text-xs leading-relaxed"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
+              {/* Document / Evidence Upload Section */}
               {formConfig.allowDocumentUpload && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
                     <span>Supporting Document / Evidence (Optional)</span>
                     <span className="text-[10px] text-slate-400">PDF, JPG, PNG (Max 5MB)</span>
                   </label>
-
-                  <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center hover:border-navy-400 transition-colors">
+                  
+                  <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center hover:border-indigo-400 transition-colors">
                     <input
                       type="file"
                       accept="image/*,application/pdf"
@@ -640,7 +873,7 @@ export default function StudentDashboardPage() {
                     />
                     <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
                     {documentName ? (
-                      <span className="text-xs font-bold text-navy-800">{documentName}</span>
+                      <span className="text-xs font-bold text-indigo-700">{documentName}</span>
                     ) : (
                       <span className="text-xs text-slate-500">
                         Click or drag to upload exam sheet copy, receipt, or screenshot
@@ -654,7 +887,7 @@ export default function StudentDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowComplaintModal(false)}
-                  className="btn-outline text-xs"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
                 >
                   Cancel
                 </button>
@@ -662,12 +895,84 @@ export default function StudentDashboardPage() {
                 <button
                   type="submit"
                   disabled={submittingComplaint || !subject || !description}
-                  className="btn-primary text-xs disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20"
                 >
                   {submittingComplaint ? "Submitting..." : "Submit Complaint"}
                 </button>
               </div>
 
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LINK TO SCHOOL MODAL */}
+      {showLinkSchoolModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 border border-slate-200">
+            <div className="space-y-1">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Link to School Organization</h3>
+              <p className="text-xs text-slate-500">
+                Connect your account to your school or university to take institutional exams and submit petitions.
+              </p>
+            </div>
+
+            {linkSchoolError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{linkSchoolError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLinkSchool} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  School Code <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={linkSchoolCode}
+                  onChange={(e) => setLinkSchoolCode(e.target.value.toLowerCase())}
+                  placeholder="e.g. springfield-academy"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Student Matricule Number <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={linkStudentId}
+                  onChange={(e) => setLinkStudentId(e.target.value.toUpperCase())}
+                  placeholder="e.g. MAT-2026-001"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkSchoolModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={linkingSchool || !linkSchoolCode || !linkStudentId}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20"
+                >
+                  {linkingSchool ? "Linking..." : "Confirm Link"}
+                </button>
+              </div>
             </form>
           </div>
         </div>

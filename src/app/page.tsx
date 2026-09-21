@@ -63,7 +63,7 @@ export default function HomePage() {
         {/* Role Quick Links */}
         <div className="grid grid-cols-3 gap-2.5 max-w-md mx-auto pt-4 text-center">
           <Link
-            href="/login"
+            href="/signup?role=student"
             className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 hover:bg-indigo-100/70 transition-colors flex flex-col items-center gap-1 text-slate-800"
           >
             <GraduationCap className="w-4 h-4 text-indigo-600" />
@@ -72,7 +72,7 @@ export default function HomePage() {
           </Link>
 
           <Link
-            href="/login"
+            href="/signup?role=teacher"
             className="p-3 rounded-2xl bg-purple-50/70 border border-purple-100 hover:bg-purple-100/70 transition-colors flex flex-col items-center gap-1 text-slate-800"
           >
             <BookOpen className="w-4 h-4 text-purple-600" />
@@ -81,7 +81,7 @@ export default function HomePage() {
           </Link>
 
           <Link
-            href="/pricing"
+            href="/signup?role=org_admin"
             className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100 hover:bg-emerald-100/70 transition-colors flex flex-col items-center gap-1 text-slate-800"
           >
             <Building2 className="w-4 h-4 text-emerald-600" />

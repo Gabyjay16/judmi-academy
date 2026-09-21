@@ -313,9 +313,17 @@ export default function TestAnalyticsPage({ params }: PageProps) {
                       {formatTime(sub.timeSpentSeconds)}
                     </td>
 
-                    <td className="px-5 py-4 text-right text-slate-400 text-xs">
-                      {new Date(sub.submittedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })},{" "}
-                      {new Date(sub.submittedAt).toLocaleDateString()}
+                    <td className="px-5 py-4 text-right">
+                      <div className="text-slate-400 text-xs">
+                        {new Date(sub.submittedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })},{" "}
+                        {new Date(sub.submittedAt).toLocaleDateString()}
+                      </div>
+                      <Link
+                        href={`/test/result/${sub.id}`}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline mt-1"
+                      >
+                        <span>Review Corrections →</span>
+                      </Link>
                     </td>
                   </tr>
                 ))}

@@ -65,6 +65,8 @@ export async function POST(req: NextRequest) {
     await db.insert(tests).values({
       id: testId,
       code,
+      teacherUserId: user?.id || null,
+      orgId: user?.orgId || null,
       title: title.trim(),
       description: description || null,
       subject: subject || null,
@@ -76,8 +78,6 @@ export async function POST(req: NextRequest) {
       shuffleOptions: shuffleOptions ? 1 : 0,
       showCorrectionsImmediately: showCorrectionsImmediately ? 1 : 0,
       allowRetake: allowRetake ? 1 : 0,
-      teacherUserId: (user as any)?.id || null,
-      orgId: (user as any)?.orgId || null,
       status: "active",
       createdAt: now,
       updatedAt: now,
@@ -141,11 +141,11 @@ export async function GET(req: NextRequest) {
         .where(or(byOrg, legacy))
         .orderBy(desc(tests.createdAt));
     } else {
-      // Teachers (with or without a school): only their own exams.
+      // Teachers (with or without a school): their own exams plus demo exams
       allTests = await db
         .select()
         .from(tests)
-        .where(eq(tests.teacherUserId, user.id))
+        .where(or(eq(tests.teacherUserId, user.id), isNull(tests.teacherUserId)))
         .orderBy(desc(tests.createdAt));
     }
 
