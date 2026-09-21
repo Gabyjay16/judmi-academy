@@ -1,4 +1,4 @@
-import { callOpenRouter, getOpenRouterKey } from "./openrouter";
+import { callOpenRouter, getPrimaryAIKey } from "./openrouter";
 
 export interface GeneratedMCQ {
   questionText: string;
@@ -39,7 +39,7 @@ export interface EssayGradingResult {
   }[];
 }
 
-const GEMINI_API_KEY = getOpenRouterKey();
+const GEMINI_API_KEY = getPrimaryAIKey();
 
 /**
  * Direct OpenRouter chat completions caller (supports Google Gemini models
@@ -59,7 +59,7 @@ export async function generateMCQQuestions(
   subject?: string
 ): Promise<GeneratedMCQ[]> {
   if (!GEMINI_API_KEY) {
-    console.warn("GEMINI_API_KEY is not set. Generating questions using smart curriculum template generator.");
+    console.warn("No AI key is set. Generating questions using smart curriculum template generator.");
     return generateFallbackMCQs(notes, count, subject);
   }
 

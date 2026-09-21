@@ -11,6 +11,22 @@ interface OpenRouterOptions {
 
 const REQUIRED_ROLE_KEY = "sk-or-v1-";
 
+const META_AI_URL = "https://api.meta.ai/v1/chat/completions";
+const META_AI_MODEL = process.env.META_AI_MODEL || "muse-spark-1.1";
+
+/**
+ * Resolve the Meta AI Model API key from the environment.
+ * This is the primary key — used first for every chat-completions call.
+ */
+export function getMetaAIKey(): string {
+  const key =
+    process.env.META_AI_API_KEY ||
+    process.env.MODEL_API_KEY ||
+    process.env.NEXT_PUBLIC_META_AI_API_KEY ||
+    "";
+  return key.trim();
+}
+
 /**
  * Resolve the OpenRouter API key from the environment.
  * Supports either OPENROUTER_API_KEY or GEMINI_API_KEY for backward compatibility.
@@ -24,37 +40,29 @@ export function getOpenRouterKey(): string {
   return key.trim();
 }
 
+/**
+ * The primary AI key — Meta Model API first, OpenRouter as fallback.
+ */
+export function getPrimaryAIKey(): string {
+  return getMetaAIKey() || getOpenRouterKey();
+}
+
 function buildImageUrlFromBase64(base64: string): string {
   const clean = base64.replace(/^data:image\/[a-z]+;base64,/, "");
   return `data:image/jpeg;base64,${clean}`;
 }
 
 /**
- * Call OpenRouter's chat completions API with optional multi-modal (image) content.
- * Returns the assistant text content.
+ * Call a chat-completions endpoint (OpenAI-compatible). Returns the assistant text content.
  */
-export async function callOpenRouter(
-  prompt: string,
-  options: OpenRouterOptions = {},
-  images?: string[]
+async function chatComplete(
+  url: string,
+  apiKey: string,
+  model: string,
+  parts: ContentPart[],
+  options: OpenRouterOptions
 ): Promise<string> {
-  const apiKey = getOpenRouterKey();
-  if (!apiKey) {
-    throw new Error("OpenRouter API key is not configured. Set OPENROUTER_API_KEY.");
-  }
-
-  const model = options.model || "google/gemini-2.5-flash";
-
-  const parts: ContentPart[] = [];
-  for (const image of images || []) {
-    parts.push({
-      type: "image_url",
-      image_url: { url: buildImageUrlFromBase64(image) },
-    });
-  }
-  parts.push({ type: "text", text: prompt });
-
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -65,6 +73,7 @@ export async function callOpenRouter(
       messages: [{ role: "user", content: parts }],
       temperature: options.temperature ?? 0.4,
       top_p: options.topP ?? 0.95,
+      ...(url === META_AI_URL ? { reasoning_effort: "minimal" } : {}),
       response_format:
         options.responseFormat === "json" ? { type: "json_object" } : undefined,
     }),
@@ -72,7 +81,7 @@ export async function callOpenRouter(
 
   if (!response.ok) {
     const errorData = await response.text().catch(() => "");
-    let message = `OpenRouter API returned status ${response.status}`;
+    let message = `AI API returned status ${response.status}`;
     try {
       const parsed = JSON.parse(errorData);
       message = parsed?.error?.message || message;
@@ -87,10 +96,54 @@ export async function callOpenRouter(
 }
 
 /**
- * Returns true when the configured key looks like an OpenRouter key.
+ * Call Meta AI Model API first (primary provider); if it is not configured
+ * or the call fails, fall back to OpenRouter. Returns the assistant text.
+ */
+export async function callOpenRouter(
+  prompt: string,
+  options: OpenRouterOptions = {},
+  images?: string[]
+): Promise<string> {
+  const parts: ContentPart[] = [];
+  for (const image of images || []) {
+    parts.push({
+      type: "image_url",
+      image_url: { url: buildImageUrlFromBase64(image) },
+    });
+  }
+  parts.push({ type: "text", text: prompt });
+
+  const metaKey = getMetaAIKey();
+  if (metaKey) {
+    try {
+      const metaModel = options.model?.startsWith("meta/")
+        ? options.model.slice("meta/".length)
+        : META_AI_MODEL;
+      return await chatComplete(META_AI_URL, metaKey, metaModel, parts, options);
+    } catch (error) {
+      const openRouterKey = getOpenRouterKey();
+      if (openRouterKey) {
+        console.warn("Meta AI call failed, falling back to OpenRouter:", error);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  const apiKey = getOpenRouterKey();
+  if (!apiKey) {
+    throw new Error("AI API key is not configured. Set META_AI_API_KEY or OPENROUTER_API_KEY.");
+  }
+
+  const model = options.model || "google/gemini-2.5-flash";
+  return chatComplete("https://openrouter.ai/api/v1/chat/completions", apiKey, model, parts, options);
+}
+
+/**
+ * Returns true when a usable AI key is configured (Meta AI primary, or OpenRouter).
  */
 export function isOpenRouterKeyConfigured(): boolean {
-  const key = getOpenRouterKey();
+  const key = getPrimaryAIKey();
   return Boolean(key && key !== "your_api_key_here" && key !== "your_gemini_api_key_here");
 }
 
@@ -115,7 +168,7 @@ export async function extractFieldsFromImages(
   singleRecord = false
 ): Promise<Record<string, string>[]> {
   if (!isOpenRouterKeyConfigured()) {
-    throw new Error("AI API key is not configured. Set OPENROUTER_API_KEY.");
+    throw new Error("AI API key is not configured. Set META_AI_API_KEY or OPENROUTER_API_KEY.");
   }
   if (fields.length === 0) {
     throw new Error("You must define at least one data field to extract.");
